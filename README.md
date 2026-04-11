@@ -1,7 +1,6 @@
-markdown
 <div align="center">
 
-<img src="app/src/main/res/drawable/ic_app_icon.png" width="100" height="100" alt="BugeFiles Icon" />
+<img src="https://github.com/BugeStudioTeam/Buge-Files/blob/main/icon.jpeg" width="100" height="100" alt="BugeFiles Icon" />
 
 # BugeFiles
 
