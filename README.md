@@ -62,36 +62,6 @@
 | Target SDK | Android 14 (API 34) |
 | Build System | Gradle 9.0 (Kotlin DSL) |
 
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Android device or emulator running **Android 8.0 (Oreo) or higher**
-- [AndroidIDE](https://github.com/AndroidIDEOfficial/AndroidIDE) or Android Studio
-
-### Build from Source
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/BugeFiles.git
-   cd BugeFiles
-   ```
-
-2. **Open in AndroidIDE or Android Studio**
-
-3. **Build the project**
-   ```bash
-   ./gradlew assembleDebug
-   ```
-
-4. **Install on device**
-   ```bash
-   adb install app/build/outputs/apk/debug/app-debug.apk
-   ```
-
 ---
 
 ## 🔐 Permissions
