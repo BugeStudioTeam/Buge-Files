@@ -1,0 +1,50 @@
+[
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_files.xml",
+        "source": "com.buge.files.app-main-50:/layout/fragment_files.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/app_bar_main.xml",
+        "source": "com.buge.files.app-main-50:/layout/app_bar_main.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_favorites.xml",
+        "source": "com.buge.files.app-main-50:/layout/fragment_favorites.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_home.xml",
+        "source": "com.buge.files.app-main-50:/layout/fragment_home.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_settings.xml",
+        "source": "com.buge.files.app-main-50:/layout/fragment_settings.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_recent.xml",
+        "source": "com.buge.files.app-main-50:/layout/fragment_recent.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/item_file.xml",
+        "source": "com.buge.files.app-main-50:/layout/item_file.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/content_main.xml",
+        "source": "com.buge.files.app-main-50:/layout/content_main.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/activity_main.xml",
+        "source": "com.buge.files.app-main-50:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_gallery.xml",
+        "source": "com.buge.files.app-main-50:/layout/fragment_gallery.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_slideshow.xml",
+        "source": "com.buge.files.app-main-50:/layout/fragment_slideshow.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/nav_header_main.xml",
+        "source": "com.buge.files.app-main-50:/layout/nav_header_main.xml"
+    }
+]

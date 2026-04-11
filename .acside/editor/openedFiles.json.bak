@@ -1,0 +1,20 @@
+{
+  "allFiles": [
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/res/values/colors.xml",
+      "selection": {
+        "end": {
+          "column": 12,
+          "index": 2176,
+          "line": 38
+        },
+        "start": {
+          "column": 12,
+          "index": 2176,
+          "line": 38
+        }
+      }
+    }
+  ],
+  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/res/values/colors.xml"
+}

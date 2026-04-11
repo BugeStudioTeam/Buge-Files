@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.buge.files.app-mergeReleaseResources-47:/values-v18/values-v18.xml",
+            "map": [
+                {
+                    "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/f1629fd57b4f07b55936b3ed290482ba/transformed/appcompat-1.7.1/res/values-v18/values-v18.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "48",
+                        "endOffsets": "99"
+                    }
+                }
+            ]
+        }
+    ]
+}

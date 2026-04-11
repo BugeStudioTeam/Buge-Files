@@ -1,0 +1,1 @@
+/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/build/intermediates/compiled_navigation_res/debug/compileDebugNavigationResources/navigation_mobile_navigation.xml.flat 

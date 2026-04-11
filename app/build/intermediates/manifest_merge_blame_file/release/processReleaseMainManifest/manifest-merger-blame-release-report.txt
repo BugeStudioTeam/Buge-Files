@@ -1,0 +1,234 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.buge.files"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-permission
+11-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:5:5-6:38
+12        android:name="android.permission.READ_EXTERNAL_STORAGE"
+12-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:5:22-77
+13        android:maxSdkVersion="32" />
+13-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:6:9-35
+14    <uses-permission
+14-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:7:5-9:40
+15        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+15-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:7:22-78
+16        android:maxSdkVersion="29" />
+16-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:8:9-35
+17    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+17-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:10:5-76
+17-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:10:22-73
+18    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+18-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:11:5-75
+18-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:11:22-72
+19    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+19-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:12:5-75
+19-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:12:22-72
+20    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+20-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:13:5-14:40
+20-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:13:22-79
+21
+22    <permission
+22-->[androidx.core:core:1.17.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/eeb501ea82e7fb5f3fe326310d50a7db/transformed/core-1.17.0/AndroidManifest.xml:22:5-24:47
+23        android:name="com.buge.files.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+23-->[androidx.core:core:1.17.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/eeb501ea82e7fb5f3fe326310d50a7db/transformed/core-1.17.0/AndroidManifest.xml:23:9-81
+24        android:protectionLevel="signature" />
+24-->[androidx.core:core:1.17.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/eeb501ea82e7fb5f3fe326310d50a7db/transformed/core-1.17.0/AndroidManifest.xml:24:9-44
+25
+26    <uses-permission android:name="com.buge.files.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+26-->[androidx.core:core:1.17.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/eeb501ea82e7fb5f3fe326310d50a7db/transformed/core-1.17.0/AndroidManifest.xml:26:5-97
+26-->[androidx.core:core:1.17.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/eeb501ea82e7fb5f3fe326310d50a7db/transformed/core-1.17.0/AndroidManifest.xml:26:22-94
+27
+28    <application
+28-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:16:5-70:19
+29        android:allowBackup="true"
+29-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:17:9-35
+30        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+30-->[androidx.core:core:1.17.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/eeb501ea82e7fb5f3fe326310d50a7db/transformed/core-1.17.0/AndroidManifest.xml:28:18-86
+31        android:dataExtractionRules="@xml/data_extraction_rules"
+31-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:23:9-65
+32        android:extractNativeLibs="false"
+33        android:fullBackupContent="@xml/backup_rules"
+33-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:24:9-54
+34        android:icon="@mipmap/ic_app_icon"
+34-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:18:9-43
+35        android:label="@string/app_name"
+35-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:19:9-41
+36        android:roundIcon="@mipmap/ic_launcher_round"
+36-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:20:9-54
+37        android:supportsRtl="true"
+37-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:21:9-35
+38        android:theme="@style/Theme.AppTheme" >
+38-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:22:9-46
+39        <activity
+39-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:27:9-58:20
+40            android:name="com.buge.files.MainActivity"
+40-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:28:13-41
+41            android:exported="true"
+41-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:29:13-36
+42            android:windowSoftInputMode="adjustResize" >
+42-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:30:13-55
+43            <intent-filter>
+43-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:32:13-35:29
+44                <action android:name="android.intent.action.MAIN" />
+44-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:33:17-69
+44-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:33:25-66
+45
+46                <category android:name="android.intent.category.LAUNCHER" />
+46-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:34:17-77
+46-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:34:27-74
+47            </intent-filter>
+48
+49            <!-- 声明为文件管理器，可设为默认 -->
+50            <intent-filter>
+50-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:38:13-42:29
+51                <action android:name="android.intent.action.VIEW" />
+51-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:39:17-69
+51-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:39:25-66
+52
+53                <category android:name="android.intent.category.DEFAULT" />
+53-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:40:17-76
+53-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:40:27-73
+54
+55                <data android:mimeType="resource/folder" />
+55-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:41:17-60
+55-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:41:23-57
+56            </intent-filter>
+57            <intent-filter>
+57-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:44:13-49:29
+58                <action android:name="android.intent.action.VIEW" />
+58-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:39:17-69
+58-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:39:25-66
+59
+60                <category android:name="android.intent.category.DEFAULT" />
+60-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:40:17-76
+60-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:40:27-73
+61
+62                <data android:scheme="file" />
+62-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:41:17-60
+62-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:47:23-44
+63                <data android:mimeType="*/*" />
+63-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:41:17-60
+63-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:41:23-57
+64            </intent-filter>
+65            <intent-filter>
+65-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:51:13-56:29
+66                <action android:name="android.intent.action.GET_CONTENT" />
+66-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:52:17-76
+66-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:52:25-73
+67
+68                <category android:name="android.intent.category.DEFAULT" />
+68-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:40:17-76
+68-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:40:27-73
+69                <category android:name="android.intent.category.OPENABLE" />
+69-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:54:17-77
+69-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:54:27-74
+70
+71                <data android:mimeType="*/*" />
+71-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:41:17-60
+71-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:41:23-57
+72            </intent-filter>
+73        </activity>
+74
+75        <provider
+76            android:name="androidx.core.content.FileProvider"
+76-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:61:13-62
+77            android:authorities="com.buge.files.provider"
+77-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:62:13-60
+78            android:exported="false"
+78-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:63:13-37
+79            android:grantUriPermissions="true" >
+79-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:64:13-47
+80            <meta-data
+80-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:65:13-67:54
+81                android:name="android.support.FILE_PROVIDER_PATHS"
+81-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:66:17-67
+82                android:resource="@xml/file_paths" />
+82-->/storage/emulated/0/AndroidIDEProjects/BugeFiles/app/src/main/AndroidManifest.xml:67:17-51
+83        </provider>
+84        <provider
+84-->[androidx.emoji2:emoji2:1.3.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/c551450b59c50e6970670f6b3224d18a/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+85            android:name="androidx.startup.InitializationProvider"
+85-->[androidx.emoji2:emoji2:1.3.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/c551450b59c50e6970670f6b3224d18a/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+86            android:authorities="com.buge.files.androidx-startup"
+86-->[androidx.emoji2:emoji2:1.3.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/c551450b59c50e6970670f6b3224d18a/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+87            android:exported="false" >
+87-->[androidx.emoji2:emoji2:1.3.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/c551450b59c50e6970670f6b3224d18a/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+88            <meta-data
+88-->[androidx.emoji2:emoji2:1.3.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/c551450b59c50e6970670f6b3224d18a/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+89                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+89-->[androidx.emoji2:emoji2:1.3.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/c551450b59c50e6970670f6b3224d18a/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+90                android:value="androidx.startup" />
+90-->[androidx.emoji2:emoji2:1.3.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/c551450b59c50e6970670f6b3224d18a/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+91            <meta-data
+91-->[androidx.lifecycle:lifecycle-process:2.11.0-alpha03] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/566b53660295175c609238f231235876/transformed/lifecycle-process-2.11.0-alpha03/AndroidManifest.xml:29:13-31:52
+92                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+92-->[androidx.lifecycle:lifecycle-process:2.11.0-alpha03] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/566b53660295175c609238f231235876/transformed/lifecycle-process-2.11.0-alpha03/AndroidManifest.xml:30:17-78
+93                android:value="androidx.startup" />
+93-->[androidx.lifecycle:lifecycle-process:2.11.0-alpha03] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/566b53660295175c609238f231235876/transformed/lifecycle-process-2.11.0-alpha03/AndroidManifest.xml:31:17-49
+94            <meta-data
+94-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+95                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+95-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+96                android:value="androidx.startup" />
+96-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+97        </provider>
+98
+99        <uses-library
+99-->[androidx.window:window:1.0.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/8f9256eb1b7d0dec19f9e81b24dba257/transformed/window-1.0.0/AndroidManifest.xml:25:9-27:40
+100            android:name="androidx.window.extensions"
+100-->[androidx.window:window:1.0.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/8f9256eb1b7d0dec19f9e81b24dba257/transformed/window-1.0.0/AndroidManifest.xml:26:13-54
+101            android:required="false" />
+101-->[androidx.window:window:1.0.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/8f9256eb1b7d0dec19f9e81b24dba257/transformed/window-1.0.0/AndroidManifest.xml:27:13-37
+102        <uses-library
+102-->[androidx.window:window:1.0.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/8f9256eb1b7d0dec19f9e81b24dba257/transformed/window-1.0.0/AndroidManifest.xml:28:9-30:40
+103            android:name="androidx.window.sidecar"
+103-->[androidx.window:window:1.0.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/8f9256eb1b7d0dec19f9e81b24dba257/transformed/window-1.0.0/AndroidManifest.xml:29:13-51
+104            android:required="false" />
+104-->[androidx.window:window:1.0.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/8f9256eb1b7d0dec19f9e81b24dba257/transformed/window-1.0.0/AndroidManifest.xml:30:13-37
+105
+106        <receiver
+106-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+107            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+107-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+108            android:directBootAware="false"
+108-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+109            android:enabled="true"
+109-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+110            android:exported="true"
+110-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+111            android:permission="android.permission.DUMP" >
+111-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+112            <intent-filter>
+112-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+113                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+113-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+113-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+114            </intent-filter>
+115            <intent-filter>
+115-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+116                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+116-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+116-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+117            </intent-filter>
+118            <intent-filter>
+118-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+119                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+119-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+119-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+120            </intent-filter>
+121            <intent-filter>
+121-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+122                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+122-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+122-->[androidx.profileinstaller:profileinstaller:1.4.0] /data/user/0/com.tom.rv2ide/files/home/.gradle/caches/9.0.0/transforms/3d703533d1387dfdd46c549493b862a5/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+123            </intent-filter>
+124        </receiver>
+125    </application>
+126
+127</manifest>
