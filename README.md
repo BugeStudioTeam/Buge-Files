@@ -24,11 +24,6 @@ markdown
 
 
 
-![License](https://img.shields.io/badge/License-MIT-orange)
-
-
-
-
 ![Build](https://img.shields.io/badge/Build-Passing-success)
 
 
