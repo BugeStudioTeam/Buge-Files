@@ -19,14 +19,6 @@
 
 
 ![Material Design](https://img.shields.io/badge/Material%20Design-3-blue?logo=material-design)
-
-
-
-
-![Build](https://img.shields.io/badge/Build-Passing-success)
-
-
-
 </div>
 
 ---
