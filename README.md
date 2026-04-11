@@ -1,6 +1,4 @@
-### 🆕 新建 `README.md` （放在项目根目录 `/BugeFiles/README.md`）
-
-```markdown
+markdown
 <div align="center">
 
 <img src="app/src/main/res/drawable/ic_app_icon.png" width="100" height="100" alt="BugeFiles Icon" />
