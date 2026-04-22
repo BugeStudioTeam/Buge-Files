@@ -30,7 +30,9 @@ import com.buge.files.R
 import com.buge.files.databinding.FragmentFilesBinding
 import com.buge.files.model.FileItem
 import com.buge.files.util.PrefsManager
+import com.buge.files.util.ZipHelper
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import java.io.File
@@ -69,19 +71,20 @@ class FilesFragment : Fragment(), FabClickListener {
 
         adapter = FileAdapter(
             onItemClick = { handleClick(it) },
-            onItemLongClick = { showContextMenu(it, null) },
-            onMoreClick = { item, anchor -> showContextMenu(item, anchor) }
+            onItemLongClick = { item -> handleMultiSelectLongClick(item) },
+            onMoreClick = { item, anchor -> showContextMenu(item, anchor) },
+            onSelectionChanged = { updateSelectionUI(it) }
         )
 
         setupRecyclerView()
         observeViewModel()
 
-        // 返回键：先退出搜索，再返回上级目录
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     when {
+                        adapter.isMultiSelectEnabled() -> exitMultiSelectMode()
                         isInSearchMode -> {
                             searchView?.setQuery("", false)
                             searchView?.isIconified = true
@@ -100,11 +103,380 @@ class FilesFragment : Fragment(), FabClickListener {
     }
 
     override fun onFabClick() {
-        showCreateDialog()
+        if (adapter.isMultiSelectEnabled()) {
+            exitMultiSelectMode()
+        } else {
+            showCreateDialog()
+        }
+    }
+
+    private fun updateSelectionUI(selected: Set<FileItem>) {
+        val count = selected.size
+        if (count > 0) {
+            activity?.title = "$count selected"
+        } else if (adapter.isMultiSelectEnabled()) {
+            exitMultiSelectMode()
+        } else if (!isInSearchMode) {
+            activity?.title = viewModel.currentPath.value?.substringAfterLast("/")?.ifEmpty { "Files" } ?: "Files"
+        }
+    }
+
+    // 多选模式下长按处理 - 批量操作
+    private fun handleMultiSelectLongClick(item: FileItem) {
+        val selectedItems = adapter.getSelectedItems()
+        if (selectedItems.isEmpty()) return
+        
+        val options = mutableListOf<String>()
+        options.add("Batch Copy")
+        options.add("Batch Move")
+        options.add("Batch Delete")
+        options.add("Batch Compress")
+        options.add("Batch Properties")
+        
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+            .setTitle("Batch Operations (${selectedItems.size} items)")
+            .setItems(options.toTypedArray()) { _, which ->
+                when (which) {
+                    0 -> batchCopy(selectedItems)
+                    1 -> batchMove(selectedItems)
+                    2 -> batchDelete(selectedItems)
+                    3 -> batchCompress(selectedItems)
+                    4 -> batchProperties(selectedItems)
+                }
+            }
+            .show()
+    }
+
+    private fun batchCopy(items: List<FileItem>) {
+        if (items.isEmpty()) return
+        CopyMoveDialog(items, true) {
+            viewModel.loadPath(viewModel.currentPath.value ?: return@CopyMoveDialog)
+            exitMultiSelectMode()
+            showMd3Dialog("Success", "Copied ${items.size} item(s)")
+        }.show(parentFragmentManager, "copy_move_dialog")
+    }
+
+    private fun batchMove(items: List<FileItem>) {
+        if (items.isEmpty()) return
+        CopyMoveDialog(items, false) {
+            viewModel.loadPath(viewModel.currentPath.value ?: return@CopyMoveDialog)
+            exitMultiSelectMode()
+            showMd3Dialog("Success", "Moved ${items.size} item(s)")
+        }.show(parentFragmentManager, "copy_move_dialog")
+    }
+
+    private fun batchDelete(items: List<FileItem>) {
+        if (items.isEmpty()) return
+        showMd3ConfirmDialog(
+            title = "Batch Delete",
+            message = "Delete ${items.size} item(s)?"
+        ) {
+            var successCount = 0
+            items.forEach { item ->
+                if (viewModel.deleteFile(item)) successCount++
+            }
+            exitMultiSelectMode()
+            showMd3Dialog("Success", "Deleted $successCount item(s)")
+        }
+    }
+
+    private fun batchCompress(items: List<FileItem>) {
+        if (items.isEmpty()) return
+        
+        val inputLayout = TextInputLayout(
+            requireContext(), null,
+            com.google.android.material.R.attr.textInputOutlinedStyle
+        ).apply {
+            hint = "Archive name"
+            setPadding(48, 24, 48, 8)
+        }
+        val input = TextInputEditText(inputLayout.context)
+        input.setText("archive.zip")
+        inputLayout.addView(input)
+        
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+            .setTitle("Batch Compress")
+            .setMessage("Compress ${items.size} item(s) into ZIP")
+            .setView(inputLayout)
+            .setPositiveButton("Compress") { _, _ ->
+                val archiveName = input.text?.toString()?.trim() ?: "archive.zip"
+                if (!archiveName.endsWith(".zip")) {
+                    showMd3Dialog("Error", "Name must end with .zip")
+                    return@setPositiveButton
+                }
+                
+                val currentPath = viewModel.currentPath.value ?: return@setPositiveButton
+                val outputFile = File(currentPath, archiveName)
+                val zipHelper = ZipHelper()
+                
+                val progressDialog = MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+                    .setTitle("Compressing...")
+                    .setMessage("Please wait")
+                    .setCancelable(false)
+                    .create()
+                progressDialog.show()
+                
+                zipHelper.zipFiles(
+                    items.map { it.file },
+                    outputFile,
+                    object : ZipHelper.ZipCallback {
+                        override fun onProgress(current: Int, total: Int) {
+                            progressDialog.setMessage("Compressing: $current / $total")
+                        }
+                        
+                        override fun onComplete(success: Boolean, message: String) {
+                            progressDialog.dismiss()
+                            showMd3Dialog(if (success) "Success" else "Error", message)
+                            if (success) {
+                                viewModel.loadPath(currentPath)
+                                exitMultiSelectMode()
+                            }
+                        }
+                    }
+                )
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun batchProperties(items: List<FileItem>) {
+        // 计算总大小
+        var totalSize = 0L
+        var fileCount = 0
+        var folderCount = 0
+        
+        items.forEach { item ->
+            if (item.isDirectory) {
+                folderCount++
+                totalSize += getFolderSize(item.file)
+            } else {
+                fileCount++
+                totalSize += item.size
+            }
+        }
+        
+        val sizeText = when {
+            totalSize < 1024 -> "$totalSize B"
+            totalSize < 1024 * 1024 -> "%.1f KB".format(totalSize / 1024.0)
+            totalSize < 1024 * 1024 * 1024 -> "%.1f MB".format(totalSize / (1024.0 * 1024))
+            else -> "%.2f GB".format(totalSize / (1024.0 * 1024 * 1024))
+        }
+        
+        val message = """
+            Total items: ${items.size}
+            Folders: $folderCount
+            Files: $fileCount
+            Total size: $sizeText
+        """.trimIndent()
+        
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+            .setTitle("Batch Properties")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
+    }
+    
+    private fun getFolderSize(dir: File): Long {
+        var size = 0L
+        try {
+            dir.listFiles()?.forEach { file ->
+                if (file.isDirectory) {
+                    size += getFolderSize(file)
+                } else {
+                    size += file.length()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return size
+    }
+
+    private fun enterMultiSelectMode() {
+        activity?.findViewById<FloatingActionButton>(R.id.fab)?.hide()
+        requireActivity().invalidateOptionsMenu()
+    }
+
+    private fun exitMultiSelectMode() {
+        adapter.enableMultiSelectMode(false)
+        activity?.findViewById<FloatingActionButton>(R.id.fab)?.show()
+        requireActivity().invalidateOptionsMenu()
+        if (!isInSearchMode) {
+            activity?.title = viewModel.currentPath.value?.substringAfterLast("/")?.ifEmpty { "Files" } ?: "Files"
+        }
+    }
+
+    private fun copySelectedFiles() {
+        val selectedItems = adapter.getSelectedItems()
+        if (selectedItems.isEmpty()) return
+        CopyMoveDialog(selectedItems, true) {
+            viewModel.loadPath(viewModel.currentPath.value ?: return@CopyMoveDialog)
+            exitMultiSelectMode()
+            showMd3Dialog("Success", "Copied ${selectedItems.size} item(s)")
+        }.show(parentFragmentManager, "copy_move_dialog")
+    }
+
+    private fun moveSelectedFiles() {
+        val selectedItems = adapter.getSelectedItems()
+        if (selectedItems.isEmpty()) return
+        CopyMoveDialog(selectedItems, false) {
+            viewModel.loadPath(viewModel.currentPath.value ?: return@CopyMoveDialog)
+            exitMultiSelectMode()
+            showMd3Dialog("Success", "Moved ${selectedItems.size} item(s)")
+        }.show(parentFragmentManager, "copy_move_dialog")
+    }
+
+    private fun deleteSelectedFiles() {
+        val selectedItems = adapter.getSelectedItems()
+        if (selectedItems.isEmpty()) return
+        showMd3ConfirmDialog(
+            title = "Delete",
+            message = "Delete ${selectedItems.size} item(s)?"
+        ) {
+            var successCount = 0
+            selectedItems.forEach { item ->
+                if (viewModel.deleteFile(item)) successCount++
+            }
+            exitMultiSelectMode()
+            showMd3Dialog("Success", "Deleted $successCount item(s)")
+        }
+    }
+
+    private fun compressFiles(items: List<FileItem>) {
+        if (items.isEmpty()) return
+        
+        val inputLayout = TextInputLayout(
+            requireContext(), null,
+            com.google.android.material.R.attr.textInputOutlinedStyle
+        ).apply {
+            hint = "Archive name"
+            setPadding(48, 24, 48, 8)
+        }
+        val input = TextInputEditText(inputLayout.context)
+        input.setText("archive.zip")
+        inputLayout.addView(input)
+        
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+            .setTitle("Compress Files")
+            .setMessage("Create ZIP archive from ${items.size} item(s)")
+            .setView(inputLayout)
+            .setPositiveButton("Compress") { _, _ ->
+                val archiveName = input.text?.toString()?.trim() ?: "archive.zip"
+                if (!archiveName.endsWith(".zip")) {
+                    showMd3Dialog("Error", "Name must end with .zip")
+                    return@setPositiveButton
+                }
+                
+                val currentPath = viewModel.currentPath.value ?: return@setPositiveButton
+                val outputFile = File(currentPath, archiveName)
+                val zipHelper = ZipHelper()
+                
+                val progressDialog = MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+                    .setTitle("Compressing...")
+                    .setMessage("Please wait")
+                    .setCancelable(false)
+                    .create()
+                progressDialog.show()
+                
+                zipHelper.zipFiles(
+                    items.map { it.file },
+                    outputFile,
+                    object : ZipHelper.ZipCallback {
+                        override fun onProgress(current: Int, total: Int) {
+                            progressDialog.setMessage("Compressing: $current / $total")
+                        }
+                        
+                        override fun onComplete(success: Boolean, message: String) {
+                            progressDialog.dismiss()
+                            showMd3Dialog(if (success) "Success" else "Error", message)
+                            if (success) {
+                                viewModel.loadPath(currentPath)
+                                if (adapter.isMultiSelectEnabled()) exitMultiSelectMode()
+                            }
+                        }
+                    }
+                )
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun extractZipFile(zipItem: FileItem) {
+        if (zipItem.extension.lowercase() != "zip") return
+        
+        val inputLayout = TextInputLayout(
+            requireContext(), null,
+            com.google.android.material.R.attr.textInputOutlinedStyle
+        ).apply {
+            hint = "Destination folder name"
+            setPadding(48, 24, 48, 8)
+        }
+        val input = TextInputEditText(inputLayout.context)
+        input.setText(zipItem.name.replace(".zip", ""))
+        inputLayout.addView(input)
+        
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+            .setTitle("Extract Archive")
+            .setMessage("Extract to: ${zipItem.name}")
+            .setView(inputLayout)
+            .setPositiveButton("Extract") { _, _ ->
+                val folderName = input.text?.toString()?.trim() ?: zipItem.name.replace(".zip", "")
+                val currentPath = viewModel.currentPath.value ?: return@setPositiveButton
+                val destDir = File(currentPath, folderName)
+                val zipHelper = ZipHelper()
+                
+                val progressDialog = MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+                    .setTitle("Extracting...")
+                    .setMessage("Please wait")
+                    .setCancelable(false)
+                    .create()
+                progressDialog.show()
+                
+                zipHelper.unzipFile(
+                    zipItem.file,
+                    destDir,
+                    object : ZipHelper.ZipCallback {
+                        override fun onProgress(current: Int, total: Int) {
+                            progressDialog.setMessage("Extracting: $current / $total")
+                        }
+                        
+                        override fun onComplete(success: Boolean, message: String) {
+                            progressDialog.dismiss()
+                            showMd3Dialog(if (success) "Success" else "Error", message)
+                            if (success) {
+                                viewModel.loadPath(currentPath)
+                            }
+                        }
+                    }
+                )
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showProperties(item: FileItem) {
+        PropertiesDialog(item).show(parentFragmentManager, "properties_dialog")
+    }
+
+    // MD3 大圆角弹窗
+    private fun showMd3Dialog(title: String, message: String) {
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    private fun showMd3ConfirmDialog(title: String, message: String, onConfirm: () -> Unit) {
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("Confirm") { _, _ -> onConfirm() }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun observeViewModel() {
-        // 普通文件列表
         viewModel.files.observe(viewLifecycleOwner) { files ->
             if (!isInSearchMode) {
                 adapter.submitList(files)
@@ -113,10 +485,8 @@ class FilesFragment : Fragment(), FabClickListener {
             }
         }
 
-        // 搜索结果
         viewModel.searchResults.observe(viewLifecycleOwner) { results ->
             if (results == null) {
-                // 搜索已清除，显示普通列表
                 isInSearchMode = false
                 binding.searchResultsHeader.visibility = View.GONE
                 viewModel.files.value?.let { files ->
@@ -139,7 +509,7 @@ class FilesFragment : Fragment(), FabClickListener {
         }
 
         viewModel.currentPath.observe(viewLifecycleOwner) { path ->
-            if (!isInSearchMode) {
+            if (!isInSearchMode && !adapter.isMultiSelectEnabled()) {
                 activity?.title = path.substringAfterLast("/").ifEmpty { "Files" }
             }
         }
@@ -181,7 +551,7 @@ class FilesFragment : Fragment(), FabClickListener {
     }
 
     private fun showManageStorageRationale() {
-        MaterialAlertDialogBuilder(requireContext())
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
             .setTitle(R.string.label_permission_required)
             .setMessage(R.string.label_permission_required)
             .setPositiveButton(R.string.btn_grant_permission) { _, _ ->
@@ -210,7 +580,6 @@ class FilesFragment : Fragment(), FabClickListener {
 
     private fun handleClick(item: FileItem) {
         if (isInSearchMode && item.isDirectory) {
-            // 搜索结果中点击文件夹：退出搜索并导航到该目录
             searchView?.setQuery("", false)
             searchView?.isIconified = true
             viewModel.clearSearch()
@@ -235,30 +604,57 @@ class FilesFragment : Fragment(), FabClickListener {
             }
             startActivity(Intent.createChooser(intent, item.name))
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), R.string.error_cannot_open, Toast.LENGTH_SHORT).show()
+            showMd3Dialog("Error", getString(R.string.error_cannot_open))
         }
     }
 
     private fun showContextMenu(item: FileItem, anchor: View?) {
-        val options = mutableListOf(
-            getString(R.string.action_open),
-            getString(R.string.action_rename),
-            getString(R.string.action_delete),
-            getString(R.string.action_share),
-            if (prefs.isFavorite(item.path)) getString(R.string.action_remove_favorite)
-            else getString(R.string.action_add_favorite)
-        )
-        MaterialAlertDialogBuilder(requireContext())
+        val options = mutableListOf<String>()
+        options.add(getString(R.string.action_open))
+        options.add(getString(R.string.action_copy))
+        options.add(getString(R.string.action_move))
+        
+        if (item.extension.lowercase() == "zip") {
+            options.add("Extract")
+        } else {
+            options.add("Compress")
+        }
+        
+        options.add(getString(R.string.action_rename))
+        options.add(getString(R.string.action_delete))
+        options.add(getString(R.string.action_share))
+        options.add(getString(R.string.action_properties))
+        options.add(if (prefs.isFavorite(item.path)) getString(R.string.action_remove_favorite) else getString(R.string.action_add_favorite))
+        
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
             .setTitle(item.name)
             .setItems(options.toTypedArray()) { _, which ->
-                when (which) {
-                    0 -> handleClick(item)
-                    1 -> showRenameDialog(item)
-                    2 -> showDeleteDialog(item)
-                    3 -> shareFile(item)
-                    4 -> toggleFavorite(item)
+                val selectedOption = options[which]
+                when {
+                    selectedOption == "Extract" -> extractZipFile(item)
+                    selectedOption == "Compress" -> compressFiles(listOf(item))
+                    selectedOption == getString(R.string.action_open) -> handleClick(item)
+                    selectedOption == getString(R.string.action_copy) -> {
+                        CopyMoveDialog(listOf(item), true) {
+                            viewModel.loadPath(viewModel.currentPath.value ?: return@CopyMoveDialog)
+                            showMd3Dialog("Success", "Copied")
+                        }.show(parentFragmentManager, "copy_move_dialog")
+                    }
+                    selectedOption == getString(R.string.action_move) -> {
+                        CopyMoveDialog(listOf(item), false) {
+                            viewModel.loadPath(viewModel.currentPath.value ?: return@CopyMoveDialog)
+                            showMd3Dialog("Success", "Moved")
+                        }.show(parentFragmentManager, "copy_move_dialog")
+                    }
+                    selectedOption == getString(R.string.action_rename) -> showRenameDialog(item)
+                    selectedOption == getString(R.string.action_delete) -> showDeleteDialog(item)
+                    selectedOption == getString(R.string.action_share) -> shareFile(item)
+                    selectedOption == getString(R.string.action_properties) -> showProperties(item)
+                    selectedOption == getString(R.string.action_add_favorite) -> toggleFavorite(item)
+                    selectedOption == getString(R.string.action_remove_favorite) -> toggleFavorite(item)
                 }
-            }.show()
+            }
+            .show()
     }
 
     private fun showCreateDialog() {
@@ -272,23 +668,22 @@ class FilesFragment : Fragment(), FabClickListener {
         val input = TextInputEditText(inputLayout.context)
         inputLayout.addView(input)
 
-        MaterialAlertDialogBuilder(requireContext())
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
             .setTitle(getString(R.string.dialog_create_title))
             .setView(inputLayout)
             .setNeutralButton(getString(R.string.dialog_cancel), null)
-            .setNegativeButton(getString(R.string.dialog_create_file)) { _, _ ->
+            .setNegativeButton("File") { _, _ ->
                 val name = input.text?.toString()?.trim() ?: return@setNegativeButton
                 if (name.isNotEmpty()) createFile(name)
             }
-            .setPositiveButton(getString(R.string.dialog_create_folder)) { _, _ ->
+            .setPositiveButton("Folder") { _, _ ->
                 val name = input.text?.toString()?.trim() ?: return@setPositiveButton
                 if (name.isNotEmpty()) {
                     val ok = viewModel.createFolder(name)
-                    Toast.makeText(
-                        requireContext(),
-                        if (ok) R.string.msg_folder_created else R.string.error_rename_failed,
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    showMd3Dialog(
+                        if (ok) "Success" else "Error",
+                        if (ok) getString(R.string.msg_folder_created) else getString(R.string.error_rename_failed)
+                    )
                 }
             }
             .show()
@@ -299,14 +694,13 @@ class FilesFragment : Fragment(), FabClickListener {
         val newFile = File(parent, name)
         try {
             val ok = newFile.createNewFile()
-            Toast.makeText(
-                requireContext(),
-                if (ok) R.string.msg_file_created else R.string.error_rename_failed,
-                Toast.LENGTH_SHORT
-            ).show()
+            showMd3Dialog(
+                if (ok) "Success" else "Error",
+                if (ok) "File created" else "Failed"
+            )
             if (ok) viewModel.loadPath(parent)
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), R.string.error_rename_failed, Toast.LENGTH_SHORT).show()
+            showMd3Dialog("Error", "Failed")
         }
     }
 
@@ -322,18 +716,17 @@ class FilesFragment : Fragment(), FabClickListener {
         input.setText(item.name)
         inputLayout.addView(input)
 
-        MaterialAlertDialogBuilder(requireContext())
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
             .setTitle(R.string.dialog_rename_title)
             .setView(inputLayout)
             .setPositiveButton(R.string.dialog_confirm) { _, _ ->
                 val newName = input.text?.toString()?.trim() ?: return@setPositiveButton
                 if (newName.isNotEmpty()) {
                     val ok = viewModel.renameFile(item, newName)
-                    Toast.makeText(
-                        requireContext(),
-                        if (ok) R.string.msg_renamed else R.string.error_rename_failed,
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    showMd3Dialog(
+                        if (ok) "Success" else "Error",
+                        if (ok) getString(R.string.msg_renamed) else getString(R.string.error_rename_failed)
+                    )
                 }
             }
             .setNegativeButton(R.string.dialog_cancel, null)
@@ -341,16 +734,15 @@ class FilesFragment : Fragment(), FabClickListener {
     }
 
     private fun showDeleteDialog(item: FileItem) {
-        MaterialAlertDialogBuilder(requireContext())
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
             .setTitle(R.string.dialog_delete_title)
             .setMessage(getString(R.string.dialog_delete_message, item.name))
             .setPositiveButton(R.string.dialog_confirm) { _, _ ->
                 val ok = viewModel.deleteFile(item)
-                Toast.makeText(
-                    requireContext(),
-                    if (ok) R.string.msg_deleted else R.string.error_delete_failed,
-                    Toast.LENGTH_SHORT
-                ).show()
+                showMd3Dialog(
+                    if (ok) "Success" else "Error",
+                    if (ok) getString(R.string.msg_deleted) else getString(R.string.error_delete_failed)
+                )
             }
             .setNegativeButton(R.string.dialog_cancel, null)
             .show()
@@ -370,62 +762,79 @@ class FilesFragment : Fragment(), FabClickListener {
             }
             startActivity(Intent.createChooser(intent, item.name))
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), R.string.error_cannot_open, Toast.LENGTH_SHORT).show()
+            showMd3Dialog("Error", getString(R.string.error_cannot_open))
         }
     }
 
     private fun toggleFavorite(item: FileItem) {
         if (prefs.isFavorite(item.path)) {
             prefs.removeFavorite(item.path)
-            Toast.makeText(requireContext(), R.string.action_remove_favorite, Toast.LENGTH_SHORT).show()
+            showMd3Dialog("Success", getString(R.string.action_remove_favorite))
         } else {
             prefs.addFavorite(item.path)
-            Toast.makeText(requireContext(), R.string.action_add_favorite, Toast.LENGTH_SHORT).show()
+            showMd3Dialog("Success", getString(R.string.action_add_favorite))
         }
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         menu.clear()
-        inflater.inflate(R.menu.menu_files, menu)
+        if (adapter.isMultiSelectEnabled()) {
+            inflater.inflate(R.menu.menu_multi_select, menu)
+        } else {
+            inflater.inflate(R.menu.menu_files, menu)
 
-        // 绑定 SearchView
-        val searchItem = menu.findItem(R.id.action_search)
-        searchView = searchItem?.actionView as? SearchView
-        searchView?.apply {
-            queryHint = getString(R.string.action_search)
-            maxWidth = Integer.MAX_VALUE
+            val searchItem = menu.findItem(R.id.action_search)
+            searchView = searchItem?.actionView as? SearchView
+            searchView?.apply {
+                queryHint = getString(R.string.action_search)
+                maxWidth = Integer.MAX_VALUE
 
-            setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-                override fun onQueryTextSubmit(query: String?): Boolean {
-                    query?.let { viewModel.search(it) }
-                    return true
-                }
-
-                override fun onQueryTextChange(newText: String?): Boolean {
-                    if (newText.isNullOrBlank()) {
-                        viewModel.clearSearch()
-                        activity?.title = viewModel.currentPath.value
-                            ?.substringAfterLast("/")?.ifEmpty { "Files" } ?: "Files"
-                    } else {
-                        activity?.title = getString(R.string.action_search)
-                        viewModel.search(newText)
+                setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                    override fun onQueryTextSubmit(query: String?): Boolean {
+                        query?.let { viewModel.search(it) }
+                        return true
                     }
-                    return true
-                }
-            })
 
-            // 关闭搜索时清除结果
-            setOnCloseListener {
-                viewModel.clearSearch()
-                activity?.title = viewModel.currentPath.value
-                    ?.substringAfterLast("/")?.ifEmpty { "Files" } ?: "Files"
-                false
+                    override fun onQueryTextChange(newText: String?): Boolean {
+                        if (newText.isNullOrBlank()) {
+                            viewModel.clearSearch()
+                        } else {
+                            viewModel.search(newText)
+                        }
+                        return true
+                    }
+                })
+
+                setOnCloseListener {
+                    viewModel.clearSearch()
+                    false
+                }
             }
         }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_select_all -> {
+                adapter.selectAll()
+                true
+            }
+            R.id.action_compress -> {
+                compressFiles(adapter.getSelectedItems())
+                true
+            }
+            R.id.action_copy -> {
+                copySelectedFiles()
+                true
+            }
+            R.id.action_move -> {
+                moveSelectedFiles()
+                true
+            }
+            R.id.action_delete -> {
+                deleteSelectedFiles()
+                true
+            }
             R.id.action_sort -> { showSortDialog(); true }
             R.id.action_view_toggle -> {
                 viewModel.isGridView = !viewModel.isGridView
@@ -461,7 +870,7 @@ class FilesFragment : Fragment(), FabClickListener {
         )
         val orders = SortOrder.values()
         val current = orders.indexOf(viewModel.sortOrder).let { if (it < 0) 0 else it }
-        MaterialAlertDialogBuilder(requireContext())
+        MaterialAlertDialogBuilder(requireContext(), com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
             .setTitle(R.string.action_sort)
             .setSingleChoiceItems(options, current) { dialog, which ->
                 viewModel.applySortOrder(orders[which])

@@ -20,6 +20,8 @@
     <string name="btn_grant_permission">授予权限</string>
     <string name="dialog_cancel">取消</string>
     <string name="dialog_confirm">确认</string>
+    <string name="dialog_create_file">文件</string>
+    <string name="dialog_create_title">新建</string>
     <string name="dialog_delete_message">删除"%s"？</string>
     <string name="dialog_delete_title">删除</string>
     <string name="dialog_new_folder_hint">文件夹名称</string>
@@ -35,6 +37,7 @@
     <string name="label_internal_storage">内部存储</string>
     <string name="label_no_favorites">暂无收藏</string>
     <string name="label_no_recent">暂无最近文件</string>
+    <string name="label_no_search_results">未找到结果</string>
     <string name="label_permission_required">需要存储权限</string>
     <string name="label_recent_files">最近文件</string>
     <string name="label_settings">设置</string>
@@ -43,6 +46,7 @@
     <string name="menu_recent">最近</string>
     <string name="menu_settings">设置</string>
     <string name="msg_deleted">已成功删除</string>
+    <string name="msg_file_created">文件已创建</string>
     <string name="msg_folder_created">文件夹已创建</string>
     <string name="msg_renamed">已成功重命名</string>
     <string name="nav_header_desc">导航头部</string>

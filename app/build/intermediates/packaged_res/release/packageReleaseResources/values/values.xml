@@ -66,7 +66,6 @@
     <string name="dialog_cancel">Cancel</string>
     <string name="dialog_confirm">Confirm</string>
     <string name="dialog_create_file">File</string>
-    <string name="dialog_create_folder">Folder</string>
     <string name="dialog_create_title">Create new</string>
     <string name="dialog_delete_message">Delete \"%s\"?</string>
     <string name="dialog_delete_title">Delete</string>

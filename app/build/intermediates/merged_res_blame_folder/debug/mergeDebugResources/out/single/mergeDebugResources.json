@@ -20,16 +20,12 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/mipmap-hdpi/ic_app_icon.png"
     },
     {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable-xhdpi_ic_my_icon.png.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable-xhdpi/ic_my_icon.png"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-mdpi_ic_launcher_round.webp.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/mipmap-mdpi/ic_launcher_round.webp"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/mipmap-anydpi-v26/ic_launcher_round.xml"
-    },
-    {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-mdpi_ic_launcher_round.webp.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/mipmap-mdpi/ic_launcher_round.webp"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable-v21_ic_menu_camera.xml.flat",
@@ -40,12 +36,12 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/mipmap-xxhdpi/ic_launcher.webp"
     },
     {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-hdpi_ic_launcher.webp.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/mipmap-hdpi/ic_launcher.webp"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/layout_dialog_properties.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/dialog_properties.xml"
     },
     {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable-xxxhdpi_ic_my_icon.png.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable-xxxhdpi/ic_my_icon.png"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/mipmap-hdpi/ic_launcher.webp"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
@@ -56,8 +52,16 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/fragment_settings.xml"
     },
     {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_checkbox_checked.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_checkbox_checked.xml"
+    },
+    {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_add.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_add.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_check_circle_outline.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_check_circle_outline.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-xhdpi_ic_launcher.webp.flat",
@@ -84,16 +88,16 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_file_apk.xml"
     },
     {
-        "merged": "com.buge.files.app-debug-49:/mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "com.buge.files.app-main-51:/mipmap-anydpi-v26/ic_launcher.xml"
-    },
-    {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_sort.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_sort.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/layout_item_file.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/item_file.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/layout_dialog_copy_move.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/dialog_copy_move.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-mdpi_ic_launcher.webp.flat",
@@ -104,12 +108,20 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_nav_settings.xml"
     },
     {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_check_circle.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_check_circle.xml"
+    },
+    {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/xml_backup_rules.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/xml/backup_rules.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/layout_fragment_gallery.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/fragment_gallery.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_delete.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_delete.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/menu_main.xml.flat",
@@ -130,6 +142,10 @@
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_file_audio.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_file_audio.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_checkbox_selector.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/checkbox_selector.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-xxxhdpi_ic_launcher.webp.flat",
@@ -172,12 +188,12 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/xml/file_paths.xml"
     },
     {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_file_video.xml.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_file_video.xml"
+        "merged": "com.buge.files.app-debug-49:/layout_fragment_settings.xml.flat",
+        "source": "com.buge.files.app-main-51:/layout/fragment_settings.xml"
     },
     {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_my_icon.png.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_my_icon.png"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_file_video.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_file_video.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_nav_recent.xml.flat",
@@ -188,16 +204,12 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/fragment_slideshow.xml"
     },
     {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable-hdpi_ic_my_icon.png.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable-hdpi/ic_my_icon.png"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable-v21_ic_menu_gallery.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable-v21/ic_menu_gallery.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-xhdpi_ic_launcher_round.webp.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/mipmap-xhdpi/ic_launcher_round.webp"
-    },
-    {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable-v21_ic_menu_gallery.xml.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable-v21/ic_menu_gallery.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_nav_files.xml.flat",
@@ -206,6 +218,10 @@
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_grid.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_grid.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/layout_item_directory.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/item_directory.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/layout_fragment_favorites.xml.flat",
@@ -232,8 +248,8 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/menu/menu_files.xml"
     },
     {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable-mdpi_ic_my_icon.png.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable-mdpi/ic_my_icon.png"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/menu_menu_mulit_select.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/menu/menu_mulit_select.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/layout_activity_main.xml.flat",
@@ -252,6 +268,10 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_search.xml"
     },
     {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/menu_menu_multi_select.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/menu/menu_multi_select.xml"
+    },
+    {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/mipmap-xhdpi_ic_app_icon.png.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/mipmap-xhdpi/ic_app_icon.png"
     },
@@ -260,16 +280,16 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable-v24/ic_launcher_foreground.xml"
     },
     {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_checkbox_unchecked.xml.flat",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_checkbox_unchecked.xml"
+    },
+    {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/layout_fragment_home.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/fragment_home.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_nav_favorites.xml.flat",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable/ic_nav_favorites.xml"
-    },
-    {
-        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable-xxhdpi_ic_my_icon.png.flat",
-        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/drawable-xxhdpi/ic_my_icon.png"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-debug-49:/drawable_ic_file_archive.xml.flat",

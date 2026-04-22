@@ -42,8 +42,8 @@ class SettingsFragment : Fragment() {
         // Version
         val versionName = try {
             requireContext().packageManager
-                .getPackageInfo(requireContext().packageName, 0).versionName ?: "1.0"
-        } catch (e: Exception) { "1.0" }
+                .getPackageInfo(requireContext().packageName, 0).versionName ?: "1.7.0"
+        } catch (e: Exception) { "1.7.0" }
         binding.settingVersion.text = versionName
     }
 

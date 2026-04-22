@@ -1,50 +1,66 @@
 [
     {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_files.xml",
-        "source": "com.buge.files.app-main-50:/layout/fragment_files.xml"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/fragment_settings.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/fragment_settings.xml"
     },
     {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/app_bar_main.xml",
-        "source": "com.buge.files.app-main-50:/layout/app_bar_main.xml"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/app_bar_main.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/app_bar_main.xml"
     },
     {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_favorites.xml",
-        "source": "com.buge.files.app-main-50:/layout/fragment_favorites.xml"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/fragment_favorites.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/fragment_favorites.xml"
     },
     {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_home.xml",
-        "source": "com.buge.files.app-main-50:/layout/fragment_home.xml"
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/item_directory.xml",
+        "source": "com.buge.files.app-main-50:/layout/item_directory.xml"
     },
     {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_settings.xml",
-        "source": "com.buge.files.app-main-50:/layout/fragment_settings.xml"
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/dialog_copy_move.xml",
+        "source": "com.buge.files.app-main-50:/layout/dialog_copy_move.xml"
     },
     {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_recent.xml",
-        "source": "com.buge.files.app-main-50:/layout/fragment_recent.xml"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/fragment_recent.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/fragment_recent.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/nav_header_main.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/nav_header_main.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/fragment_gallery.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/fragment_gallery.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/fragment_slideshow.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/fragment_slideshow.xml"
+    },
+    {
+        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/dialog_properties.xml",
+        "source": "com.buge.files.app-main-50:/layout/dialog_properties.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/activity_main.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/content_main.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/content_main.xml"
     },
     {
         "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/item_file.xml",
         "source": "com.buge.files.app-main-50:/layout/item_file.xml"
     },
     {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/content_main.xml",
-        "source": "com.buge.files.app-main-50:/layout/content_main.xml"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/fragment_files.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/fragment_files.xml"
     },
     {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/activity_main.xml",
-        "source": "com.buge.files.app-main-50:/layout/activity_main.xml"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/item_file.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/item_file.xml"
     },
     {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_gallery.xml",
-        "source": "com.buge.files.app-main-50:/layout/fragment_gallery.xml"
-    },
-    {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/fragment_slideshow.xml",
-        "source": "com.buge.files.app-main-50:/layout/fragment_slideshow.xml"
-    },
-    {
-        "merged": "com.buge.files.app-mergeReleaseResources-48:/layout/nav_header_main.xml",
-        "source": "com.buge.files.app-main-50:/layout/nav_header_main.xml"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeReleaseResources-48:/layout/fragment_home.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-50:/layout/fragment_home.xml"
     }
 ]

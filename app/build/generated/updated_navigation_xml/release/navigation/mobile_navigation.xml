@@ -10,11 +10,6 @@ app:startDestination="@id/nav_files" >
     android:label="@string/menu_files"
     tools:layout="@layout/fragment_files" />
 <fragment
-    android:id="@+id/nav_recent"
-    android:name="com.buge.files.ui.recent.RecentFragment"
-    android:label="@string/menu_recent"
-    tools:layout="@layout/fragment_recent" />
-<fragment
     android:id="@+id/nav_favorites"
     android:name="com.buge.files.ui.favorites.FavoritesFragment"
     android:label="@string/menu_favorites"

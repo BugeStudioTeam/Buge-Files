@@ -35,10 +35,10 @@ class MainActivity : AppCompatActivity() {
         val navView: NavigationView = binding.navView
         val navController = findNavController(R.id.nav_host_fragment_content_main)
 
+        // 移除 nav_recent，只保留 files, favorites, settings
         appBarConfiguration = AppBarConfiguration(
             setOf(
                 R.id.nav_files,
-                R.id.nav_recent,
                 R.id.nav_favorites,
                 R.id.nav_settings
             ), drawerLayout

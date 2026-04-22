@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BugeFiles</string>
     <string name="navigation_drawer_open">打开导航抽屉</string>
@@ -12,6 +13,11 @@
     <string name="action_sort">排序</string>
     <string name="action_new_folder">新建文件夹</string>
     <string name="action_theme">切换主题</string>
+    <string name="action_copy">复制</string>
+    <string name="action_move">移动</string>
+    <string name="action_properties">属性</string>
+    <string name="dialog_create_file">文件</string>
+    <string name="msg_file_created">文件已创建</string>
 
     <string name="menu_files">文件</string>
     <string name="menu_recent">最近</string>
@@ -42,12 +48,9 @@
     <string name="setting_version">版本</string>
 
     <string name="action_open">打开</string>
-    <string name="action_copy">复制</string>
-    <string name="action_move">移动</string>
     <string name="action_rename">重命名</string>
     <string name="action_delete">删除</string>
     <string name="action_share">分享</string>
-    <string name="action_properties">属性</string>
     <string name="action_add_favorite">添加收藏</string>
     <string name="action_remove_favorite">取消收藏</string>
 
@@ -58,6 +61,7 @@
     <string name="sort_size_largest">大小（最大）</string>
     <string name="sort_size_smallest">大小（最小）</string>
 
+    <string name="dialog_create_title">新建</string>
     <string name="dialog_new_folder_title">新建文件夹</string>
     <string name="dialog_new_folder_hint">文件夹名称</string>
     <string name="dialog_rename_title">重命名</string>
@@ -72,4 +76,5 @@
     <string name="msg_folder_created">文件夹已创建</string>
     <string name="msg_deleted">已成功删除</string>
     <string name="msg_renamed">已成功重命名</string>
+    <string name="label_no_search_results">未找到结果</string>
 </resources>

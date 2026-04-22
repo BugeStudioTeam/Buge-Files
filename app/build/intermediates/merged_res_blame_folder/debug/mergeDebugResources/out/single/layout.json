@@ -1,7 +1,15 @@
 [
     {
+        "merged": "com.buge.files.app-mergeDebugResources-48:/layout/fragment_settings.xml",
+        "source": "com.buge.files.app-main-51:/layout/fragment_settings.xml"
+    },
+    {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeDebugResources-48:/layout/fragment_favorites.xml",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/fragment_favorites.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeDebugResources-48:/layout/dialog_copy_move.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/dialog_copy_move.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeDebugResources-48:/layout/content_main.xml",
@@ -36,8 +44,8 @@
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/activity_main.xml"
     },
     {
-        "merged": "com.buge.files.app-mergeDebugResources-48:/layout/fragment_files.xml",
-        "source": "com.buge.files.app-main-51:/layout/fragment_files.xml"
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeDebugResources-48:/layout/dialog_properties.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/dialog_properties.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeDebugResources-48:/layout/fragment_gallery.xml",
@@ -46,6 +54,10 @@
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeDebugResources-48:/layout/fragment_settings.xml",
         "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/fragment_settings.xml"
+    },
+    {
+        "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeDebugResources-48:/layout/item_directory.xml",
+        "source": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-main-51:/layout/item_directory.xml"
     },
     {
         "merged": "/data/user/0/com.tom.rv2ide/files/home/.gradle/daemon/9.0.0/com.buge.files.app-mergeDebugResources-48:/layout/fragment_recent.xml",

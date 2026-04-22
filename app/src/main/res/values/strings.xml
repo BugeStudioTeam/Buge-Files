@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BugeFiles</string>
     <string name="navigation_drawer_open">Open navigation drawer</string>
@@ -12,6 +13,11 @@
     <string name="action_sort">Sort</string>
     <string name="action_new_folder">New</string>
     <string name="action_theme">Toggle theme</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_move">Move</string>
+    <string name="action_properties">Properties</string>
+    <string name="dialog_create_file">File</string>
+    <string name="msg_file_created">File created</string>
 
     <string name="menu_files">Files</string>
     <string name="menu_recent">Recent</string>
@@ -42,12 +48,9 @@
     <string name="setting_version">Version</string>
 
     <string name="action_open">Open</string>
-    <string name="action_copy">Copy</string>
-    <string name="action_move">Move</string>
     <string name="action_rename">Rename</string>
     <string name="action_delete">Delete</string>
     <string name="action_share">Share</string>
-    <string name="action_properties">Properties</string>
     <string name="action_add_favorite">Add to favorites</string>
     <string name="action_remove_favorite">Remove from favorites</string>
 
@@ -59,8 +62,6 @@
     <string name="sort_size_smallest">Size (smallest)</string>
 
     <string name="dialog_create_title">Create new</string>
-    <string name="dialog_create_file">File</string>
-    <string name="dialog_create_folder">Folder</string>
     <string name="dialog_new_folder_title">New Folder</string>
     <string name="dialog_new_folder_hint">Name</string>
     <string name="dialog_rename_title">Rename</string>
@@ -73,7 +74,6 @@
     <string name="error_delete_failed">Failed to delete</string>
     <string name="error_rename_failed">Operation failed</string>
     <string name="msg_folder_created">Folder created</string>
-    <string name="msg_file_created">File created</string>
     <string name="msg_deleted">Deleted successfully</string>
     <string name="msg_renamed">Renamed successfully</string>
     

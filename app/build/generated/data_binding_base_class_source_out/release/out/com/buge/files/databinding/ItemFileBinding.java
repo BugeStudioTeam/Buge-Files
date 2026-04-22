@@ -4,6 +4,7 @@ package com.buge.files.databinding;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -24,6 +25,9 @@ public final class ItemFileBinding implements ViewBinding {
   public final ImageView btnMore;
 
   @NonNull
+  public final CheckBox checkbox;
+
+  @NonNull
   public final ImageView fileIcon;
 
   @NonNull
@@ -33,9 +37,11 @@ public final class ItemFileBinding implements ViewBinding {
   public final TextView fileName;
 
   private ItemFileBinding(@NonNull MaterialCardView rootView, @NonNull ImageView btnMore,
-      @NonNull ImageView fileIcon, @NonNull TextView fileInfo, @NonNull TextView fileName) {
+      @NonNull CheckBox checkbox, @NonNull ImageView fileIcon, @NonNull TextView fileInfo,
+      @NonNull TextView fileName) {
     this.rootView = rootView;
     this.btnMore = btnMore;
+    this.checkbox = checkbox;
     this.fileIcon = fileIcon;
     this.fileInfo = fileInfo;
     this.fileName = fileName;
@@ -74,6 +80,12 @@ public final class ItemFileBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.checkbox;
+      CheckBox checkbox = ViewBindings.findChildViewById(rootView, id);
+      if (checkbox == null) {
+        break missingId;
+      }
+
       id = R.id.file_icon;
       ImageView fileIcon = ViewBindings.findChildViewById(rootView, id);
       if (fileIcon == null) {
@@ -92,7 +104,7 @@ public final class ItemFileBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ItemFileBinding((MaterialCardView) rootView, btnMore, fileIcon, fileInfo,
+      return new ItemFileBinding((MaterialCardView) rootView, btnMore, checkbox, fileIcon, fileInfo,
           fileName);
     }
     String missingId = rootView.getResources().getResourceName(id);

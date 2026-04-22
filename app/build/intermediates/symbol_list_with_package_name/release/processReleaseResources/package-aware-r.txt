@@ -3632,6 +3632,7 @@ drawable btn_radio_off_mtrl
 drawable btn_radio_off_to_on_mtrl_animation
 drawable btn_radio_on_mtrl
 drawable btn_radio_on_to_off_mtrl_animation
+drawable checkbox_selector
 drawable design_fab_background
 drawable design_ic_visibility
 drawable design_ic_visibility_off
@@ -3645,8 +3646,13 @@ drawable ic_call_answer_video
 drawable ic_call_answer_video_low
 drawable ic_call_decline
 drawable ic_call_decline_low
+drawable ic_check_circle
+drawable ic_check_circle_outline
+drawable ic_checkbox_checked
+drawable ic_checkbox_unchecked
 drawable ic_clear_black_24
 drawable ic_clock_black_24dp
+drawable ic_delete
 drawable ic_expand_less_22px
 drawable ic_expand_more_22px
 drawable ic_file
@@ -3823,8 +3829,11 @@ id action_bar_root
 id action_bar_spinner
 id action_bar_subtitle
 id action_bar_title
+id action_compress
 id action_container
 id action_context_bar
+id action_copy
+id action_delete
 id action_divider
 id action_image
 id action_menu_divider
@@ -3832,7 +3841,9 @@ id action_menu_presenter
 id action_mode_bar
 id action_mode_bar_stub
 id action_mode_close_button
+id action_move
 id action_search
+id action_select_all
 id action_sort
 id action_text
 id action_theme
@@ -3875,7 +3886,10 @@ id bounce
 id bounceBoth
 id bounceEnd
 id bounceStart
+id btn_cancel
 id btn_more
+id btn_paste_here
+id btn_up
 id buttonPanel
 id cache_measures
 id callMeasure
@@ -3912,6 +3926,7 @@ id cos
 id counterclockwise
 id cradle
 id currentState
+id current_path_text
 id custom
 id customPanel
 id cut
@@ -3930,6 +3945,7 @@ id design_navigation_view
 id dialog_button
 id dimensions
 id direct
+id directory_name
 id disableHome
 id disableIntraAutoTransition
 id disablePostScroll
@@ -3964,6 +3980,8 @@ id escape
 id exitUntilCollapsed
 id expand_activities_button
 id expanded_menu
+id extension_row
+id extension_row_divider
 id fab
 id fade
 id file_icon
@@ -4096,7 +4114,6 @@ id nav_favorites
 id nav_files
 id nav_host_fragment_container
 id nav_host_fragment_content_main
-id nav_recent
 id nav_settings
 id nav_view
 id navigation_bar_item_active_indicator_view
@@ -4163,6 +4180,12 @@ id pressed
 id progress_bar
 id progress_circular
 id progress_horizontal
+id property_extension_value
+id property_modified_value
+id property_name_value
+id property_path_value
+id property_size_value
+id property_type_value
 id radio
 id ratio
 id rectangles
@@ -4197,6 +4220,7 @@ id search_mag_icon
 id search_plate
 id search_results_header
 id search_src_text
+id search_view
 id search_voice_btn
 id select_dialog_listview
 id selected
@@ -4465,15 +4489,17 @@ layout design_navigation_menu
 layout design_navigation_menu_item
 layout design_text_input_end_icon
 layout design_text_input_start_icon
+layout dialog_copy_move
+layout dialog_properties
 layout fragment_favorites
 layout fragment_files
 layout fragment_gallery
 layout fragment_home
-layout fragment_recent
 layout fragment_settings
 layout fragment_slideshow
 layout ime_base_split_test_activity
 layout ime_secondary_split_test_activity
+layout item_directory
 layout item_file
 layout m3_alert_dialog
 layout m3_alert_dialog_actions
@@ -4542,6 +4568,7 @@ layout support_simple_spinner_dropdown_item
 menu activity_main_drawer
 menu main
 menu menu_files
+menu menu_multi_select
 mipmap ic_app_icon
 mipmap ic_launcher
 mipmap ic_launcher_round
@@ -4614,7 +4641,6 @@ string dest_title
 string dialog_cancel
 string dialog_confirm
 string dialog_create_file
-string dialog_create_folder
 string dialog_create_title
 string dialog_delete_message
 string dialog_delete_title
