@@ -88,7 +88,7 @@
 
 ## 🗺️ Roadmap
 
-- [ ] Copy & Move files
+- [✓] Copy & Move files
 - [ ] Multi-select mode
 - [ ] File properties dialog
 - [ ] Storage usage overview
