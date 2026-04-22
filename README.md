@@ -88,12 +88,12 @@
 
 ## 🗺️ Roadmap
 
-- [ ] Copy & Move files ✅ 
-- [ ] Multi-select mode ✅
-- [ ] File properties dialog ✅
-- [ ] Storage usage overview ✅
-- [ ] Bookmarks / shortcut paths ✅
-- [ ] ZIP / extract support ✅
+- [x] Copy & Move files
+- [x] Multi-select mode
+- [x] File properties dialog
+- [ ] Storage usage overview
+- [x] Bookmarks / shortcut paths
+- [x] ZIP / extract support
 - [ ] Root access mode (optional)
 - [ ] Tablet optimized layout
 
