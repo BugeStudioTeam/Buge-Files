@@ -90,7 +90,8 @@ class ShizukuService(private val context: Context) {
         return try {
             val path = apkFile.absolutePath
             val observer = createInstallObserver()
-            val flags = PackageInstaller.INSTALL_REPLACE_EXISTING or PackageInstaller.INSTALL_ALLOW_DOWNGRADE
+            // INSTALL_REPLACE_EXISTING = 2, INSTALL_ALLOW_DOWNGRADE = 128
+            val flags = 2 or 128
             val args = arrayOf(path, observer, flags, installerName)
             installMethod?.invoke(null, *args) ?: return false
             waitForInstallComplete()
