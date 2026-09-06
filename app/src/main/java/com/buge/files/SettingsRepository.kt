@@ -2,7 +2,6 @@ package com.buge.files
 
 import android.content.Context
 import android.net.Uri
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -32,7 +31,7 @@ class SettingsRepository(private val context: Context) {
         AppSettings(
             theme = enumValue(prefs[Keys.theme], ThemePreference.SYSTEM),
             colorSource = enumValue(prefs[Keys.colorSource], ColorSource.DYNAMIC),
-            language = enumValue(prefs[Keys.language], AppLanguage.ENGLISH),
+            language = enumValue(prefs[Keys.language], AppLanguage.SYSTEM),
             viewMode = enumValue(prefs[Keys.viewMode], ViewMode.LIST),
             compactMode = prefs[Keys.compact]?.toBoolean() ?: false,
             showHidden = prefs[Keys.hidden]?.toBoolean() ?: false,

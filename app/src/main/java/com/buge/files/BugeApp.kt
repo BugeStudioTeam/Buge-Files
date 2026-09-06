@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-
 package com.buge.files
 
 import android.net.Uri
@@ -73,6 +71,7 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.VideoFile
+import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
@@ -300,7 +299,10 @@ fun BugeApp(
                                 loading = viewModel.isStorageLoading, onRequestFolder = onRequestFolder
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
-                                modifier = Modifier.padding(padding), language = language, settings = settings,
+                                modifier = Modifier.padding(padding),
+                                language = language,
+                                settings = settings,
+                                viewModel = viewModel,
                                 onSettingsChange = viewModel::updateSettings
                             )
                         }
@@ -1105,9 +1107,10 @@ private fun ApkInspectorSheet(
                                 modifier = Modifier.weight(1f),
                                 enabled = !isInstalling
                             ) {
-                                Icon(if (isInstalling) null else Icons.Outlined.FileOpen, null)
                                 if (isInstalling) {
                                     androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                } else {
+                                    Icon(Icons.Outlined.FileOpen, null)
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
@@ -1116,7 +1119,7 @@ private fun ApkInspectorSheet(
                                 onClick = onInstall,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Outlined.FileOpen, null)
+                                Icon(Icons.Outlined.Android, null)
                                 Spacer(Modifier.width(8.dp))
                                 Text(language.t("system_installer"))
                             }

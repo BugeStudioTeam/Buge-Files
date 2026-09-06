@@ -1,12 +1,8 @@
 package com.buge.files
 
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -94,7 +90,7 @@ class ShizukuService(private val context: Context) {
         return try {
             val path = apkFile.absolutePath
             val observer = createInstallObserver()
-            val flags = PackageInstaller.FLAG_REPLACE_EXISTING or PackageInstaller.FLAG_ALLOW_DOWNGRADE
+            val flags = PackageInstaller.INSTALL_REPLACE_EXISTING or PackageInstaller.INSTALL_ALLOW_DOWNGRADE
             val args = arrayOf(path, observer, flags, installerName)
             installMethod?.invoke(null, *args) ?: return false
             waitForInstallComplete()
@@ -142,7 +138,7 @@ class ShizukuService(private val context: Context) {
 
     private fun waitForInstallComplete() {
         try {
-            delay(3000)
+            Thread.sleep(3000)
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
         }
@@ -188,9 +184,6 @@ class ShizukuService(private val context: Context) {
         } catch (e: Exception) {
             InstallResult(false, "Uninstall error: ${e.message}")
         }
-    }
-
-    fun ShizukuService() {
     }
 }
 
