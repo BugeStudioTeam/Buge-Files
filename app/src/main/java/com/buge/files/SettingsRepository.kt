@@ -23,17 +23,23 @@ class SettingsRepository(private val context: Context) {
         val haptics = stringPreferencesKey("haptics")
         val roots = stringSetPreferencesKey("roots")
         val bookmarks = stringSetPreferencesKey("bookmarks")
+        val shizukuEnabled = stringPreferencesKey("shizuku_enabled")
+        val shizukuInstaller = stringPreferencesKey("shizuku_installer")
+        val shizukuPrefer = stringPreferencesKey("shizuku_prefer")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
         AppSettings(
             theme = enumValue(prefs[Keys.theme], ThemePreference.SYSTEM),
             colorSource = enumValue(prefs[Keys.colorSource], ColorSource.DYNAMIC),
-            language = AppLanguage.fromCode(prefs[Keys.language]),
+            language = enumValue(prefs[Keys.language], AppLanguage.ENGLISH),
             viewMode = enumValue(prefs[Keys.viewMode], ViewMode.LIST),
             compactMode = prefs[Keys.compact]?.toBoolean() ?: false,
             showHidden = prefs[Keys.hidden]?.toBoolean() ?: false,
-            hapticFeedback = prefs[Keys.haptics]?.toBoolean() ?: true
+            hapticFeedback = prefs[Keys.haptics]?.toBoolean() ?: true,
+            shizukuEnabled = prefs[Keys.shizukuEnabled]?.toBoolean() ?: false,
+            shizukuInstaller = prefs[Keys.shizukuInstaller] ?: "",
+            shizukuPreferInstall = prefs[Keys.shizukuPrefer]?.toBoolean() ?: true
         )
     }
 
@@ -53,6 +59,21 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.compact] = settings.compactMode.toString()
         prefs[Keys.hidden] = settings.showHidden.toString()
         prefs[Keys.haptics] = settings.hapticFeedback.toString()
+        prefs[Keys.shizukuEnabled] = settings.shizukuEnabled.toString()
+        prefs[Keys.shizukuInstaller] = settings.shizukuInstaller
+        prefs[Keys.shizukuPrefer] = settings.shizukuPreferInstall.toString()
+    }
+
+    suspend fun setShizukuEnabled(enabled: Boolean) = context.dataStore.edit { prefs ->
+        prefs[Keys.shizukuEnabled] = enabled.toString()
+    }
+
+    suspend fun setShizukuInstaller(name: String) = context.dataStore.edit { prefs ->
+        prefs[Keys.shizukuInstaller] = name
+    }
+
+    suspend fun setShizukuPrefer(prefer: Boolean) = context.dataStore.edit { prefs ->
+        prefs[Keys.shizukuPrefer] = prefer.toString()
     }
 
     suspend fun addRoot(location: RootLocation) = context.dataStore.edit { prefs ->

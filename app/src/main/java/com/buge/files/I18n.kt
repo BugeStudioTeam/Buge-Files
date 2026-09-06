@@ -13,15 +13,18 @@ private val english = mapOf(
     "total" to "Total", "files" to "Files", "folders" to "Folders", "documents" to "Documents", "images" to "Images", "videos" to "Videos", "audio" to "Audio", "archives" to "Archives", "other" to "Other",
     "appearance" to "Appearance", "theme" to "Theme", "color" to "Color", "language" to "Language", "behavior" to "Behavior", "compact" to "Compact lists", "haptics" to "Haptic feedback", "about" to "About",
     "theme_system" to "System default", "theme_light" to "Light", "theme_dark" to "Dark", "dynamic" to "Dynamic wallpaper color", "indigo" to "Indigo", "ocean" to "Ocean", "forest" to "Forest", "sunset" to "Sunset", "orchid" to "Orchid",
-    "folder" to "Folder", "modified" to "Modified", "name" to "Name", "size" to "Size", "type" to "Type", "items" to "items", "file_manager" to "A private, local-first file manager", "version" to "Version 1.5.4", "remove" to "Remove", "favorite" to "Favorite", "unfavorite" to "Remove favorite", "loading" to "Loading…", "access_note" to "Buge Files works only with locations you explicitly choose.", "direct_storage" to "Direct storage", "enable_storage" to "Enable storage access", "direct_storage_sub" to "Enable All files access to browse and manage /sdcard directly. Android shows this as a system setting.", "saf_alternative" to "Or add a folder with SAF", "edit" to "Edit", "save" to "Save", "code_editor" to "Code editor", "archive" to "Archive", "contents" to "Contents", "extract_here" to "Extract here", "image_preview" to "Image preview", "checksum" to "Checksum", "calculate_checksum" to "Calculate SHA-256", "close" to "Close", "lines" to "lines", "read_only" to "Read-only", "apk_package" to "APK package", "install" to "Install", "install_update" to "Install update", "apk_details" to "APK details", "package_name" to "Package name", "min_sdk" to "Minimum Android", "target_sdk" to "Target Android", "signing_certificate" to "Signing certificate", "requested_permissions" to "Requested permissions", "installed" to "Installed", "not_installed" to "Not installed", "newer_update" to "Newer than installed version", "same_or_older" to "Same or older than installed version", "system_installer" to "System installer"
+    "folder" to "Folder", "modified" to "Modified", "name" to "Name", "size" to "Size", "type" to "Type", "items" to "items", "file_manager" to "A private, local-first file manager", "version" to "Version 1.5.5", "remove" to "Remove", "favorite" to "Favorite", "unfavorite" to "Remove favorite", "loading" to "Loading…", "access_note" to "Buge Files works only with locations you explicitly choose.", "direct_storage" to "Direct storage", "enable_storage" to "Enable storage access", "direct_storage_sub" to "Enable All files access to browse and manage /sdcard directly. Android shows this as a system setting.", "saf_alternative" to "Or add a folder with SAF", "edit" to "Edit", "save" to "Save", "code_editor" to "Code editor", "archive" to "Archive", "contents" to "Contents", "extract_here" to "Extract here", "image_preview" to "Image preview", "checksum" to "Checksum", "calculate_checksum" to "Calculate SHA-256", "close" to "Close", "lines" to "lines", "read_only" to "Read-only", "apk_package" to "APK package", "install" to "Install", "install_update" to "Install update", "apk_details" to "APK details", "package_name" to "Package name", "min_sdk" to "Minimum Android", "target_sdk" to "Target Android", "signing_certificate" to "Signing certificate", "requested_permissions" to "Requested permissions", "installed" to "Installed", "not_installed" to "Not installed", "newer_update" to "Newer than installed version", "same_or_older" to "Same or older than installed version", "system_installer" to "System installer",
+    "shizuku" to "Shizuku", "shizuku_enable" to "Enable Shizuku integration", "shizuku_installer" to "Installer name", "shizuku_installer_hint" to "Enter installer package name", "shizuku_prefer" to "Prefer Shizuku for install", "install_shizuku" to "Install via Shizuku", "shizuku_connected" to "Shizuku connected", "shizuku_disconnected" to "Shizuku disconnected", "shizuku_not_available" to "Shizuku is not available"
 )
 
 private val chinese = mapOf(
-    "browse" to "浏览", "recents" to "最近", "favorites" to "收藏", "storage" to "存储", "settings" to "设置", "choose_storage" to "选择存储位置", "add_folder" to "添加文件夹", "locations" to "位置", "bookmarks" to "收藏夹", "no_folder" to "尚未选择文件夹", "choose_folder_sub" to "请授予 Buge Files 对某个文件夹的访问权限，以便开始管理文件。", "add_location" to "添加位置", "new_file" to "新建文件", "file_name" to "文件名", "new_folder" to "新建文件夹", "folder_name" to "文件夹名称", "cancel" to "取消", "create" to "创建", "rename" to "重命名", "delete" to "删除", "copy" to "复制", "move" to "移动", "paste" to "粘贴", "share" to "分享", "details" to "详细信息", "select_all" to "全选", "done" to "完成", "search" to "搜索文件", "sort" to "排序", "view" to "视图", "hidden" to "显示隐藏文件", "sort_name" to "名称", "sort_date" to "修改日期", "sort_size" to "大小", "sort_type" to "类型", "list" to "列表", "grid" to "网格", "empty" to "此文件夹为空", "empty_sub" to "新建一个文件夹，或选择其他位置。", "recent_empty" to "没有最近文件", "recent_sub" to "从 Buge Files 打开的文件会显示在此处。", "favorites_empty" to "尚无收藏", "favorites_sub" to "在浏览页收藏文件夹后，可在此快速进入。", "compress" to "压缩", "archive_name" to "压缩包名称", "rename_selected" to "重命名所选项", "open" to "打开", "total" to "总计", "files" to "文件", "folders" to "文件夹", "documents" to "文档", "images" to "图片", "videos" to "视频", "audio" to "音频", "archives" to "压缩包", "other" to "其他", "appearance" to "外观", "theme" to "主题", "color" to "配色", "language" to "语言", "behavior" to "行为", "compact" to "紧凑列表", "haptics" to "触觉反馈", "about" to "关于", "theme_system" to "跟随系统", "theme_light" to "浅色", "theme_dark" to "深色", "dynamic" to "取自壁纸的动态色彩", "indigo" to "靛蓝", "ocean" to "海洋", "forest" to "森林", "sunset" to "日落", "orchid" to "兰花", "folder" to "文件夹", "modified" to "修改时间", "name" to "名称", "size" to "大小", "type" to "类型", "items" to "项", "file_manager" to "注重隐私、优先本地的文件管理器", "version" to "版本 1.5.4", "remove" to "移除", "favorite" to "收藏", "unfavorite" to "取消收藏", "loading" to "正在加载…", "access_note" to "Buge Files 仅访问您明确选择的位置。", "direct_storage" to "直接存储", "enable_storage" to "启用存储访问", "direct_storage_sub" to "启用所有文件访问权限，即可直接浏览和管理 /sdcard。Android 会将其显示为系统设置。", "saf_alternative" to "或使用 SAF 添加一个文件夹", "edit" to "编辑", "save" to "保存", "code_editor" to "代码编辑器", "archive" to "压缩包", "contents" to "内容", "extract_here" to "解压到此处", "image_preview" to "图片查看", "checksum" to "校验和", "calculate_checksum" to "计算 SHA-256", "close" to "关闭", "lines" to "行", "read_only" to "只读", "apk_package" to "APK 安装包", "install" to "安装", "install_update" to "安装更新", "apk_details" to "APK 详情", "package_name" to "包名", "min_sdk" to "最低 Android 版本", "target_sdk" to "目标 Android 版本", "signing_certificate" to "签名证书", "requested_permissions" to "请求的权限", "installed" to "已安装", "not_installed" to "未安装", "newer_update" to "高于已安装版本", "same_or_older" to "与已安装版本相同或更旧", "system_installer" to "系统安装器"
+    "browse" to "浏览", "recents" to "最近", "favorites" to "收藏", "storage" to "存储", "settings" to "设置", "choose_storage" to "选择存储位置", "add_folder" to "添加文件夹", "locations" to "位置", "bookmarks" to "收藏夹", "no_folder" to "尚未选择文件夹", "choose_folder_sub" to "请授予 Buge Files 对某个文件夹的访问权限，以便开始管理文件。", "add_location" to "添加位置", "new_file" to "新建文件", "file_name" to "文件名", "new_folder" to "新建文件夹", "folder_name" to "文件夹名称", "cancel" to "取消", "create" to "创建", "rename" to "重命名", "delete" to "删除", "copy" to "复制", "move" to "移动", "paste" to "粘贴", "share" to "分享", "details" to "详细信息", "select_all" to "全选", "done" to "完成", "search" to "搜索文件", "sort" to "排序", "view" to "视图", "hidden" to "显示隐藏文件", "sort_name" to "名称", "sort_date" to "修改日期", "sort_size" to "大小", "sort_type" to "类型", "list" to "列表", "grid" to "网格", "empty" to "此文件夹为空", "empty_sub" to "新建一个文件夹，或选择其他位置。", "recent_empty" to "没有最近文件", "recent_sub" to "从 Buge Files 打开的文件会显示在此处。", "favorites_empty" to "尚无收藏", "favorites_sub" to "在浏览页收藏文件夹后，可在此快速进入。", "compress" to "压缩", "archive_name" to "压缩包名称", "rename_selected" to "重命名所选项", "open" to "打开", "total" to "总计", "files" to "文件", "folders" to "文件夹", "documents" to "文档", "images" to "图片", "videos" to "视频", "audio" to "音频", "archives" to "压缩包", "other" to "其他", "appearance" to "外观", "theme" to "主题", "color" to "配色", "language" to "语言", "behavior" to "行为", "compact" to "紧凑列表", "haptics" to "触觉反馈", "about" to "关于", "theme_system" to "跟随系统", "theme_light" to "浅色", "theme_dark" to "深色", "dynamic" to "取自壁纸的动态色彩", "indigo" to "靛蓝", "ocean" to "海洋", "forest" to "森林", "sunset" to "日落", "orchid" to "兰花", "folder" to "文件夹", "modified" to "修改时间", "name" to "名称", "size" to "大小", "type" to "类型", "items" to "项", "file_manager" to "注重隐私、优先本地的文件管理器", "version" to "版本 1.5.5", "remove" to "移除", "favorite" to "收藏", "unfavorite" to "取消收藏", "loading" to "正在加载…", "access_note" to "Buge Files 仅访问您明确选择的位置。", "direct_storage" to "直接存储", "enable_storage" to "启用存储访问", "direct_storage_sub" to "启用所有文件访问权限，即可直接浏览和管理 /sdcard。Android 会将其显示为系统设置。", "saf_alternative" to "或使用 SAF 添加一个文件夹", "edit" to "编辑", "save" to "保存", "code_editor" to "代码编辑器", "archive" to "压缩包", "contents" to "内容", "extract_here" to "解压到此处", "image_preview" to "图片查看", "checksum" to "校验和", "calculate_checksum" to "计算 SHA-256", "close" to "关闭", "lines" to "行", "read_only" to "只读", "apk_package" to "APK 安装包", "install" to "安装", "install_update" to "安装更新", "apk_details" to "APK 详情", "package_name" to "包名", "min_sdk" to "最低 Android 版本", "target_sdk" to "目标 Android 版本", "signing_certificate" to "签名证书", "requested_permissions" to "请求的权限", "installed" to "已安装", "not_installed" to "未安装", "newer_update" to "高于已安装版本", "same_or_older" to "与已安装版本相同或更旧", "system_installer" to "系统安装器",
+    "shizuku" to "Shizuku", "shizuku_enable" to "启用 Shizuku 集成", "shizuku_installer" to "安装者名称", "shizuku_installer_hint" to "输入安装者包名", "shizuku_prefer" to "优先使用 Shizuku 安装", "install_shizuku" to "通过 Shizuku 安装", "shizuku_connected" to "Shizuku 已连接", "shizuku_disconnected" to "Shizuku 已断开", "shizuku_not_available" to "Shizuku 不可用"
 )
 
 private val spanish = mapOf(
-    "browse" to "Explorar", "recents" to "Recientes", "favorites" to "Favoritos", "storage" to "Almacenamiento", "settings" to "Ajustes", "choose_storage" to "Elegir almacenamiento", "add_folder" to "Añadir carpeta", "locations" to "Ubicaciones", "bookmarks" to "Marcadores", "no_folder" to "No hay carpeta seleccionada", "choose_folder_sub" to "Da a Buge Files acceso a una carpeta para comenzar a administrar tus archivos.", "add_location" to "Añadir ubicación", "new_file" to "Archivo nuevo", "file_name" to "Nombre del archivo", "new_folder" to "Carpeta nueva", "folder_name" to "Nombre de la carpeta", "cancel" to "Cancelar", "create" to "Crear", "rename" to "Cambiar nombre", "delete" to "Eliminar", "copy" to "Copiar", "move" to "Mover", "paste" to "Pegar", "share" to "Compartir", "details" to "Detalles", "select_all" to "Seleccionar todo", "done" to "Listo", "search" to "Buscar archivos", "sort" to "Ordenar", "view" to "Vista", "hidden" to "Mostrar archivos ocultos", "sort_name" to "Nombre", "sort_date" to "Fecha de modificación", "sort_size" to "Tamaño", "sort_type" to "Tipo", "list" to "Lista", "grid" to "Cuadrícula", "empty" to "Esta carpeta está vacía", "empty_sub" to "Crea una carpeta o elige otra ubicación.", "recent_empty" to "No hay archivos recientes", "recent_sub" to "Los archivos que abras desde Buge Files aparecerán aquí.", "favorites_empty" to "Aún no hay favoritos", "favorites_sub" to "Marca una carpeta en Explorar para abrirla rápidamente aquí.", "compress" to "Comprimir", "archive_name" to "Nombre del archivo", "rename_selected" to "Cambiar nombre de la selección", "open" to "Abrir", "total" to "Total", "files" to "Archivos", "folders" to "Carpetas", "documents" to "Documentos", "images" to "Imágenes", "videos" to "Vídeos", "audio" to "Audio", "archives" to "Archivos comprimidos", "other" to "Otros", "appearance" to "Apariencia", "theme" to "Tema", "color" to "Color", "language" to "Idioma", "behavior" to "Comportamiento", "compact" to "Listas compactas", "haptics" to "Respuesta háptica", "about" to "Acerca de", "theme_system" to "Predeterminado del sistema", "theme_light" to "Claro", "theme_dark" to "Oscuro", "dynamic" to "Color dinámico del fondo", "indigo" to "Índigo", "ocean" to "Océano", "forest" to "Bosque", "sunset" to "Atardecer", "orchid" to "Orquídea", "folder" to "Carpeta", "modified" to "Modificado", "name" to "Nombre", "size" to "Tamaño", "type" to "Tipo", "items" to "elementos", "file_manager" to "Un gestor de archivos privado y local", "version" to "Versión 1.5.4", "remove" to "Quitar", "favorite" to "Favorito", "unfavorite" to "Quitar favorito", "loading" to "Cargando…", "access_note" to "Buge Files solo usa las ubicaciones que eliges explícitamente.", "direct_storage" to "Almacenamiento directo", "enable_storage" to "Activar acceso al almacenamiento", "direct_storage_sub" to "Activa el acceso a todos los archivos para explorar y administrar /sdcard directamente. Android lo muestra como un ajuste del sistema.", "saf_alternative" to "O añade una carpeta con SAF", "edit" to "Editar", "save" to "Guardar", "code_editor" to "Editor de código", "archive" to "Archivo comprimido", "contents" to "Contenido", "extract_here" to "Extraer aquí", "image_preview" to "Vista de imagen", "checksum" to "Suma de comprobación", "calculate_checksum" to "Calcular SHA-256", "close" to "Cerrar", "lines" to "líneas", "read_only" to "Solo lectura", "apk_package" to "Paquete APK", "install" to "Instalar", "install_update" to "Instalar actualización", "apk_details" to "Detalles del APK", "package_name" to "Nombre del paquete", "min_sdk" to "Android mínimo", "target_sdk" to "Android objetivo", "signing_certificate" to "Certificado de firma", "requested_permissions" to "Permisos solicitados", "installed" to "Instalado", "not_installed" to "No instalado", "newer_update" to "Más reciente que la versión instalada", "same_or_older" to "Igual o anterior a la versión instalada", "system_installer" to "Instalador del sistema"
+    "browse" to "Explorar", "recents" to "Recientes", "favorites" to "Favoritos", "storage" to "Almacenamiento", "settings" to "Ajustes", "choose_storage" to "Elegir almacenamiento", "add_folder" to "Añadir carpeta", "locations" to "Ubicaciones", "bookmarks" to "Marcadores", "no_folder" to "No hay carpeta seleccionada", "choose_folder_sub" to "Da a Buge Files acceso a una carpeta para comenzar a administrar tus archivos.", "add_location" to "Añadir ubicación", "new_file" to "Archivo nuevo", "file_name" to "Nombre del archivo", "new_folder" to "Carpeta nueva", "folder_name" to "Nombre de la carpeta", "cancel" to "Cancelar", "create" to "Crear", "rename" to "Cambiar nombre", "delete" to "Eliminar", "copy" to "Copiar", "move" to "Mover", "paste" to "Pegar", "share" to "Compartir", "details" to "Detalles", "select_all" to "Seleccionar todo", "done" to "Listo", "search" to "Buscar archivos", "sort" to "Ordenar", "view" to "Vista", "hidden" to "Mostrar archivos ocultos", "sort_name" to "Nombre", "sort_date" to "Fecha de modificación", "sort_size" to "Tamaño", "sort_type" to "Tipo", "list" to "Lista", "grid" to "Cuadrícula", "empty" to "Esta carpeta está vacía", "empty_sub" to "Crea una carpeta o elige otra ubicación.", "recent_empty" to "No hay archivos recientes", "recent_sub" to "Los archivos que abras desde Buge Files aparecerán aquí.", "favorites_empty" to "Aún no hay favoritos", "favorites_sub" to "Marca una carpeta en Explorar para abrirla rápidamente aquí.", "compress" to "Comprimir", "archive_name" to "Nombre del archivo", "rename_selected" to "Cambiar nombre de la selección", "open" to "Abrir", "total" to "Total", "files" to "Archivos", "folders" to "Carpetas", "documents" to "Documentos", "images" to "Imágenes", "videos" to "Vídeos", "audio" to "Audio", "archives" to "Archivos comprimidos", "other" to "Otros", "appearance" to "Apariencia", "theme" to "Tema", "color" to "Color", "language" to "Idioma", "behavior" to "Comportamiento", "compact" to "Listas compactas", "haptics" to "Respuesta háptica", "about" to "Acerca de", "theme_system" to "Predeterminado del sistema", "theme_light" to "Claro", "theme_dark" to "Oscuro", "dynamic" to "Color dinámico del fondo", "indigo" to "Índigo", "ocean" to "Océano", "forest" to "Bosque", "sunset" to "Atardecer", "orchid" to "Orquídea", "folder" to "Carpeta", "modified" to "Modificado", "name" to "Nombre", "size" to "Tamaño", "type" to "Tipo", "items" to "elementos", "file_manager" to "Un gestor de archivos privado y local", "version" to "Versión 1.5.5", "remove" to "Quitar", "favorite" to "Favorito", "unfavorite" to "Quitar favorito", "loading" to "Cargando…", "access_note" to "Buge Files solo usa las ubicaciones que eliges explícitamente.", "direct_storage" to "Almacenamiento directo", "enable_storage" to "Activar acceso al almacenamiento", "direct_storage_sub" to "Activa el acceso a todos los archivos para explorar y administrar /sdcard directamente. Android lo muestra como un ajuste del sistema.", "saf_alternative" to "O añade una carpeta con SAF", "edit" to "Editar", "save" to "Guardar", "code_editor" to "Editor de código", "archive" to "Archivo comprimido", "contents" to "Contenido", "extract_here" to "Extraer aquí", "image_preview" to "Vista de imagen", "checksum" to "Suma de comprobación", "calculate_checksum" to "Calcular SHA-256", "close" to "Cerrar", "lines" to "líneas", "read_only" to "Solo lectura", "apk_package" to "Paquete APK", "install" to "Instalar", "install_update" to "Instalar actualización", "apk_details" to "Detalles del APK", "package_name" to "Nombre del paquete", "min_sdk" to "Android mínimo", "target_sdk" to "Android objetivo", "signing_certificate" to "Certificado de firma", "requested_permissions" to "Permisos solicitados", "installed" to "Instalado", "not_installed" to "No instalado", "newer_update" to "Más reciente que la versión instalada", "same_or_older" to "Igual o anterior a la versión instalada", "system_installer" to "Instalador del sistema",
+    "shizuku" to "Shizuku", "shizuku_enable" to "Activar integración Shizuku", "shizuku_installer" to "Nombre del instalador", "shizuku_installer_hint" to "Introduce el nombre del paquete del instalador", "shizuku_prefer" to "Preferir Shizuku para instalar", "install_shizuku" to "Instalar vía Shizuku", "shizuku_connected" to "Shizuku conectado", "shizuku_disconnected" to "Shizuku desconectado", "shizuku_not_available" to "Shizuku no está disponible"
 )
 
 private val french = mapOf(
@@ -105,7 +108,7 @@ private val french = mapOf(
     "type" to "Type",
     "items" to "éléments",
     "file_manager" to "Gestionnaire de fichiers privé et local",
-    "version" to "Version 1.5.4",
+    "version" to "Version 1.5.5",
     "remove" to "Retirer",
     "favorite" to "Favori",
     "unfavorite" to "Retirer des favoris",
@@ -140,7 +143,8 @@ private val french = mapOf(
     "not_installed" to "Non installé",
     "newer_update" to "Plus récent que la version installée",
     "same_or_older" to "Identique ou antérieur à la version installée",
-    "system_installer" to "Installateur système"
+    "system_installer" to "Installateur système",
+    "shizuku" to "Shizuku", "shizuku_enable" to "Activer l'intégration Shizuku", "shizuku_installer" to "Nom de l'installateur", "shizuku_installer_hint" to "Entrez le nom du package de l'installateur", "shizuku_prefer" to "Préférer Shizuku pour l'installation", "install_shizuku" to "Installer via Shizuku", "shizuku_connected" to "Shizuku connecté", "shizuku_disconnected" to "Shizuku déconnecté", "shizuku_not_available" to "Shizuku n'est pas disponible"
 )
 
 private val german = mapOf(
@@ -224,7 +228,7 @@ private val german = mapOf(
     "type" to "Typ",
     "items" to "Elemente",
     "file_manager" to "Privater, lokal orientierter Dateimanager",
-    "version" to "Version 1.5.4",
+    "version" to "Version 1.5.5",
     "remove" to "Entfernen",
     "favorite" to "Zu Favoriten hinzufügen",
     "unfavorite" to "Favorit entfernen",
@@ -259,7 +263,8 @@ private val german = mapOf(
     "not_installed" to "Nicht installiert",
     "newer_update" to "Neuer als die installierte Version",
     "same_or_older" to "Gleich oder älter als die installierte Version",
-    "system_installer" to "Systeminstaller"
+    "system_installer" to "Systeminstaller",
+    "shizuku" to "Shizuku", "shizuku_enable" to "Shizuku-Integration aktivieren", "shizuku_installer" to "Installationsname", "shizuku_installer_hint" to "Paketnamen des Installateurs eingeben", "shizuku_prefer" to "Shizuku für Installation bevorzugen", "install_shizuku" to "Über Shizuku installieren", "shizuku_connected" to "Shizuku verbunden", "shizuku_disconnected" to "Shizuku getrennt", "shizuku_not_available" to "Shizuku nicht verfügbar"
 )
 
 private val russian = mapOf(
@@ -343,7 +348,7 @@ private val russian = mapOf(
     "type" to "Тип",
     "items" to "элементов",
     "file_manager" to "Приватный локальный файловый менеджер",
-    "version" to "Версия 1.5.4",
+    "version" to "Версия 1.5.5",
     "remove" to "Удалить",
     "favorite" to "В избранное",
     "unfavorite" to "Убрать из избранного",
@@ -378,7 +383,8 @@ private val russian = mapOf(
     "not_installed" to "Не установлено",
     "newer_update" to "Новая по сравнению с установленной версией",
     "same_or_older" to "Такая же или старее установленной версии",
-    "system_installer" to "Системный установщик"
+    "system_installer" to "Системный установщик",
+    "shizuku" to "Shizuku", "shizuku_enable" to "Включить интеграцию Shizuku", "shizuku_installer" to "Имя установщика", "shizuku_installer_hint" to "Введите имя пакета установщика", "shizuku_prefer" to "Предпочитать Shizuku для установки", "install_shizuku" to "Установить через Shizuku", "shizuku_connected" to "Shizuku подключен", "shizuku_disconnected" to "Shizuku отключен", "shizuku_not_available" to "Shizuku недоступен"
 )
 
 private val portuguese = mapOf(
@@ -462,7 +468,7 @@ private val portuguese = mapOf(
     "type" to "Tipo",
     "items" to "itens",
     "file_manager" to "Um gestor de ficheiros privado e com abordagem local em primeiro lugar",
-    "version" to "Versão 1.5.4",
+    "version" to "Versão 1.5.5",
     "remove" to "Remover",
     "favorite" to "Adicionar aos favoritos",
     "unfavorite" to "Remover dos favoritos",
@@ -497,7 +503,8 @@ private val portuguese = mapOf(
     "not_installed" to "Não instalado",
     "newer_update" to "Mais recente do que a versão instalada",
     "same_or_older" to "Igual ou mais antiga do que a versão instalada",
-    "system_installer" to "Instalador do sistema"
+    "system_installer" to "Instalador do sistema",
+    "shizuku" to "Shizuku", "shizuku_enable" to "Ativar integração Shizuku", "shizuku_installer" to "Nome do instalador", "shizuku_installer_hint" to "Insira o nome do pacote do instalador", "shizuku_prefer" to "Preferir Shizuku para instalar", "install_shizuku" to "Instalar via Shizuku", "shizuku_connected" to "Shizuku conectado", "shizuku_disconnected" to "Shizuku desconectado", "shizuku_not_available" to "Shizuku não está disponível"
 )
 
 private val portugueseBrazil = mapOf(
@@ -581,7 +588,7 @@ private val portugueseBrazil = mapOf(
     "type" to "Tipo",
     "items" to "itens",
     "file_manager" to "Gerenciador de arquivos privado, com prioridade local",
-    "version" to "Versão 1.5.4",
+    "version" to "Versão 1.5.5",
     "remove" to "Remover",
     "favorite" to "Favoritar",
     "unfavorite" to "Remover dos favoritos",
@@ -616,7 +623,8 @@ private val portugueseBrazil = mapOf(
     "not_installed" to "Não instalado",
     "newer_update" to "Mais novo que a versão instalada",
     "same_or_older" to "Igual ou mais antigo que a versão instalada",
-    "system_installer" to "Instalador do sistema"
+    "system_installer" to "Instalador do sistema",
+    "shizuku" to "Shizuku", "shizuku_enable" to "Ativar integração Shizuku", "shizuku_installer" to "Nome do instalador", "shizuku_installer_hint" to "Insira o nome do pacote do instalador", "shizuku_prefer" to "Preferir Shizuku para instalar", "install_shizuku" to "Instalar via Shizuku", "shizuku_connected" to "Shizuku conectado", "shizuku_disconnected" to "Shizuku desconectado", "shizuku_not_available" to "Shizuku não está disponível"
 )
 
 private val chineseTraditional = mapOf(
@@ -700,7 +708,7 @@ private val chineseTraditional = mapOf(
     "type" to "類型",
     "items" to "項目",
     "file_manager" to "私密且以本地為優先的檔案管理器",
-    "version" to "版本 1.5.4",
+    "version" to "版本 1.5.5",
     "remove" to "移除",
     "favorite" to "加入最愛",
     "unfavorite" to "取消最愛",
@@ -735,7 +743,8 @@ private val chineseTraditional = mapOf(
     "not_installed" to "未安裝",
     "newer_update" to "比已安裝版本更新",
     "same_or_older" to "與已安裝版本相同或較舊",
-    "system_installer" to "系統安裝程式"
+    "system_installer" to "系統安裝程式",
+    "shizuku" to "Shizuku", "shizuku_enable" to "啟用 Shizuku 整合", "shizuku_installer" to "安裝者名稱", "shizuku_installer_hint" to "輸入安裝者套件名稱", "shizuku_prefer" to "偏好使用 Shizuku 安裝", "install_shizuku" to "透過 Shizuku 安裝", "shizuku_connected" to "Shizuku 已連線", "shizuku_disconnected" to "Shizuku 已斷線", "shizuku_not_available" to "Shizuku 不可用"
 )
 
 private val arabic = mapOf(
@@ -819,7 +828,7 @@ private val arabic = mapOf(
     "type" to "النوع",
     "items" to "عناصر",
     "file_manager" to "مدير ملفات خاص يفضّل التشغيل محليًا",
-    "version" to "الإصدار 1.5.4",
+    "version" to "الإصدار 1.5.5",
     "remove" to "إزالة",
     "favorite" to "إضافة إلى المفضلات",
     "unfavorite" to "إزالة من المفضلات",
@@ -854,7 +863,8 @@ private val arabic = mapOf(
     "not_installed" to "غير مثبت",
     "newer_update" to "أحدث من الإصدار المثبت",
     "same_or_older" to "نفس أو أقدم من الإصدار المثبت",
-    "system_installer" to "مثبّت النظام"
+    "system_installer" to "مثبّت النظام",
+    "shizuku" to "Shizuku", "shizuku_enable" to "تمكين تكامل Shizuku", "shizuku_installer" to "اسم المثبت", "shizuku_installer_hint" to "أدخل اسم حزمة المثبت", "shizuku_prefer" to "تفضيل Shizuku للتثبيت", "install_shizuku" to "تثبيت عبر Shizuku", "shizuku_connected" to "Shizuku متصل", "shizuku_disconnected" to "Shizuku غير متصل", "shizuku_not_available" to "Shizuku غير متوفر"
 )
 
 private val japanese = mapOf(
@@ -938,7 +948,7 @@ private val japanese = mapOf(
     "type" to "種類",
     "items" to "項目",
     "file_manager" to "プライベートでローカル優先のファイルマネージャー",
-    "version" to "バージョン 1.5.4",
+    "version" to "バージョン 1.5.5",
     "remove" to "削除",
     "favorite" to "お気に入りに追加",
     "unfavorite" to "お気に入りを解除",
@@ -973,7 +983,8 @@ private val japanese = mapOf(
     "not_installed" to "インストールされていません",
     "newer_update" to "インストール済みのバージョンより新しい",
     "same_or_older" to "インストール済みのバージョンと同じかそれより古い",
-    "system_installer" to "システムインストーラー"
+    "system_installer" to "システムインストーラー",
+    "shizuku" to "Shizuku", "shizuku_enable" to "Shizuku連携を有効化", "shizuku_installer" to "インストーラー名", "shizuku_installer_hint" to "インストーラーのパッケージ名を入力", "shizuku_prefer" to "インストールにShizukuを優先", "install_shizuku" to "Shizukuでインストール", "shizuku_connected" to "Shizuku接続済み", "shizuku_disconnected" to "Shizuku切断済み", "shizuku_not_available" to "Shizukuが利用できません"
 )
 
 private val korean = mapOf(
@@ -1057,7 +1068,7 @@ private val korean = mapOf(
     "type" to "유형",
     "items" to "항목",
     "file_manager" to "개인용 로컬 우선 파일 관리자",
-    "version" to "버전 1.5.4",
+    "version" to "버전 1.5.5",
     "remove" to "제거",
     "favorite" to "즐겨찾기",
     "unfavorite" to "즐겨찾기 해제",
@@ -1092,10 +1103,12 @@ private val korean = mapOf(
     "not_installed" to "설치되지 않음",
     "newer_update" to "설치된 버전보다 최신",
     "same_or_older" to "설치된 버전과 같거나 이전",
-    "system_installer" to "시스템 설치 프로그램"
+    "system_installer" to "시스템 설치 프로그램",
+    "shizuku" to "Shizuku", "shizuku_enable" to "Shizuku 통합 활성화", "shizuku_installer" to "설치자 이름", "shizuku_installer_hint" to "설치자 패키지 이름 입력", "shizuku_prefer" to "설치에 Shizuku 우선 사용", "install_shizuku" to "Shizuku로 설치", "shizuku_connected" to "Shizuku 연결됨", "shizuku_disconnected" to "Shizuku 연결 끊김", "shizuku_not_available" to "Shizuku를 사용할 수 없음"
 )
 
 fun AppLanguage.t(key: String): String = when (this) {
+    AppLanguage.SYSTEM -> english[key]
     AppLanguage.ENGLISH -> english[key]
     AppLanguage.FRENCH -> french[key]
     AppLanguage.GERMAN -> german[key]

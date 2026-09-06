@@ -11,6 +11,7 @@ enum class ClipboardMode { COPY, MOVE }
 enum class ThemePreference { SYSTEM, LIGHT, DARK }
 enum class ColorSource { DYNAMIC, INDIGO, OCEAN, FOREST, SUNSET, ORCHID }
 enum class AppLanguage(val code: String, val nativeName: String) {
+    SYSTEM("system", "System Default"),
     ENGLISH("en", "English"),
     FRENCH("fr", "Français"),
     GERMAN("de", "Deutsch"),
@@ -25,7 +26,7 @@ enum class AppLanguage(val code: String, val nativeName: String) {
     KOREAN("ko", "한국어");
 
     companion object {
-        fun fromCode(code: String?) = entries.firstOrNull { it.code == code } ?: ENGLISH
+        fun fromCode(code: String?) = entries.firstOrNull { it.code == code } ?: SYSTEM
     }
 }
 
@@ -60,11 +61,14 @@ data class StorageBreakdown(
 data class AppSettings(
     val theme: ThemePreference = ThemePreference.SYSTEM,
     val colorSource: ColorSource = ColorSource.DYNAMIC,
-    val language: AppLanguage = AppLanguage.ENGLISH,
+    val language: AppLanguage = AppLanguage.SYSTEM,
     val viewMode: ViewMode = ViewMode.LIST,
     val compactMode: Boolean = false,
     val showHidden: Boolean = false,
-    val hapticFeedback: Boolean = true
+    val hapticFeedback: Boolean = true,
+    val shizukuEnabled: Boolean = false,
+    val shizukuInstaller: String = "",
+    val shizukuPreferInstall: Boolean = true
 )
 
 @Immutable

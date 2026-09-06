@@ -25,6 +25,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val apkRepository = ApkRepository(application)
     private val settingsRepository = SettingsRepository(application)
+    private val shizukuInstaller = ShizukuInstaller(application)
     private var loadingJob: Job? = null
 
     private val _settings = MutableStateFlow(AppSettings())
@@ -51,6 +52,9 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _storage = MutableStateFlow(StorageBreakdown())
     val storage: StateFlow<StorageBreakdown> = _storage.asStateFlow()
+
+    private val _shizukuReady = MutableStateFlow(false)
+    val shizukuReady: StateFlow<Boolean> = _shizukuReady.asStateFlow()
 
     var destination by mutableStateOf(AppDestination.BROWSE)
         private set
@@ -103,6 +107,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var apkLoading by mutableStateOf(false)
         private set
+    var isInstallingViaShizuku by mutableStateOf(false)
+        private set
 
     private val recentItems = mutableStateListOf<FileEntry>()
     val recents: List<FileEntry> get() = recentItems
@@ -112,6 +118,9 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             settingsRepository.settings.collect { newSettings ->
                 _settings.value = newSettings
                 refresh()
+                if (newSettings.shizukuEnabled) {
+                    initializeShizuku()
+                }
             }
         }
         viewModelScope.launch {
@@ -148,7 +157,6 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         showMessage("Removed ${location.label}")
     }
 
-    /** Refreshes the special all-files-access state after the user returns from system settings. */
     fun refreshDirectStorageAccess(preferDirect: Boolean = true) {
         val available = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
@@ -431,5 +439,48 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             _storage.value = fileRepository.calculateStorage(root.uri, _settings.value.showHidden)
             isStorageLoading = false
         }
+    }
+
+    fun initializeShizuku() = viewModelScope.launch {
+        try {
+            val ready = shizukuInstaller.initialize()
+            _shizukuReady.value = ready
+            if (ready) {
+                showMessage("Shizuku connected")
+            }
+        } catch (e: Exception) {
+            _shizukuReady.value = false
+        }
+    }
+
+    fun installApkWithShizuku(file: FileEntry): Boolean {
+        val settings = _settings.value
+        if (!settings.shizukuEnabled || !_shizukuReady.value) return false
+        isInstallingViaShizuku = true
+        viewModelScope.launch {
+            try {
+                val installerName = if (settings.shizukuInstaller.isNotEmpty()) settings.shizukuInstaller else null
+                val result = shizukuInstaller.installApk(file.uri, installerName ?: "")
+                isInstallingViaShizuku = false
+                showMessage(result.message)
+                if (result.success) {
+                    dismissApk()
+                }
+            } catch (e: Exception) {
+                isInstallingViaShizuku = false
+                showMessage("Shizuku install failed: ${e.message}")
+            }
+        }
+        return true
+    }
+
+    fun cleanupShizuku() {
+        shizukuInstaller.cleanup()
+        _shizukuReady.value = false
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        cleanupShizuku()
     }
 }

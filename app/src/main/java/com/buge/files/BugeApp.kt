@@ -348,7 +348,18 @@ fun BugeApp(
             )
         }
         viewModel.apkTarget?.let { file ->
-            ApkInspectorSheet(file = file, metadata = viewModel.apkMetadata, loading = viewModel.apkLoading, language = language, onInstall = { onInstallApk(file) }, onDismiss = viewModel::dismissApk)
+            ApkInspectorSheet(
+                file = file,
+                metadata = viewModel.apkMetadata,
+                loading = viewModel.apkLoading,
+                language = language,
+                settings = settings,
+                shizukuReady = viewModel.shizukuReady.value,
+                isInstalling = viewModel.isInstallingViaShizuku,
+                onInstall = { onInstallApk(file) },
+                onInstallWithShizuku = { viewModel.installApkWithShizuku(file) },
+                onDismiss = viewModel::dismissApk
+            )
         }
         viewModel.editorTarget?.let { file ->
             CodeEditorScreen(file = file, content = viewModel.editorText, loading = viewModel.editorLoading, language = language, onContentChange = viewModel::updateEditorText, onSave = viewModel::saveEditor, onDismiss = viewModel::dismissEditor)
@@ -687,8 +698,16 @@ private fun StorageRow(label: String, size: Long, total: Long, icon: ImageVector
 private enum class AppearanceDialog { THEME, COLOR, LANGUAGE }
 
 @Composable
-private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit) {
+private fun SettingsScreen(
+    modifier: Modifier,
+    language: AppLanguage,
+    settings: AppSettings,
+    viewModel: BugeViewModel,
+    onSettingsChange: (AppSettings) -> Unit
+) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
+    var showInstallerDialog by remember { mutableStateOf(false) }
+    var installerNameInput by remember { mutableStateOf(settings.shizukuInstaller) }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -722,6 +741,53 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
             item { SettingSwitch(language.t("compact"), settings.compactMode) { onSettingsChange(settings.copy(compactMode = it)) } }
             item { SettingSwitch(language.t("hidden"), settings.showHidden) { onSettingsChange(settings.copy(showHidden = it)) } }
             item { SettingSwitch(language.t("haptics"), settings.hapticFeedback) { onSettingsChange(settings.copy(hapticFeedback = it)) } }
+            item { SettingsSection("Shizuku") }
+            item {
+                SettingSwitch(
+                    language.t("shizuku_enable"),
+                    settings.shizukuEnabled
+                ) {
+                    onSettingsChange(settings.copy(shizukuEnabled = it))
+                    if (it) {
+                        viewModel.initializeShizuku()
+                    }
+                }
+            }
+            item {
+                SettingsActionCard(
+                    title = language.t("shizuku_installer"),
+                    summary = if (settings.shizukuInstaller.isNotEmpty()) settings.shizukuInstaller else language.t("shizuku_installer_hint"),
+                    icon = Icons.Outlined.Edit,
+                    onClick = {
+                        installerNameInput = settings.shizukuInstaller
+                        showInstallerDialog = true
+                    }
+                )
+            }
+            item {
+                SettingSwitch(
+                    language.t("shizuku_prefer"),
+                    settings.shizukuPreferInstall
+                ) { onSettingsChange(settings.copy(shizukuPreferInstall = it)) }
+            }
+            item {
+                val status = if (viewModel.shizukuReady.value) {
+                    language.t("shizuku_connected")
+                } else {
+                    language.t("shizuku_disconnected")
+                }
+                val color = if (viewModel.shizukuReady.value) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Text(
+                    "Shizuku: $status",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = color,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
             item { SettingsSection(language.t("about")) }
             item {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -756,6 +822,37 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                 onDismiss = { appearanceDialog = null }
             )
             null -> Unit
+        }
+
+        if (showInstallerDialog) {
+            AlertDialog(
+                onDismissRequest = { showInstallerDialog = false },
+                title = { Text(language.t("shizuku_installer")) },
+                text = {
+                    OutlinedTextField(
+                        value = installerNameInput,
+                        onValueChange = { installerNameInput = it },
+                        label = { Text(language.t("shizuku_installer_hint")) },
+                        placeholder = { Text("com.android.vending") },
+                        singleLine = true
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onSettingsChange(settings.copy(shizukuInstaller = installerNameInput.trim()))
+                            showInstallerDialog = false
+                        }
+                    ) {
+                        Text(language.t("save"))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showInstallerDialog = false }) {
+                        Text(language.t("cancel"))
+                    }
+                }
+            )
         }
     }
 }
@@ -940,7 +1037,18 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, language: AppLanguage, onInstall: () -> Unit, onDismiss: () -> Unit) {
+private fun ApkInspectorSheet(
+    file: FileEntry,
+    metadata: ApkMetadata?,
+    loading: Boolean,
+    language: AppLanguage,
+    settings: AppSettings,
+    shizukuReady: Boolean,
+    isInstalling: Boolean,
+    onInstall: () -> Unit,
+    onInstallWithShizuku: () -> Unit,
+    onDismiss: () -> Unit
+) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             item {
@@ -990,10 +1098,40 @@ private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: 
                     }
                 }
                 item {
-                    FilledTonalButton(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.FileOpen, null); Spacer(Modifier.width(8.dp)); Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
+                    if (settings.shizukuEnabled && shizukuReady) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilledTonalButton(
+                                onClick = onInstallWithShizuku,
+                                modifier = Modifier.weight(1f),
+                                enabled = !isInstalling
+                            ) {
+                                Icon(if (isInstalling) null else Icons.Outlined.FileOpen, null)
+                                if (isInstalling) {
+                                    androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
+                            }
+                            OutlinedButton(
+                                onClick = onInstall,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Outlined.FileOpen, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(language.t("system_installer"))
+                            }
+                        }
+                        if (!isInstalling) {
+                            Text("Installer: ${if (settings.shizukuInstaller.isNotEmpty()) settings.shizukuInstaller else "empty"}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    } else {
+                        FilledTonalButton(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Outlined.FileOpen, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
+                        }
+                        Text(language.t("system_installer"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
                     }
-                    Text(language.t("system_installer"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
                 }
             }
             if (!loading && metadata == null) item { Text("APK metadata is unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant) }
