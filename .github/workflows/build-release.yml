@@ -22,23 +22,25 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Decode Keystore from Secret
+      - name: Decode keystore.properties
         run: |
-          echo "${{ secrets.KEYSTORE }}" | base64 -d > keystore.jks
-          chmod 600 keystore.jks
+          echo "${{ secrets.KEYSTORE_PROPERTIES_BASE64 }}" | base64 -d > keystore.properties
         env:
-          KEYSTORE: ${{ secrets.KEYSTORE }}
+          KEYSTORE_PROPERTIES_BASE64: ${{ secrets.KEYSTORE_PROPERTIES_BASE64 }}
+
+      - name: Decode keystore.jks
+        run: |
+          mkdir -p app
+          echo "${{ secrets.KEYSTORE_JKS_BASE64 }}" | base64 -d > app/keystore.jks
+          chmod 600 app/keystore.jks
+        env:
+          KEYSTORE_JKS_BASE64: ${{ secrets.KEYSTORE_JKS_BASE64 }}
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build Signed Release APK
         run: ./gradlew assembleRelease
-        env:
-          KEYSTORE_PATH: keystore.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload Signed Release APK
         uses: actions/upload-artifact@v4
