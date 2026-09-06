@@ -571,7 +571,8 @@ private fun FileListItem(entry: FileEntry, language: AppLanguage, compact: Boole
     val icon = iconFor(entry)
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
     val selectionScale by animateFloatAsState(if (selected) 0.985f else 1f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow), label = "listSelectionScale")
-    Surface(shape = RoundedCornerShape(if (compact) 14.dp else 20.dp), color = container, modifier = Modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)).scale(selectionScale).combinedClickable(onClick = { if (selectionActive || selected) onToggleSelection(entry) else if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry) }, onLongClick = { onToggleSelection(entry) })) {
+    val itemShape = RoundedCornerShape(if (compact) 14.dp else 20.dp)
+    Surface(shape = itemShape, color = container, modifier = Modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)).scale(selectionScale).clip(itemShape).combinedClickable(onClick = { if (selectionActive || selected) onToggleSelection(entry) else if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry) }, onLongClick = { onToggleSelection(entry) })) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = if (compact) 7.dp else 11.dp)) {
             if (selected) Checkbox(checked = true, onCheckedChange = { onToggleSelection(entry) }) else FileGlyph(icon, entry.isDirectory)
             Spacer(Modifier.width(12.dp))
@@ -588,7 +589,8 @@ private fun FileListItem(entry: FileEntry, language: AppLanguage, compact: Boole
 @Composable
 private fun FileGridItem(entry: FileEntry, language: AppLanguage, selected: Boolean, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit, onToggleSelection: (FileEntry) -> Unit, onInfo: (FileEntry) -> Unit) {
     val selectionScale by animateFloatAsState(if (selected) 0.96f else 1f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow), label = "gridSelectionScale")
-    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow), modifier = Modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)).scale(selectionScale).combinedClickable(onClick = { if (selectionActive || selected) onToggleSelection(entry) else if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry) }, onLongClick = { onToggleSelection(entry) })) {
+    val itemShape = RoundedCornerShape(16.dp)
+    ElevatedCard(shape = itemShape, colors = CardDefaults.elevatedCardColors(containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow), modifier = Modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)).scale(selectionScale).clip(itemShape).combinedClickable(onClick = { if (selectionActive || selected) onToggleSelection(entry) else if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry) }, onLongClick = { onToggleSelection(entry) })) {
         Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 FileGlyph(iconFor(entry), entry.isDirectory, size = 36.dp)
@@ -634,7 +636,8 @@ private fun FavoritesScreen(modifier: Modifier, language: AppLanguage, items: Li
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item { Text(language.t("favorites"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 6.dp)) }
             items(items, key = { it.uri.toString() }) { item ->
-                Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().combinedClickable(onClick = { onOpen(item) }, onLongClick = { onRemove(item) })) {
+                val itemShape = RoundedCornerShape(20.dp)
+                Surface(shape = itemShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().clip(itemShape).combinedClickable(onClick = { onOpen(item) }, onLongClick = { onRemove(item) })) {
                     Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         FileGlyph(Icons.Outlined.Folder, true)
                         Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(item.label, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(item.uri.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
@@ -764,8 +767,10 @@ private fun SettingsSection(text: String) {
 
 @Composable
 private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, onClick: () -> Unit) {
+    val cardShape = RoundedCornerShape(16.dp)
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        shape = cardShape,
+        modifier = Modifier.fillMaxWidth().clip(cardShape).clickable(role = Role.Button, onClick = onClick),
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -848,6 +853,7 @@ private fun AppearanceOptionRow(label: String, selected: Boolean, onSelect: () -
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(role = Role.RadioButton, onClick = onSelect)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
