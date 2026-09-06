@@ -924,6 +924,7 @@ private fun ColorSettingsDialog(language: AppLanguage, settings: AppSettings, on
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun LanguageSettingsDialog(language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
