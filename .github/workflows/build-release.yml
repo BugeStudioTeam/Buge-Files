@@ -22,21 +22,14 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Decode keystore.properties
-        run: |
-          echo "${{ secrets.KEYSTORE_PROPERTIES_BASE64 }}" | base64 -d > keystore.properties
-        env:
-          KEYSTORE_PROPERTIES_BASE64: ${{ secrets.KEYSTORE_PROPERTIES_BASE64 }}
-
       - name: Decode keystore.jks
         run: |
-          mkdir -p app
-          echo "${{ secrets.KEYSTORE_JKS_BASE64 }}" | base64 -d > app/keystore.jks
-          chmod 600 app/keystore.jks
+          echo "${{ secrets.KEYSTORE_JKS_BASE64 }}" | base64 -d > keystore.jks
+          chmod 600 keystore.jks
         env:
           KEYSTORE_JKS_BASE64: ${{ secrets.KEYSTORE_JKS_BASE64 }}
 
-      - name: Remove invalid Java home from gradle.properties
+      - name: Fix gradle.properties
         run: |
           if [ -f gradle.properties ]; then
             sed -i '/org.gradle.java.home/d' gradle.properties
@@ -46,4 +39,23 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Signed Release APK
-        run: ./gradlew assembleRelease
+        run: |
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$(pwd)/keystore.jks \
+            -Pandroid.injected.signing.store.password=android \
+            -Pandroid.injected.signing.key.alias=bugestudioteam \
+            -Pandroid.injected.signing.key.password=android
+
+      - name: Upload Signed Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-signed
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Upload Mapping File
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapping-file
+          path: app/build/outputs/mapping/release/mapping.txt
+          retention-days: 30
