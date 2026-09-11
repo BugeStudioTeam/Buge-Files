@@ -12,7 +12,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -78,6 +77,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.DropdownMenu
@@ -166,6 +166,9 @@ fun BugeApp(
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
+    val shizukuReady by viewModel.shizukuReady.collectAsStateWithLifecycle()
+    val shizukuAvailable by viewModel.shizukuAvailable.collectAsStateWithLifecycle()
+    val shizukuPermissionGranted by viewModel.shizukuPermissionGranted.collectAsStateWithLifecycle()
     val language = settings.language
     val snackbars = remember { SnackbarHostState() }
     var showRootMenu by remember { mutableStateOf(false) }
@@ -304,6 +307,9 @@ fun BugeApp(
                                 language = language,
                                 settings = settings,
                                 viewModel = viewModel,
+                                shizukuReady = shizukuReady,
+                                shizukuAvailable = shizukuAvailable,
+                                shizukuPermissionGranted = shizukuPermissionGranted,
                                 onSettingsChange = viewModel::updateSettings
                             )
                         }
@@ -357,7 +363,7 @@ fun BugeApp(
                 loading = viewModel.apkLoading,
                 language = language,
                 settings = settings,
-                shizukuReady = viewModel.shizukuReady.value,
+                shizukuReady = shizukuReady,
                 isInstalling = viewModel.isInstallingViaShizuku,
                 onInstall = { onInstallApk(file) },
                 onInstallWithShizuku = { viewModel.installApkWithShizuku(file) },
@@ -706,6 +712,9 @@ private fun SettingsScreen(
     language: AppLanguage,
     settings: AppSettings,
     viewModel: BugeViewModel,
+    shizukuReady: Boolean,
+    shizukuAvailable: Boolean,
+    shizukuPermissionGranted: Boolean,
     onSettingsChange: (AppSettings) -> Unit
 ) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
@@ -746,6 +755,16 @@ private fun SettingsScreen(
             item { SettingSwitch(language.t("haptics"), settings.hapticFeedback) { onSettingsChange(settings.copy(hapticFeedback = it)) } }
             item { SettingsSection("Shizuku") }
             item {
+                val statusText = when {
+                    !shizukuAvailable -> language.t("shizuku_not_available")
+                    !shizukuPermissionGranted -> "Permission required"
+                    !shizukuReady -> language.t("shizuku_disconnected")
+                    else -> language.t("shizuku_connected")
+                }
+                val statusColor = if (shizukuReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                Text("Shizuku: $statusText", style = MaterialTheme.typography.bodyMedium, color = statusColor, modifier = Modifier.padding(vertical = 4.dp))
+            }
+            item {
                 SettingSwitch(
                     language.t("shizuku_enable"),
                     settings.shizukuEnabled
@@ -773,23 +792,15 @@ private fun SettingsScreen(
                     settings.shizukuPreferInstall
                 ) { onSettingsChange(settings.copy(shizukuPreferInstall = it)) }
             }
-            item {
-                val status = if (viewModel.shizukuReady.value) {
-                    language.t("shizuku_connected")
-                } else {
-                    language.t("shizuku_disconnected")
+            if (shizukuAvailable && !shizukuPermissionGranted) {
+                item {
+                    OutlinedButton(
+                        onClick = { viewModel.requestShizukuPermission() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Grant Shizuku permission")
+                    }
                 }
-                val color = if (viewModel.shizukuReady.value) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                Text(
-                    "Shizuku: $status",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = color,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
             }
             item { SettingsSection(language.t("about")) }
             item {
@@ -986,7 +997,6 @@ private fun colorSourceLabel(language: AppLanguage, source: ColorSource): String
     ColorSource.ORCHID -> language.t("orchid")
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { values.forEach { (value, label) -> FilterChip(selected = selected == value, onClick = { onSelect(value) }, label = { Text(label) }) } }
@@ -1020,7 +1030,7 @@ private fun NameDialog(title: String, hint: String, language: AppLanguage, initi
     AlertDialog(onDismissRequest = onDismiss, title = { Text(title) }, text = { OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text(hint) }, singleLine = true) }, confirmButton = { TextButton(onClick = { onConfirm(value.trim()) }, enabled = value.trim().isNotEmpty()) { Text(confirmLabel) } }, dismissButton = { TextButton(onClick = onDismiss) { Text(language.t("cancel")) } })
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: () -> Unit, onOpen: () -> Unit, onOpenTool: () -> Unit, onChecksum: () -> Unit, onShare: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -1040,7 +1050,7 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ApkInspectorSheet(
     file: FileEntry,
@@ -1111,7 +1121,7 @@ private fun ApkInspectorSheet(
                                 enabled = !isInstalling
                             ) {
                                 if (isInstalling) {
-                                    androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
                                 } else {
                                     Icon(Icons.Outlined.FileOpen, null)
                                 }
@@ -1159,7 +1169,7 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
                     FilledTonalButton(onClick = onSave, enabled = !loading) { Text(language.t("save")) }
                 }
                 if (loading) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 } else {
                     Row(Modifier.fillMaxSize().padding(12.dp)) {
                         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(42.dp).fillMaxHeight()) {

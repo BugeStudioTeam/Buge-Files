@@ -1,110 +1,88 @@
 package com.buge.files
 
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
-import android.os.IBinder
-import android.os.RemoteException
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.lang.reflect.Method
+import android.content.pm.PackageManager
+import rikka.shizuku.Shizuku
 
-class ShizukuManager(private val context: Context) {
+class ShizukuManager {
 
-    private var shizukuBinder: IBinder? = null
-    private var isBound: Boolean = false
-    private var serviceConnection: ServiceConnection? = null
-    private var shizukuServiceClass: Class<*>? = null
-
-    companion object {
-        private const val SHIZUKU_PACKAGE = "moe.shizuku.manager"
-        private const val SHIZUKU_SERVICE = "moe.shizuku.manager.ShizukuService"
+    fun isAvailable(): Boolean = try {
+        Shizuku.pingBinder()
+    } catch (e: Exception) {
+        false
     }
 
-    suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
+    fun isPreV11(): Boolean = try {
+        Shizuku.isPreV11()
+    } catch (e: Exception) {
+        true
+    }
+
+    fun getVersion(): Int = try {
+        Shizuku.getVersion()
+    } catch (e: Exception) {
+        0
+    }
+
+    fun hasPermission(): Boolean = try {
+        if (isPreV11()) false
+        else Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+    } catch (e: Exception) {
+        false
+    }
+
+    fun shouldShowRationale(): Boolean = try {
+        if (isPreV11()) false
+        else Shizuku.shouldShowRequestPermissionRationale()
+    } catch (e: Exception) {
+        false
+    }
+
+    fun requestPermission(requestCode: Int) {
         try {
-            val binder = getShizukuBinder()
-            if (binder != null) {
-                shizukuBinder = binder
-                return@withContext true
-            }
-            val intent = Intent().apply {
-                component = ComponentName(SHIZUKU_PACKAGE, SHIZUKU_SERVICE)
-            }
-            val deferred = CompletableDeferred<Boolean>()
-            serviceConnection = object : ServiceConnection {
-                override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-                    shizukuBinder = service
-                    isBound = true
-                    deferred.complete(true)
-                }
-                override fun onServiceDisconnected(name: ComponentName?) {
-                    shizukuBinder = null
-                    isBound = false
-                    deferred.complete(false)
-                }
-            }
-            val bound = context.bindService(intent, serviceConnection!!, Context.BIND_AUTO_CREATE)
-            if (!bound) {
-                deferred.complete(false)
-            }
-            deferred.await()
+            if (!isPreV11()) Shizuku.requestPermission(requestCode)
         } catch (e: Exception) {
-            false
         }
     }
 
-    fun disconnect() {
+    fun addPermissionResultListener(listener: Shizuku.OnRequestPermissionResultListener) {
         try {
-            serviceConnection?.let { context.unbindService(it) }
+            Shizuku.addRequestPermissionResultListener(listener)
         } catch (e: Exception) {
-        }
-        isBound = false
-        shizukuBinder = null
-    }
-
-    private fun getShizukuBinder(): IBinder? {
-        return try {
-            val clazz = Class.forName("moe.shizuku.manager.ShizukuManager")
-            val method = clazz.getMethod("getBinder")
-            val binder = method.invoke(null) as? IBinder
-            binder
-        } catch (e: Exception) {
-            null
         }
     }
 
-    fun isShizukuConnected(): Boolean = shizukuBinder != null
-
-    suspend fun executeCommand(command: String): String = withContext(Dispatchers.IO) {
-        if (!isShizukuConnected()) return@withContext "Shizuku not connected"
+    fun removePermissionResultListener(listener: Shizuku.OnRequestPermissionResultListener) {
         try {
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
-            val output = process.inputStream.bufferedReader().readText()
-            val error = process.errorStream.bufferedReader().readText()
-            process.waitFor()
-            if (output.isNotEmpty()) output else error
+            Shizuku.removeRequestPermissionResultListener(listener)
         } catch (e: Exception) {
-            "Error: ${e.message}"
         }
     }
 
-    suspend fun executeShellCommand(command: String): ShellResult = withContext(Dispatchers.IO) {
-        if (!isShizukuConnected()) {
-            return@withContext ShellResult(false, "Shizuku not connected", "")
-        }
+    fun addBinderReceivedListener(listener: Shizuku.OnBinderReceivedListener) {
         try {
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
-            val output = process.inputStream.bufferedReader().readText()
-            val error = process.errorStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
-            ShellResult(exitCode == 0, output, error)
+            Shizuku.addBinderReceivedListener(listener)
         } catch (e: Exception) {
-            ShellResult(false, "", e.message ?: "Unknown error")
         }
     }
 
-    data class ShellResult(val success: Boolean, val output: String, val error: String)
+    fun addBinderDeadListener(listener: Shizuku.OnBinderDeadListener) {
+        try {
+            Shizuku.addBinderDeadListener(listener)
+        } catch (e: Exception) {
+        }
+    }
+
+    fun removeBinderReceivedListener(listener: Shizuku.OnBinderReceivedListener) {
+        try {
+            Shizuku.removeBinderReceivedListener(listener)
+        } catch (e: Exception) {
+        }
+    }
+
+    fun removeBinderDeadListener(listener: Shizuku.OnBinderDeadListener) {
+        try {
+            Shizuku.removeBinderDeadListener(listener)
+        } catch (e: Exception) {
+        }
+    }
 }
