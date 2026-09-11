@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -997,6 +998,7 @@ private fun colorSourceLabel(language: AppLanguage, source: ColorSource): String
     ColorSource.ORCHID -> language.t("orchid")
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { values.forEach { (value, label) -> FilterChip(selected = selected == value, onClick = { onSelect(value) }, label = { Text(label) }) } }
@@ -1030,7 +1032,7 @@ private fun NameDialog(title: String, hint: String, language: AppLanguage, initi
     AlertDialog(onDismissRequest = onDismiss, title = { Text(title) }, text = { OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text(hint) }, singleLine = true) }, confirmButton = { TextButton(onClick = { onConfirm(value.trim()) }, enabled = value.trim().isNotEmpty()) { Text(confirmLabel) } }, dismissButton = { TextButton(onClick = onDismiss) { Text(language.t("cancel")) } })
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: () -> Unit, onOpen: () -> Unit, onOpenTool: () -> Unit, onChecksum: () -> Unit, onShare: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -1050,7 +1052,7 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ApkInspectorSheet(
     file: FileEntry,

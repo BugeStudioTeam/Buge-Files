@@ -187,5 +187,3 @@ class ShizukuService(private val context: Context) {
         }
     }
 }
-
-data class InstallResult(val success: Boolean, val message: String)
