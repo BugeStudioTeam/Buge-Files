@@ -103,6 +103,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var apkLoading by mutableStateOf(false)
         private set
+    var apkInstalling by mutableStateOf(false)
+        private set
 
     private val recentItems = mutableStateListOf<FileEntry>()
     val recents: List<FileEntry> get() = recentItems
@@ -341,6 +343,30 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissApk() { apkTarget = null; apkMetadata = null; apkLoading = false }
+
+    fun installApk(entry: FileEntry) {
+        if (!ShizukuInstaller.isAvailable()) {
+            showMessage("Shizuku is not authorized")
+            return
+        }
+        val app = getApplication<Application>()
+        val installerPackage = _settings.value.installerPackage
+        apkInstalling = true
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                ShizukuInstaller.install(app, entry.uri, installerPackage)
+            }
+            apkInstalling = false
+            val message = result.fold(
+                onSuccess = { "Installed successfully" },
+                onFailure = { it.message ?: "Installation failed" }
+            )
+            apkTarget = null
+            apkMetadata = null
+            apkLoading = false
+            showMessage(message)
+        }
+    }
 
     fun openTextEditor(entry: FileEntry) {
         editorTarget = entry

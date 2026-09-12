@@ -350,6 +350,20 @@ fun BugeApp(
                 dismissButton = { TextButton(onClick = { deleteRequest = null }) { Text(language.t("cancel")) } }
             )
         }
+        if (viewModel.apkInstalling) {
+            Dialog(
+                onDismissRequest = {},
+                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+            ) {
+                Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+                    Row(Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.CircularProgressIndicator(Modifier.size(28.dp))
+                        Spacer(Modifier.width(16.dp))
+                        Text(language.t("installing"), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        }
         viewModel.apkTarget?.let { file ->
             ApkInspectorSheet(file = file, metadata = viewModel.apkMetadata, loading = viewModel.apkLoading, language = language, onInstall = { onInstallApk(file) }, onDismiss = viewModel::dismissApk)
         }
