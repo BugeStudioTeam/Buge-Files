@@ -19,8 +19,8 @@ android {
         applicationId = "com.buge.files"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.5.4"
+        versionCode = 15
+        versionName = "1.6.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -62,10 +62,6 @@ android {
         buildConfig = true
     }
 
-    androidResources {
-        noCompress += listOf("m8")
-    }
-
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
@@ -86,5 +82,7 @@ dependencies {
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

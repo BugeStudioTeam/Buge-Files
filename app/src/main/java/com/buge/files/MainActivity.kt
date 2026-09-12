@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
+import rikka.shizuku.Shizuku
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -38,6 +39,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        Shizuku.addRequestPermissionResultListener { requestCode, grantResult ->
+            if (requestCode == ShizukuInstaller.REQUEST_CODE) {
+                runOnUiThread { Toast.makeText(this, if (grantResult == PackageManager.PERMISSION_GRANTED) "Shizuku authorized" else "Shizuku authorization denied", Toast.LENGTH_SHORT).show() }
+            }
+        }
         setContent {
             BugeApp(
                 viewModel = viewModel,
@@ -45,8 +51,26 @@ class MainActivity : ComponentActivity() {
                 onRequestDirectStorage = ::requestDirectStorageAccess,
                 onOpenFile = ::openFile,
                 onInstallApk = ::installApk,
+                onRequestShizukuPermission = ::requestShizukuPermission,
                 onShareFiles = ::shareFiles
             )
+        }
+    }
+
+    override fun onDestroy() {
+        Shizuku.removeRequestPermissionResultListener { _, _ -> }
+        super.onDestroy()
+    }
+
+    private fun requestShizukuPermission() {
+        if (ShizukuInstaller.isAvailable()) {
+            Toast.makeText(this, "Shizuku is already authorized", Toast.LENGTH_SHORT).show()
+        } else if (!ShizukuInstaller.hasBinder()) {
+            Toast.makeText(this, "Start Shizuku first, then try again", Toast.LENGTH_LONG).show()
+        } else {
+            requestShizukuPermissionIfNeeded { granted ->
+                runOnUiThread { Toast.makeText(this, if (granted) "Shizuku authorized" else "Shizuku authorization requested", Toast.LENGTH_SHORT).show() }
+            }
         }
     }
 
@@ -93,6 +117,14 @@ class MainActivity : ComponentActivity() {
     private fun installApk(file: FileEntry) {
         val uri = safeUri(file) ?: run {
             Toast.makeText(this, "The APK is no longer available", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val installerPackage = viewModel.settings.value.installerPackage
+        if (ShizukuInstaller.isAvailable()) {
+            Thread {
+                val result = ShizukuInstaller.install(this, uri, installerPackage)
+                runOnUiThread { Toast.makeText(this, result.getOrElse { it.message ?: "Shizuku installation failed" }, Toast.LENGTH_LONG).show() }
+            }.start()
             return
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {

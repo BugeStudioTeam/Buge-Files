@@ -67,6 +67,7 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
@@ -156,6 +157,7 @@ fun BugeApp(
     onRequestDirectStorage: () -> Unit,
     onOpenFile: (FileEntry) -> Unit,
     onInstallApk: (FileEntry) -> Unit,
+    onRequestShizukuPermission: () -> Unit,
     onShareFiles: (List<FileEntry>) -> Unit
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -166,7 +168,7 @@ fun BugeApp(
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
-    val language = settings.language
+    val language = settings.language.resolved()
     val snackbars = remember { SnackbarHostState() }
     var showRootMenu by remember { mutableStateOf(false) }
     var showActions by remember { mutableStateOf(false) }
@@ -301,7 +303,8 @@ fun BugeApp(
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
                                 modifier = Modifier.padding(padding), language = language, settings = settings,
-                                onSettingsChange = viewModel::updateSettings
+                                onSettingsChange = viewModel::updateSettings,
+                                onRequestShizukuPermission = onRequestShizukuPermission
                             )
                         }
                     }
@@ -687,8 +690,9 @@ private fun StorageRow(label: String, size: Long, total: Long, icon: ImageVector
 private enum class AppearanceDialog { THEME, COLOR, LANGUAGE }
 
 @Composable
-private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit) {
+private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit, onRequestShizukuPermission: () -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
+    var installerDialog by remember { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -718,6 +722,23 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     onClick = { appearanceDialog = AppearanceDialog.LANGUAGE }
                 )
             }
+            item { SettingsSection("Installation") }
+            item {
+                SettingsActionCard(
+                    title = "Shizuku authorization",
+                    summary = if (ShizukuInstaller.isAvailable()) "Authorized; APKs use Shizuku" else "Tap to authorize Shizuku",
+                    icon = Icons.Outlined.Security,
+                    onClick = onRequestShizukuPermission
+                )
+            }
+            item {
+                SettingsActionCard(
+                    title = "Installer declaration",
+                    summary = settings.installerPackage.ifBlank { "Empty (system default)" },
+                    icon = Icons.Outlined.Info,
+                    onClick = { installerDialog = true }
+                )
+            }
             item { SettingsSection(language.t("behavior")) }
             item { SettingSwitch(language.t("compact"), settings.compactMode) { onSettingsChange(settings.copy(compactMode = it)) } }
             item { SettingSwitch(language.t("hidden"), settings.showHidden) { onSettingsChange(settings.copy(showHidden = it)) } }
@@ -735,6 +756,12 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                 }
             }
         }
+
+        if (installerDialog) InstallerPackageDialog(
+            initialValue = settings.installerPackage,
+            onDismiss = { installerDialog = false },
+            onSave = { onSettingsChange(settings.copy(installerPackage = it)); installerDialog = false }
+        )
 
         when (appearanceDialog) {
             AppearanceDialog.THEME -> ThemeSettingsDialog(
@@ -844,6 +871,18 @@ private fun LanguageSettingsDialog(language: AppLanguage, settings: AppSettings,
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
+}
+
+@Composable
+private fun InstallerPackageDialog(initialValue: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var value by remember { mutableStateOf(initialValue) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Installer declaration") },
+        text = { OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text("Package name") }, placeholder = { Text("Optional; empty uses system default") }, singleLine = true) },
+        confirmButton = { TextButton(onClick = { onSave(value.trim()) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
 

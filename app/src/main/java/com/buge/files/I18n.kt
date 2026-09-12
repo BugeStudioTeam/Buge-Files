@@ -1096,6 +1096,7 @@ private val korean = mapOf(
 )
 
 fun AppLanguage.t(key: String): String = when (this) {
+    AppLanguage.SYSTEM -> english[key]
     AppLanguage.ENGLISH -> english[key]
     AppLanguage.FRENCH -> french[key]
     AppLanguage.GERMAN -> german[key]

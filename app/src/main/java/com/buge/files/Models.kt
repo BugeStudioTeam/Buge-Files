@@ -11,6 +11,7 @@ enum class ClipboardMode { COPY, MOVE }
 enum class ThemePreference { SYSTEM, LIGHT, DARK }
 enum class ColorSource { DYNAMIC, INDIGO, OCEAN, FOREST, SUNSET, ORCHID }
 enum class AppLanguage(val code: String, val nativeName: String) {
+    SYSTEM("system", "System default"),
     ENGLISH("en", "English"),
     FRENCH("fr", "Français"),
     GERMAN("de", "Deutsch"),
@@ -25,7 +26,26 @@ enum class AppLanguage(val code: String, val nativeName: String) {
     KOREAN("ko", "한국어");
 
     companion object {
-        fun fromCode(code: String?) = entries.firstOrNull { it.code == code } ?: ENGLISH
+        fun fromCode(code: String?) = entries.firstOrNull { it.code == code } ?: SYSTEM
+    }
+}
+
+fun AppLanguage.resolved(): AppLanguage {
+    if (this != AppLanguage.SYSTEM) return this
+    val locale = Locale.getDefault()
+    val exact = AppLanguage.values().firstOrNull { it != AppLanguage.SYSTEM && it.code.equals(locale.toLanguageTag(), ignoreCase = true) }
+    if (exact != null) return exact
+    return when (locale.language.lowercase(Locale.ROOT)) {
+        "fr" -> AppLanguage.FRENCH
+        "de" -> AppLanguage.GERMAN
+        "ru" -> AppLanguage.RUSSIAN
+        "pt" -> if (locale.country.equals("BR", true)) AppLanguage.PORTUGUESE_BRAZIL else AppLanguage.PORTUGUESE
+        "es" -> AppLanguage.SPANISH
+        "zh" -> if (locale.country.equals("TW", true) || locale.country.equals("HK", true)) AppLanguage.CHINESE_TRADITIONAL else AppLanguage.CHINESE
+        "ar" -> AppLanguage.ARABIC
+        "ja" -> AppLanguage.JAPANESE
+        "ko" -> AppLanguage.KOREAN
+        else -> AppLanguage.ENGLISH
     }
 }
 
@@ -60,11 +80,12 @@ data class StorageBreakdown(
 data class AppSettings(
     val theme: ThemePreference = ThemePreference.SYSTEM,
     val colorSource: ColorSource = ColorSource.DYNAMIC,
-    val language: AppLanguage = AppLanguage.ENGLISH,
+    val language: AppLanguage = AppLanguage.SYSTEM,
     val viewMode: ViewMode = ViewMode.LIST,
     val compactMode: Boolean = false,
     val showHidden: Boolean = false,
-    val hapticFeedback: Boolean = true
+    val hapticFeedback: Boolean = true,
+    val installerPackage: String = ""
 )
 
 @Immutable
