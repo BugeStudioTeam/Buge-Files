@@ -33,15 +33,17 @@ object ShizukuInstaller {
             var result: Result<String> = Result.failure(IllegalStateException("Shizuku service unavailable"))
             val connection = object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName, service: IBinder) {
-                    try {
-                        IInstallerService.Stub.asInterface(service)!!.install(installerPackage, descriptor)
-                        result = Result.success("Success")
-                    } catch (t: Throwable) {
-                        result = Result.failure(t)
-                    } finally {
-                        runCatching { descriptor.close() }
-                        latch.countDown()
-                    }
+                    Thread {
+                        try {
+                            IInstallerService.Stub.asInterface(service)!!.install(installerPackage, descriptor)
+                            result = Result.success("Success")
+                        } catch (t: Throwable) {
+                            result = Result.failure(t)
+                        } finally {
+                            runCatching { descriptor.close() }
+                            latch.countDown()
+                        }
+                    }.start()
                 }
                 override fun onServiceDisconnected(name: ComponentName) {
                     latch.countDown()
