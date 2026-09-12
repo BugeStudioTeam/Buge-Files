@@ -49,6 +49,7 @@ object ShizukuInstaller {
             }
             val args = Shizuku.UserServiceArgs(ComponentName(context, InstallerUserService::class.java))
                 .daemon(false)
+                .processNameSuffix("installer")
                 .tag("buge-installer")
                 .version(1)
             Shizuku.bindUserService(args, connection)
