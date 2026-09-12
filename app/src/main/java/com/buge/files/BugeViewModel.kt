@@ -25,8 +25,6 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val apkRepository = ApkRepository(application)
     private val settingsRepository = SettingsRepository(application)
-    private val shizukuInstaller = ShizukuInstaller(application)
-    private val shizukuManager = ShizukuManager()
     private var loadingJob: Job? = null
 
     private val _settings = MutableStateFlow(AppSettings())
@@ -53,15 +51,6 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _storage = MutableStateFlow(StorageBreakdown())
     val storage: StateFlow<StorageBreakdown> = _storage.asStateFlow()
-
-    private val _shizukuReady = MutableStateFlow(false)
-    val shizukuReady: StateFlow<Boolean> = _shizukuReady.asStateFlow()
-
-    private val _shizukuAvailable = MutableStateFlow(false)
-    val shizukuAvailable: StateFlow<Boolean> = _shizukuAvailable.asStateFlow()
-
-    private val _shizukuPermissionGranted = MutableStateFlow(false)
-    val shizukuPermissionGranted: StateFlow<Boolean> = _shizukuPermissionGranted.asStateFlow()
 
     var destination by mutableStateOf(AppDestination.BROWSE)
         private set
@@ -114,8 +103,6 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var apkLoading by mutableStateOf(false)
         private set
-    var isInstallingViaShizuku by mutableStateOf(false)
-        private set
 
     private val recentItems = mutableStateListOf<FileEntry>()
     val recents: List<FileEntry> get() = recentItems
@@ -125,9 +112,6 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             settingsRepository.settings.collect { newSettings ->
                 _settings.value = newSettings
                 refresh()
-                if (newSettings.shizukuEnabled) {
-                    refreshShizukuState()
-                }
             }
         }
         viewModelScope.launch {
@@ -138,114 +122,6 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         }
         refreshDirectStorageAccess(preferDirect = false)
         viewModelScope.launch { settingsRepository.bookmarks.collect { _bookmarks.value = it } }
-        refreshShizukuState()
-    }
-
-    fun refreshShizukuState() {
-        val available = shizukuManager.isAvailable()
-        val hasPermission = shizukuManager.hasPermission()
-        _shizukuAvailable.value = available
-        _shizukuPermissionGranted.value = hasPermission
-        if (available && hasPermission) {
-            viewModelScope.launch {
-                val ready = shizukuInstaller.initialize()
-                _shizukuReady.value = ready
-            }
-        } else {
-            _shizukuReady.value = false
-        }
-    }
-
-    fun onShizukuPermissionResult(granted: Boolean) {
-        _shizukuPermissionGranted.value = granted
-        if (granted) {
-            viewModelScope.launch {
-                val ready = shizukuInstaller.initialize()
-                _shizukuReady.value = ready
-                showMessage(if (ready) "Shizuku connected" else "Shizuku initialization failed")
-            }
-        } else {
-            _shizukuReady.value = false
-            showMessage("Shizuku permission denied")
-        }
-    }
-
-    fun onShizukuBinderReceived() {
-        _shizukuAvailable.value = true
-        refreshShizukuState()
-    }
-
-    fun onShizukuBinderDead() {
-        _shizukuAvailable.value = false
-        _shizukuPermissionGranted.value = false
-        _shizukuReady.value = false
-        shizukuInstaller.cleanup()
-    }
-
-    fun requestShizukuPermission() {
-        shizukuManager.requestPermission(ShizukuInstaller.REQUEST_CODE)
-    }
-
-    fun initializeShizuku() {
-        if (!shizukuManager.isAvailable()) {
-            showMessage("Shizuku is not running")
-            return
-        }
-        if (shizukuManager.isPreV11()) {
-            showMessage("Shizuku version is too old")
-            return
-        }
-        if (!shizukuManager.hasPermission()) {
-            requestShizukuPermission()
-            return
-        }
-        viewModelScope.launch {
-            val ready = shizukuInstaller.initialize()
-            _shizukuReady.value = ready
-            if (ready) {
-                showMessage("Shizuku connected")
-            } else {
-                showMessage("Failed to initialize Shizuku")
-            }
-        }
-    }
-
-    fun installApkWithShizuku(file: FileEntry): Boolean {
-        val settings = _settings.value
-        if (!settings.shizukuEnabled) {
-            showMessage("Shizuku is not enabled")
-            return false
-        }
-        if (!_shizukuReady.value) {
-            initializeShizuku()
-            return false
-        }
-        isInstallingViaShizuku = true
-        viewModelScope.launch {
-            try {
-                val installerName = settings.shizukuInstaller
-                val result = shizukuInstaller.installApk(file.uri, installerName)
-                isInstallingViaShizuku = false
-                showMessage(result.message)
-                if (result.success) {
-                    dismissApk()
-                }
-            } catch (e: Exception) {
-                isInstallingViaShizuku = false
-                showMessage("Shizuku install failed: ${e.message}")
-            }
-        }
-        return true
-    }
-
-    fun cleanupShizuku() {
-        shizukuInstaller.cleanup()
-        _shizukuReady.value = false
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        cleanupShizuku()
     }
 
     fun selectDestination(value: AppDestination) {
@@ -272,6 +148,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         showMessage("Removed ${location.label}")
     }
 
+    /** Refreshes the special all-files-access state after the user returns from system settings. */
     fun refreshDirectStorageAccess(preferDirect: Boolean = true) {
         val available = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()

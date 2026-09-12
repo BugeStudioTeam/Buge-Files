@@ -14,7 +14,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.FileProvider
-import rikka.shizuku.Shizuku
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -36,31 +35,9 @@ class MainActivity : ComponentActivity() {
         else Toast.makeText(this, "Storage permission is required to manage internal storage", Toast.LENGTH_LONG).show()
     }
 
-    private val permissionResultListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
-        if (requestCode == ShizukuInstaller.REQUEST_CODE) {
-            val granted = grantResult == PackageManager.PERMISSION_GRANTED
-            viewModel.onShizukuPermissionResult(granted)
-        }
-    }
-
-    private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
-        viewModel.onShizukuBinderReceived()
-    }
-
-    private val binderDeadListener = Shizuku.OnBinderDeadListener {
-        viewModel.onShizukuBinderDead()
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        if (!Shizuku.isPreV11()) {
-            Shizuku.addRequestPermissionResultListener(permissionResultListener)
-            Shizuku.addBinderReceivedListener(binderReceivedListener)
-            Shizuku.addBinderDeadListener(binderDeadListener)
-        }
-
         setContent {
             BugeApp(
                 viewModel = viewModel,
@@ -73,22 +50,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        if (!Shizuku.isPreV11()) {
-            Shizuku.removeRequestPermissionResultListener(permissionResultListener)
-            Shizuku.removeBinderReceivedListener(binderReceivedListener)
-            Shizuku.removeBinderDeadListener(binderDeadListener)
-        }
-    }
-
     override fun onResume() {
         super.onResume()
         if (awaitingAllFilesAccess) {
             awaitingAllFilesAccess = false
             viewModel.refreshDirectStorageAccess(preferDirect = true)
         }
-        viewModel.refreshShizukuState()
     }
 
     private fun requestDirectStorageAccess() {

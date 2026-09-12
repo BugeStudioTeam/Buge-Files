@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.buge.files
 
 import android.net.Uri
@@ -20,7 +22,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -72,13 +73,11 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.VideoFile
-import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.DropdownMenu
@@ -167,9 +166,6 @@ fun BugeApp(
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
-    val shizukuReady by viewModel.shizukuReady.collectAsStateWithLifecycle()
-    val shizukuAvailable by viewModel.shizukuAvailable.collectAsStateWithLifecycle()
-    val shizukuPermissionGranted by viewModel.shizukuPermissionGranted.collectAsStateWithLifecycle()
     val language = settings.language
     val snackbars = remember { SnackbarHostState() }
     var showRootMenu by remember { mutableStateOf(false) }
@@ -304,13 +300,7 @@ fun BugeApp(
                                 loading = viewModel.isStorageLoading, onRequestFolder = onRequestFolder
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
-                                modifier = Modifier.padding(padding),
-                                language = language,
-                                settings = settings,
-                                viewModel = viewModel,
-                                shizukuReady = shizukuReady,
-                                shizukuAvailable = shizukuAvailable,
-                                shizukuPermissionGranted = shizukuPermissionGranted,
+                                modifier = Modifier.padding(padding), language = language, settings = settings,
                                 onSettingsChange = viewModel::updateSettings
                             )
                         }
@@ -358,18 +348,7 @@ fun BugeApp(
             )
         }
         viewModel.apkTarget?.let { file ->
-            ApkInspectorSheet(
-                file = file,
-                metadata = viewModel.apkMetadata,
-                loading = viewModel.apkLoading,
-                language = language,
-                settings = settings,
-                shizukuReady = shizukuReady,
-                isInstalling = viewModel.isInstallingViaShizuku,
-                onInstall = { onInstallApk(file) },
-                onInstallWithShizuku = { viewModel.installApkWithShizuku(file) },
-                onDismiss = viewModel::dismissApk
-            )
+            ApkInspectorSheet(file = file, metadata = viewModel.apkMetadata, loading = viewModel.apkLoading, language = language, onInstall = { onInstallApk(file) }, onDismiss = viewModel::dismissApk)
         }
         viewModel.editorTarget?.let { file ->
             CodeEditorScreen(file = file, content = viewModel.editorText, loading = viewModel.editorLoading, language = language, onContentChange = viewModel::updateEditorText, onSave = viewModel::saveEditor, onDismiss = viewModel::dismissEditor)
@@ -708,19 +687,8 @@ private fun StorageRow(label: String, size: Long, total: Long, icon: ImageVector
 private enum class AppearanceDialog { THEME, COLOR, LANGUAGE }
 
 @Composable
-private fun SettingsScreen(
-    modifier: Modifier,
-    language: AppLanguage,
-    settings: AppSettings,
-    viewModel: BugeViewModel,
-    shizukuReady: Boolean,
-    shizukuAvailable: Boolean,
-    shizukuPermissionGranted: Boolean,
-    onSettingsChange: (AppSettings) -> Unit
-) {
+private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
-    var showInstallerDialog by remember { mutableStateOf(false) }
-    var installerNameInput by remember { mutableStateOf(settings.shizukuInstaller) }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -754,55 +722,6 @@ private fun SettingsScreen(
             item { SettingSwitch(language.t("compact"), settings.compactMode) { onSettingsChange(settings.copy(compactMode = it)) } }
             item { SettingSwitch(language.t("hidden"), settings.showHidden) { onSettingsChange(settings.copy(showHidden = it)) } }
             item { SettingSwitch(language.t("haptics"), settings.hapticFeedback) { onSettingsChange(settings.copy(hapticFeedback = it)) } }
-            item { SettingsSection("Shizuku") }
-            item {
-                val statusText = when {
-                    !shizukuAvailable -> language.t("shizuku_not_available")
-                    !shizukuPermissionGranted -> "Permission required"
-                    !shizukuReady -> language.t("shizuku_disconnected")
-                    else -> language.t("shizuku_connected")
-                }
-                val statusColor = if (shizukuReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                Text("Shizuku: $statusText", style = MaterialTheme.typography.bodyMedium, color = statusColor, modifier = Modifier.padding(vertical = 4.dp))
-            }
-            item {
-                SettingSwitch(
-                    language.t("shizuku_enable"),
-                    settings.shizukuEnabled
-                ) {
-                    onSettingsChange(settings.copy(shizukuEnabled = it))
-                    if (it) {
-                        viewModel.initializeShizuku()
-                    }
-                }
-            }
-            item {
-                SettingsActionCard(
-                    title = language.t("shizuku_installer"),
-                    summary = if (settings.shizukuInstaller.isNotEmpty()) settings.shizukuInstaller else language.t("shizuku_installer_hint"),
-                    icon = Icons.Outlined.Edit,
-                    onClick = {
-                        installerNameInput = settings.shizukuInstaller
-                        showInstallerDialog = true
-                    }
-                )
-            }
-            item {
-                SettingSwitch(
-                    language.t("shizuku_prefer"),
-                    settings.shizukuPreferInstall
-                ) { onSettingsChange(settings.copy(shizukuPreferInstall = it)) }
-            }
-            if (shizukuAvailable && !shizukuPermissionGranted) {
-                item {
-                    OutlinedButton(
-                        onClick = { viewModel.requestShizukuPermission() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Grant Shizuku permission")
-                    }
-                }
-            }
             item { SettingsSection(language.t("about")) }
             item {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -837,37 +756,6 @@ private fun SettingsScreen(
                 onDismiss = { appearanceDialog = null }
             )
             null -> Unit
-        }
-
-        if (showInstallerDialog) {
-            AlertDialog(
-                onDismissRequest = { showInstallerDialog = false },
-                title = { Text(language.t("shizuku_installer")) },
-                text = {
-                    OutlinedTextField(
-                        value = installerNameInput,
-                        onValueChange = { installerNameInput = it },
-                        label = { Text(language.t("shizuku_installer_hint")) },
-                        placeholder = { Text("com.android.vending") },
-                        singleLine = true
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onSettingsChange(settings.copy(shizukuInstaller = installerNameInput.trim()))
-                            showInstallerDialog = false
-                        }
-                    ) {
-                        Text(language.t("save"))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showInstallerDialog = false }) {
-                        Text(language.t("cancel"))
-                    }
-                }
-            )
         }
     }
 }
@@ -937,7 +825,6 @@ private fun ColorSettingsDialog(language: AppLanguage, settings: AppSettings, on
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun LanguageSettingsDialog(language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
@@ -998,7 +885,6 @@ private fun colorSourceLabel(language: AppLanguage, source: ColorSource): String
     ColorSource.ORCHID -> language.t("orchid")
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { values.forEach { (value, label) -> FilterChip(selected = selected == value, onClick = { onSelect(value) }, label = { Text(label) }) } }
@@ -1032,7 +918,7 @@ private fun NameDialog(title: String, hint: String, language: AppLanguage, initi
     AlertDialog(onDismissRequest = onDismiss, title = { Text(title) }, text = { OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text(hint) }, singleLine = true) }, confirmButton = { TextButton(onClick = { onConfirm(value.trim()) }, enabled = value.trim().isNotEmpty()) { Text(confirmLabel) } }, dismissButton = { TextButton(onClick = onDismiss) { Text(language.t("cancel")) } })
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: () -> Unit, onOpen: () -> Unit, onOpenTool: () -> Unit, onChecksum: () -> Unit, onShare: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -1052,20 +938,9 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ApkInspectorSheet(
-    file: FileEntry,
-    metadata: ApkMetadata?,
-    loading: Boolean,
-    language: AppLanguage,
-    settings: AppSettings,
-    shizukuReady: Boolean,
-    isInstalling: Boolean,
-    onInstall: () -> Unit,
-    onInstallWithShizuku: () -> Unit,
-    onDismiss: () -> Unit
-) {
+private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, language: AppLanguage, onInstall: () -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             item {
@@ -1115,41 +990,10 @@ private fun ApkInspectorSheet(
                     }
                 }
                 item {
-                    if (settings.shizukuEnabled && shizukuReady) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilledTonalButton(
-                                onClick = onInstallWithShizuku,
-                                modifier = Modifier.weight(1f),
-                                enabled = !isInstalling
-                            ) {
-                                if (isInstalling) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                } else {
-                                    Icon(Icons.Outlined.FileOpen, null)
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
-                            }
-                            OutlinedButton(
-                                onClick = onInstall,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Outlined.Android, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(language.t("system_installer"))
-                            }
-                        }
-                        if (!isInstalling) {
-                            Text("Installer: ${if (settings.shizukuInstaller.isNotEmpty()) settings.shizukuInstaller else "empty"}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-                        }
-                    } else {
-                        FilledTonalButton(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Outlined.FileOpen, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
-                        }
-                        Text(language.t("system_installer"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                    FilledTonalButton(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Outlined.FileOpen, null); Spacer(Modifier.width(8.dp)); Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
                     }
+                    Text(language.t("system_installer"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
                 }
             }
             if (!loading && metadata == null) item { Text("APK metadata is unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -1171,7 +1015,7 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
                     FilledTonalButton(onClick = onSave, enabled = !loading) { Text(language.t("save")) }
                 }
                 if (loading) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
                 } else {
                     Row(Modifier.fillMaxSize().padding(12.dp)) {
                         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(42.dp).fillMaxHeight()) {
