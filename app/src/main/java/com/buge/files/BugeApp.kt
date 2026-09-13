@@ -350,20 +350,6 @@ fun BugeApp(
                 dismissButton = { TextButton(onClick = { deleteRequest = null }) { Text(language.t("cancel")) } }
             )
         }
-        if (viewModel.apkInstalling) {
-            Dialog(
-                onDismissRequest = {},
-                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-            ) {
-                Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
-                    Row(Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                        androidx.compose.material3.CircularProgressIndicator(Modifier.size(28.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text(language.t("installing"), style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-            }
-        }
         viewModel.apkTarget?.let { file ->
             ApkInspectorSheet(file = file, metadata = viewModel.apkMetadata, loading = viewModel.apkLoading, language = language, onInstall = { onInstallApk(file) }, onDismiss = viewModel::dismissApk)
         }
@@ -1046,7 +1032,7 @@ private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: 
                     FilledTonalButton(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Outlined.FileOpen, null); Spacer(Modifier.width(8.dp)); Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
                     }
-                    Text(if (ShizukuInstaller.isAvailable()) "Shizuku" else language.t("system_installer"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                    Text(language.t("system_installer"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
                 }
             }
             if (!loading && metadata == null) item { Text("APK metadata is unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant) }

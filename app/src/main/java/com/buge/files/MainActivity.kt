@@ -115,12 +115,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun installApk(file: FileEntry) {
-        if (ShizukuInstaller.isAvailable()) {
-            viewModel.installApk(file)
-            return
-        }
         val uri = safeUri(file) ?: run {
             Toast.makeText(this, "The APK is no longer available", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val installerPackage = viewModel.settings.value.installerPackage
+        if (ShizukuInstaller.isAvailable()) {
+            Thread {
+                val result = ShizukuInstaller.install(this, uri, installerPackage)
+                runOnUiThread { Toast.makeText(this, result.getOrElse { it.message ?: "Shizuku installation failed" }, Toast.LENGTH_LONG).show() }
+            }.start()
             return
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {

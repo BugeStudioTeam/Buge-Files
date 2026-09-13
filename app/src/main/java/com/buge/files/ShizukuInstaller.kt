@@ -33,17 +33,15 @@ object ShizukuInstaller {
             var result: Result<String> = Result.failure(IllegalStateException("Shizuku service unavailable"))
             val connection = object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName, service: IBinder) {
-                    Thread {
-                        try {
-                            IInstallerService.Stub.asInterface(service)!!.install(installerPackage, descriptor)
-                            result = Result.success("Success")
-                        } catch (t: Throwable) {
-                            result = Result.failure(t)
-                        } finally {
-                            runCatching { descriptor.close() }
-                            latch.countDown()
-                        }
-                    }.start()
+                    try {
+                        IInstallerService.Stub.asInterface(service)!!.install(installerPackage, descriptor)
+                        result = Result.success("Success")
+                    } catch (t: Throwable) {
+                        result = Result.failure(t)
+                    } finally {
+                        runCatching { descriptor.close() }
+                        latch.countDown()
+                    }
                 }
                 override fun onServiceDisconnected(name: ComponentName) {
                     latch.countDown()
@@ -51,8 +49,8 @@ object ShizukuInstaller {
             }
             val args = Shizuku.UserServiceArgs(ComponentName(context, InstallerUserService::class.java))
                 .daemon(false)
-                .processNameSuffix("installer")
                 .tag("buge-installer")
+                .processNameSuffix("installer")
                 .version(1)
             Shizuku.bindUserService(args, connection)
             check(latch.await(90, TimeUnit.SECONDS)) { "Timed out waiting for Shizuku" }
