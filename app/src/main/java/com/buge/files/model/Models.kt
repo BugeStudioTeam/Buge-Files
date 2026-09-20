@@ -84,8 +84,7 @@ data class AppSettings(
     val viewMode: ViewMode = ViewMode.LIST,
     val compactMode: Boolean = false,
     val showHidden: Boolean = false,
-    val hapticFeedback: Boolean = true,
-    val installerPackage: String = ""
+    val hapticFeedback: Boolean = true
 )
 
 @Immutable

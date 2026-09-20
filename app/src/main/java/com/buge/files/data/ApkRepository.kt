@@ -4,6 +4,8 @@ import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.net.Uri
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +36,30 @@ data class ApkReadResult(val metadata: ApkMetadata? = null, val message: String?
 class ApkRepository(private val context: Context) {
     private val packageManager: PackageManager = context.packageManager
 
+    suspend fun loadIcon(entry: FileEntry): Bitmap? = withContext(Dispatchers.IO) {
+        var temporary: File? = null
+        try {
+            val archive = if (entry.uri.scheme == ContentResolver.SCHEME_FILE) {
+                entry.uri.path?.let(::File)?.takeIf { it.exists() && it.isFile } ?: return@withContext null
+            } else {
+                temporary = File.createTempFile("buge-apk-icon-", ".apk", context.cacheDir)
+                context.contentResolver.openInputStream(entry.uri)?.use { input -> temporary!!.outputStream().use { output -> input.copyTo(output) } } ?: return@withContext null
+                temporary
+            }
+            val info = archivePackageInfo(archive.absolutePath) ?: return@withContext null
+            val application = info.applicationInfo ?: return@withContext null
+            application.sourceDir = archive.absolutePath
+            application.publicSourceDir = archive.absolutePath
+            val drawable = application.loadIcon(packageManager)
+            val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 96
+            val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 96
+            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
+                val canvas = Canvas(bitmap)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
+            }
+        } catch (_: Exception) { null } finally { temporary?.delete() }
+    }
     suspend fun inspect(entry: FileEntry): ApkReadResult = withContext(Dispatchers.IO) {
         var temporary: File? = null
         try {

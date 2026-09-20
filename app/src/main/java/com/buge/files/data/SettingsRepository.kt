@@ -21,7 +21,6 @@ class SettingsRepository(private val context: Context) {
         val compact = stringPreferencesKey("compact")
         val hidden = stringPreferencesKey("hidden")
         val haptics = stringPreferencesKey("haptics")
-        val installerPackage = stringPreferencesKey("installer_package")
         val roots = stringSetPreferencesKey("roots")
         val bookmarks = stringSetPreferencesKey("bookmarks")
     }
@@ -34,8 +33,7 @@ class SettingsRepository(private val context: Context) {
             viewMode = enumValue(prefs[Keys.viewMode], ViewMode.LIST),
             compactMode = prefs[Keys.compact]?.toBoolean() ?: false,
             showHidden = prefs[Keys.hidden]?.toBoolean() ?: false,
-            hapticFeedback = prefs[Keys.haptics]?.toBoolean() ?: true,
-            installerPackage = prefs[Keys.installerPackage].orEmpty()
+            hapticFeedback = prefs[Keys.haptics]?.toBoolean() ?: true
         )
     }
 
@@ -55,7 +53,6 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.compact] = settings.compactMode.toString()
         prefs[Keys.hidden] = settings.showHidden.toString()
         prefs[Keys.haptics] = settings.hapticFeedback.toString()
-        prefs[Keys.installerPackage] = settings.installerPackage.trim()
     }
 
     suspend fun addRoot(location: RootLocation) = context.dataStore.edit { prefs ->

@@ -126,6 +126,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -157,7 +158,6 @@ fun BugeApp(
     onRequestDirectStorage: () -> Unit,
     onOpenFile: (FileEntry) -> Unit,
     onInstallApk: (FileEntry) -> Unit,
-    onRequestShizukuPermission: () -> Unit,
     onShareFiles: (List<FileEntry>) -> Unit
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -303,8 +303,7 @@ fun BugeApp(
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
                                 modifier = Modifier.padding(padding), language = language, settings = settings,
-                                onSettingsChange = viewModel::updateSettings,
-                                onRequestShizukuPermission = onRequestShizukuPermission
+                                onSettingsChange = viewModel::updateSettings
                             )
                         }
                     }
@@ -577,7 +576,7 @@ private fun FileListItem(entry: FileEntry, language: AppLanguage, compact: Boole
     val itemShape = RoundedCornerShape(if (compact) 14.dp else 20.dp)
     Surface(shape = itemShape, color = container, modifier = Modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)).scale(selectionScale).clip(itemShape).combinedClickable(onClick = { if (selectionActive || selected) onToggleSelection(entry) else if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry) }, onLongClick = { onToggleSelection(entry) })) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = if (compact) 7.dp else 11.dp)) {
-            if (selected) Checkbox(checked = true, onCheckedChange = { onToggleSelection(entry) }) else FileGlyph(icon, entry.isDirectory)
+            if (selected) Checkbox(checked = true, onCheckedChange = { onToggleSelection(entry) }) else FileGlyph(icon, entry.isDirectory, entry = entry)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(entry.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -596,7 +595,7 @@ private fun FileGridItem(entry: FileEntry, language: AppLanguage, selected: Bool
     ElevatedCard(shape = itemShape, colors = CardDefaults.elevatedCardColors(containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow), modifier = Modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)).scale(selectionScale).clip(itemShape).combinedClickable(onClick = { if (selectionActive || selected) onToggleSelection(entry) else if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry) }, onLongClick = { onToggleSelection(entry) })) {
         Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                FileGlyph(iconFor(entry), entry.isDirectory, size = 36.dp)
+                FileGlyph(iconFor(entry), entry.isDirectory, size = 36.dp, entry = entry)
                 IconButton(onClick = { onInfo(entry) }, modifier = Modifier.size(30.dp)) { Icon(Icons.Outlined.MoreVert, language.t("details")) }
             }
             Spacer(Modifier.height(22.dp)); Text(entry.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
@@ -606,9 +605,20 @@ private fun FileGridItem(entry: FileEntry, language: AppLanguage, selected: Bool
 }
 
 @Composable
-private fun FileGlyph(icon: ImageVector, folder: Boolean, size: Dp = 30.dp) {
+private fun FileGlyph(icon: ImageVector, folder: Boolean, size: Dp = 30.dp, entry: FileEntry? = null) {
+    val context = LocalContext.current
+    var apkIcon by remember(entry?.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(entry?.uri) {
+        if (entry?.isApkPackage() == true) apkIcon = ApkRepository(context).loadIcon(entry)
+    }
     Surface(color = if (folder) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer, shape = RoundedCornerShape(12.dp), modifier = Modifier.size(size + 16.dp)) {
-        Box(contentAlignment = Alignment.Center) { Icon(icon, null, modifier = Modifier.size(size), tint = if (folder) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer) }
+        Box(contentAlignment = Alignment.Center) {
+            if (apkIcon != null) {
+                androidx.compose.foundation.Image(bitmap = apkIcon!!.asImageBitmap(), contentDescription = null, modifier = Modifier.size(size), contentScale = ContentScale.Fit)
+            } else {
+                Icon(icon, null, modifier = Modifier.size(size), tint = if (folder) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer)
+            }
+        }
     }
 }
 
@@ -690,9 +700,8 @@ private fun StorageRow(label: String, size: Long, total: Long, icon: ImageVector
 private enum class AppearanceDialog { THEME, COLOR, LANGUAGE }
 
 @Composable
-private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit, onRequestShizukuPermission: () -> Unit) {
+private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
-    var installerDialog by remember { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -722,23 +731,6 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     onClick = { appearanceDialog = AppearanceDialog.LANGUAGE }
                 )
             }
-            item { SettingsSection("Installation") }
-            item {
-                SettingsActionCard(
-                    title = "Shizuku authorization",
-                    summary = if (ShizukuInstaller.isAvailable()) "Authorized; APKs use Shizuku" else "Tap to authorize Shizuku",
-                    icon = Icons.Outlined.Security,
-                    onClick = onRequestShizukuPermission
-                )
-            }
-            item {
-                SettingsActionCard(
-                    title = "Installer declaration",
-                    summary = settings.installerPackage.ifBlank { "Empty (system default)" },
-                    icon = Icons.Outlined.Info,
-                    onClick = { installerDialog = true }
-                )
-            }
             item { SettingsSection(language.t("behavior")) }
             item { SettingSwitch(language.t("compact"), settings.compactMode) { onSettingsChange(settings.copy(compactMode = it)) } }
             item { SettingSwitch(language.t("hidden"), settings.showHidden) { onSettingsChange(settings.copy(showHidden = it)) } }
@@ -757,11 +749,6 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
             }
         }
 
-        if (installerDialog) InstallerPackageDialog(
-            initialValue = settings.installerPackage,
-            onDismiss = { installerDialog = false },
-            onSave = { onSettingsChange(settings.copy(installerPackage = it)); installerDialog = false }
-        )
 
         when (appearanceDialog) {
             AppearanceDialog.THEME -> ThemeSettingsDialog(
@@ -875,18 +862,6 @@ private fun LanguageSettingsDialog(language: AppLanguage, settings: AppSettings,
 }
 
 @Composable
-private fun InstallerPackageDialog(initialValue: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
-    var value by remember { mutableStateOf(initialValue) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Installer declaration") },
-        text = { OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text("Package name") }, placeholder = { Text("Optional; empty uses system default") }, singleLine = true) },
-        confirmButton = { TextButton(onClick = { onSave(value.trim()) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
 private fun AppearanceOptionRow(label: String, selected: Boolean, onSelect: () -> Unit, icon: ImageVector? = null, supportingText: String? = null) {
     Row(
         modifier = Modifier
@@ -962,7 +937,7 @@ private fun NameDialog(title: String, hint: String, language: AppLanguage, initi
 private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: () -> Unit, onOpen: () -> Unit, onOpenTool: () -> Unit, onChecksum: () -> Unit, onShare: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 28.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) { FileGlyph(iconFor(file), file.isDirectory, 34.dp); Spacer(Modifier.width(14.dp)); Column(Modifier.weight(1f)) { Text(file.name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis); Text(if (file.isDirectory) language.t("folder") else file.mimeType.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+            Row(verticalAlignment = Alignment.CenterVertically) { FileGlyph(iconFor(file), file.isDirectory, 34.dp, entry = file); Spacer(Modifier.width(14.dp)); Column(Modifier.weight(1f)) { Text(file.name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis); Text(if (file.isDirectory) language.t("folder") else file.mimeType.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
             Spacer(Modifier.height(20.dp)); DetailLine(language.t("size"), if (file.isDirectory) "${file.childCount} ${language.t("items")}" else formatBytes(file.size)); DetailLine(language.t("modified"), formatDate(file.lastModified)); DetailLine(language.t("type"), if (file.isDirectory) language.t("folder") else file.extension.uppercase())
             Spacer(Modifier.height(18.dp)); FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!file.isDirectory) {
@@ -984,7 +959,7 @@ private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: 
         LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FileGlyph(Icons.Outlined.Archive, false, 30.dp)
+                    FileGlyph(Icons.Outlined.Archive, false, 30.dp, entry = file)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(metadata?.displayName ?: file.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
