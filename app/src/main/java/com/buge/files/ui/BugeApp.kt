@@ -2,7 +2,10 @@
 
 package com.buge.files
 
+import android.app.Activity
 import android.net.Uri
+import android.os.SystemClock
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -37,6 +40,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -119,7 +124,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -146,6 +153,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import kotlinx.coroutines.flow.collectLatest
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.max
@@ -178,6 +186,8 @@ fun BugeApp(
     var renameTarget by remember { mutableStateOf<FileEntry?>(null) }
     var deleteRequest by remember { mutableStateOf<List<FileEntry>?>(null) }
     val selected = viewModel.selectedEntries()
+    val context = LocalContext.current
+    var lastExitBackPress by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(viewModel.message) {
         viewModel.message?.let {
@@ -186,11 +196,21 @@ fun BugeApp(
         }
     }
 
-    BackHandler(enabled = viewModel.selection.isNotEmpty() || viewModel.isSearching || viewModel.navigationPath.size > 1) {
+    BackHandler(enabled = true) {
         when {
             viewModel.selection.isNotEmpty() -> viewModel.clearSelection()
             viewModel.isSearching -> viewModel.setSearchActive(false)
-            else -> viewModel.navigateUp()
+            viewModel.destination != AppDestination.BROWSE -> viewModel.selectDestination(AppDestination.BROWSE)
+            viewModel.navigationPath.size > 1 -> viewModel.navigateUp()
+            else -> {
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastExitBackPress <= 2000L) {
+                    (context as? Activity)?.finish()
+                } else {
+                    lastExitBackPress = now
+                    Toast.makeText(context, "Press back again to exit", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -266,6 +286,7 @@ fun BugeApp(
                     ) { destination ->
                         when (destination) {
                             AppDestination.BROWSE -> BrowseScreen(
+                                viewModel = viewModel,
                                 modifier = Modifier.padding(padding),
                                 language = language,
                                 root = currentRoot,
@@ -479,7 +500,7 @@ private fun navigationItems(language: AppLanguage): List<Triple<AppDestination, 
 
 @Composable
 private fun BrowseScreen(
-    modifier: Modifier, language: AppLanguage, root: RootLocation?, directStorageAvailable: Boolean, path: List<RootLocation>, entries: List<FileEntry>,
+    viewModel: BugeViewModel, modifier: Modifier, language: AppLanguage, root: RootLocation?, directStorageAvailable: Boolean, path: List<RootLocation>, entries: List<FileEntry>,
     searchActive: Boolean, isLoading: Boolean, viewMode: ViewMode, compact: Boolean, clipboard: ClipboardState?, isBookmarked: Boolean,
     onRequestFolder: () -> Unit, onRequestDirectStorage: () -> Unit, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit,
     onToggleSelection: (FileEntry) -> Unit, isSelected: (FileEntry) -> Boolean, onInfo: (FileEntry) -> Unit,
@@ -490,8 +511,31 @@ private fun BrowseScreen(
         else DirectStoragePermissionScreen(modifier, language, onRequestDirectStorage, onRequestFolder)
         return
     }
+    val pathKey = path.joinToString("/") { it.uri.toString() }
+    val savedPosition = remember(pathKey) { viewModel.browseScrollPosition(path) }
+    val listState = remember(pathKey) {
+        LazyListState(savedPosition?.index ?: 0, savedPosition?.offset ?: 0)
+    }
+    var restoredPosition by remember(pathKey) { mutableStateOf(savedPosition == null) }
+    LaunchedEffect(pathKey, entries.size, listState) {
+        if (!restoredPosition && entries.isNotEmpty()) {
+            val maxItemIndex = entries.size + 3
+            listState.scrollToItem(savedPosition!!.index.coerceAtMost(maxItemIndex), savedPosition.offset)
+            restoredPosition = true
+        }
+    }
+    LaunchedEffect(pathKey, listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collectLatest { (index, offset) ->
+                if (restoredPosition) viewModel.saveBrowseScrollPosition(path, index, offset)
+            }
+    }
+    val openDirectoryAndSavePosition: (FileEntry) -> Unit = { entry ->
+        viewModel.saveBrowseScrollPosition(path, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+        onOpenDirectory(entry)
+    }
     Column(modifier.fillMaxSize()) {
-        LazyColumn(modifier = if (viewMode == ViewMode.LIST) Modifier.weight(1f) else Modifier.heightIn(max = 210.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(state = listState, modifier = if (viewMode == ViewMode.LIST) Modifier.weight(1f) else Modifier.heightIn(max = 210.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -516,14 +560,14 @@ private fun BrowseScreen(
             if (entries.isEmpty() && !isLoading) item { EmptyFolder(language, searchActive) }
             if (viewMode == ViewMode.LIST) {
                 items(entries, key = { it.uri.toString() }) { entry ->
-                    FileListItem(entry, language, compact, isSelected(entry), selectionActive, onOpenDirectory, onOpenFile, onToggleSelection, onInfo)
+                    FileListItem(entry, language, compact, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo)
                 }
             }
         }
         if (viewMode == ViewMode.GRID && entries.isNotEmpty()) {
             LazyVerticalGrid(columns = GridCells.Adaptive(145.dp), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
                 items(entries, key = { it.uri.toString() }) { entry ->
-                    FileGridItem(entry, language, isSelected(entry), selectionActive, onOpenDirectory, onOpenFile, onToggleSelection, onInfo)
+                    FileGridItem(entry, language, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo)
                 }
             }
         }

@@ -20,12 +20,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+data class BrowseScrollPosition(val index: Int, val offset: Int)
+
 class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val fileRepository = FileRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val apkRepository = ApkRepository(application)
     private val settingsRepository = SettingsRepository(application)
     private var loadingJob: Job? = null
+    private val browseScrollPositions = mutableMapOf<String, BrowseScrollPosition>()
 
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -76,6 +79,16 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var pendingInfo by mutableStateOf<FileEntry?>(null)
         private set
+
+    fun browseScrollPosition(path: List<RootLocation>): BrowseScrollPosition? =
+        browseScrollPositions[browsePathKey(path)]
+
+    fun saveBrowseScrollPosition(path: List<RootLocation>, index: Int, offset: Int) {
+        browseScrollPositions[browsePathKey(path)] = BrowseScrollPosition(index, offset)
+    }
+
+    private fun browsePathKey(path: List<RootLocation>): String =
+        path.joinToString("/") { it.uri.toString() }
 
     var editorTarget by mutableStateOf<FileEntry?>(null)
         private set
