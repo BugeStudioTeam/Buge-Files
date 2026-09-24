@@ -19,7 +19,7 @@
 
 <div style="overflow-x: auto; white-space: nowrap; padding: 10px 0;">
 
-NONE NOW
+**COMING SOON**
 
 
 </div>
