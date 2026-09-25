@@ -809,13 +809,13 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
             item { SettingSwitch(language.t("haptics"), settings.hapticFeedback) { onSettingsChange(settings.copy(hapticFeedback = it)) } }
             item { SettingsSection(language.t("about")) }
             item {
-                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                ElevatedCard(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)) {
                     Column(Modifier.padding(18.dp)) {
                         Text("Buge Files", style = MaterialTheme.typography.titleLarge)
                         Spacer(Modifier.height(4.dp))
                         Text(language.t("file_manager"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(10.dp))
-                        Text(language.t("version"), style = MaterialTheme.typography.labelLarge)
+                        Text("${language.t("version")} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -857,7 +857,8 @@ private fun SettingsActionCard(title: String, summary: String, icon: ImageVector
     ElevatedCard(
         shape = cardShape,
         modifier = Modifier.fillMaxWidth().clip(cardShape).clickable(role = Role.Button, onClick = onClick),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
     ) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
@@ -978,7 +979,7 @@ private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: 
 
 @Composable
 private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange) } }
+    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange) } }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
