@@ -779,7 +779,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
             item { Text(language.t("settings"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 4.dp)) }
             item { SettingsSection(language.t("appearance")) }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingsActionCard(
                         title = language.t("theme"),
                         summary = themePreferenceLabel(language, settings.theme),
@@ -808,7 +808,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
             }
             item { SettingsSection(language.t("behavior")) }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingSwitch(language.t("compact"), settings.compactMode, 0, 4) { onSettingsChange(settings.copy(compactMode = it)) }
                     SettingSwitch(language.t("hidden"), settings.showHidden, 1, 4) { onSettingsChange(settings.copy(showHidden = it)) }
                     SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 2, 4) { onSettingsChange(settings.copy(showThumbnails = it)) }
