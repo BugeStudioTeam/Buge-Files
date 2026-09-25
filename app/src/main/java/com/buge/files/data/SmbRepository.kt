@@ -30,8 +30,9 @@ object SmbUri {
 
     fun build(host: String, share: String, path: String, port: Int = 445): Uri {
         val normalized = path.trim('/').replace('\\', '/')
-        val builder = Uri.Builder().scheme(SCHEME).authority(host)
-        if (port != 445) builder.port(port)
+        val scheme = SCHEME
+        val authority = if (port != 445) "$host:$port" else host
+        val builder = Uri.Builder().scheme(scheme).authority(authority)
         builder.appendPath(share)
         if (normalized.isNotEmpty()) normalized.split('/').forEach { builder.appendPath(it) }
         return builder.build()
@@ -180,7 +181,14 @@ class SmbRepository(private val context: Context) {
                 val parent = relative.substringBeforeLast('/', "")
                 val target = if (parent.isBlank()) newName else "$parent/$newName"
                 if (share.fileExists(target) || share.folderExists(target)) return@withShare OperationResult(false, "An item with that name already exists")
-                share.rename(relative, target)
+                share.openFile(
+                    relative,
+                    EnumSet.of(AccessMask.GENERIC_ALL),
+                    null,
+                    SMB2ShareAccess.ALL,
+                    SMB2CreateDisposition.FILE_OPEN,
+                    null
+                ).use { it.rename(target) }
                 OperationResult(true, "Renamed")
             }
         } catch (error: Exception) {
@@ -315,16 +323,29 @@ class SmbRepository(private val context: Context) {
                 }
                 true
             } else {
-                val input = openInputStream(entry.uri) ?: return false
+                val input = openBlockingStream(entry.uri) ?: return false
                 input.use { stream -> target.outputStream().use { output -> stream.copyTo(output) } }
                 true
             }
         }.getOrDefault(false)
     }
 
+    private fun openBlockingStream(uri: Uri): InputStream? = runCatching {
+        withShare(uri) { share, _ ->
+            share.openFile(
+                SmbUri.relativePath(uri),
+                EnumSet.of(AccessMask.GENERIC_READ),
+                null,
+                SMB2ShareAccess.ALL,
+                SMB2CreateDisposition.FILE_OPEN,
+                EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
+            ).inputStream
+        }
+    }.getOrNull()
+
     private fun openSourceStream(entry: FileEntry): InputStream? = runCatching {
         if (entry.isDirectory) return null
-        openInputStream(entry.uri)
+        openBlockingStream(entry.uri)
     }.getOrNull()
 
     private fun deleteOne(entry: FileEntry): Boolean = runCatching {
