@@ -2,10 +2,12 @@ package com.buge.files
 
 import android.Manifest
 import android.app.Application
+import android.content.ContentResolver
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
 import java.io.File
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -234,7 +236,6 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         val root = runCatching { File("/sdcard").canonicalFile }.getOrNull() ?: return null
         return root.takeIf { it.exists() && it.isDirectory }?.let { RootLocation(Uri.fromFile(it), "Internal storage") }
     }
-
     fun selectRoot(location: RootLocation) {
         _currentRoot.value = location
         navigationPath = listOf(location)
@@ -243,6 +244,81 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         isSearching = false
         refresh()
     }
+
+    fun openBookmark(location: RootLocation) {
+        destination = AppDestination.BROWSE
+        val owner = owningRoot(location.uri)
+        val rootUri = owner?.uri ?: location.uri
+        val rootLabel = owner?.label ?: location.label
+        val segments = childSegments(rootUri, location.uri)
+        _currentRoot.value = owner ?: RootLocation(rootUri, rootLabel)
+        val path = mutableListOf(RootLocation(rootUri, rootLabel))
+        var currentUri = rootUri
+        segments.forEachIndexed { index, name ->
+            currentUri = childUri(currentUri, location.uri, index, segments.size)
+            path += RootLocation(currentUri, name)
+        }
+        navigationPath = path
+        selection = emptySet()
+        searchQuery = ""
+        isSearching = false
+        refresh()
+    }
+
+    private fun owningRoot(uri: Uri): RootLocation? {
+        val available = _roots.value
+        if (SmbUri.isSmb(uri)) {
+            val host = SmbUri.host(uri)
+            val share = SmbUri.share(uri)
+            return available.firstOrNull { SmbUri.isSmb(it.uri) && SmbUri.host(it.uri) == host && SmbUri.share(it.uri) == share }
+        }
+        if (uri.scheme == ContentResolver.SCHEME_FILE) {
+            val target = runCatching { File(uri.path.orEmpty()).canonicalPath }.getOrNull() ?: return null
+            return available
+                .filter { it.uri.scheme == ContentResolver.SCHEME_FILE }
+                .filter { root -> runCatching { File(root.uri.path.orEmpty()).canonicalPath }.getOrNull()?.let { target == it || target.startsWith("$it/") } == true }
+                .maxByOrNull { it.uri.path.orEmpty().length }
+        }
+        if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
+            val treeId = documentId(uri) ?: return null
+            return available
+                .filter { it.uri.scheme == ContentResolver.SCHEME_CONTENT }
+                .filter { documentId(it.uri)?.let { id -> treeId == id || treeId.startsWith("$id/") } == true }
+                .maxByOrNull { documentId(it.uri).orEmpty().length }
+        }
+        return available.firstOrNull { it.uri == uri }
+    }
+
+    private fun documentId(uri: Uri): String? = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()
+
+    private fun childSegments(rootUri: Uri, uri: Uri): List<String> {
+        if (rootUri == uri) return emptyList()
+        if (SmbUri.isSmb(uri)) {
+            val relative = SmbUri.relativePath(uri)
+            return if (relative.isBlank()) emptyList() else relative.split('/').filter { it.isNotBlank() }
+        }
+        if (uri.scheme == ContentResolver.SCHEME_FILE) {
+            val rootPath = rootUri.path.orEmpty()
+            val childPath = uri.path.orEmpty()
+            return childPath.removePrefix(rootPath).trim('/').split('/').filter { it.isNotBlank() }
+        }
+        val rootId = documentId(rootUri).orEmpty()
+        val childId = documentId(uri).orEmpty()
+        return childId.removePrefix(rootId).trim('/').split('/').filter { it.isNotBlank() }
+    }
+
+    private fun childUri(rootUri: Uri, target: Uri, index: Int, total: Int): Uri {
+        if (index == total - 1) return target
+        if (SmbUri.isSmb(target)) {
+            return SmbUri.build(SmbUri.host(target), SmbUri.share(target), childSegments(rootUri, target).take(index + 1).joinToString("/"), SmbUri.port(target))
+        }
+        if (target.scheme == ContentResolver.SCHEME_FILE) {
+            return Uri.fromFile(File(rootUri.path.orEmpty(), childSegments(rootUri, target).take(index + 1).joinToString("/")))
+        }
+        val currentId = childSegments(rootUri, target).take(index + 1).joinToString("/")
+        return DocumentsContract.buildDocumentUriUsingTree(target, currentId)
+    }
+
 
     fun openDirectory(entry: FileEntry) {
         if (!entry.isDirectory) return

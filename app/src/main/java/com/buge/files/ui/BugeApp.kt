@@ -319,7 +319,7 @@ fun BugeApp(
                             )
                             AppDestination.FAVORITES -> FavoritesScreen(
                                 modifier = Modifier.padding(padding), language = language, items = bookmarks,
-                                onOpen = viewModel::selectRoot, onRemove = viewModel::toggleBookmark
+                                onOpen = viewModel::openBookmark, onRemove = viewModel::toggleBookmark
                             )
                             AppDestination.STORAGE -> StorageScreen(
                                 modifier = Modifier.padding(padding), language = language, root = currentRoot, data = storage,
