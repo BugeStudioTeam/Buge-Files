@@ -1013,7 +1013,7 @@ private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, asce
             Text(if (ascending) "↑" else "↓", style = MaterialTheme.typography.titleMedium)
             HorizontalDivider(); Text(language.t("view"), style = MaterialTheme.typography.titleLarge)
             ChoiceRow(listOf(ViewMode.LIST to language.t("list"), ViewMode.GRID to language.t("grid")), viewMode, onView)
-            SettingSwitch(language.t("hidden"), showHidden) { onToggleHidden() }
+            SettingSwitch(language.t("hidden"), showHidden, 0, 1) { onToggleHidden() }
         }
     }
 }
