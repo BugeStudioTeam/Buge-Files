@@ -24,6 +24,7 @@ data class BrowseScrollPosition(val index: Int, val offset: Int)
 
 class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val fileRepository = FileRepository(application)
+    val smbRepository = SmbRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val apkRepository = ApkRepository(application)
     private val settingsRepository = SettingsRepository(application)
@@ -116,6 +117,13 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var apkLoading by mutableStateOf(false)
         private set
+    var smbDialogVisible by mutableStateOf(false)
+        private set
+    var testingSmb by mutableStateOf(false)
+        private set
+
+    fun showSmbDialog() { smbDialogVisible = true }
+    fun dismissSmbDialog() { smbDialogVisible = false }
 
     private val recentItems = mutableStateListOf<FileEntry>()
     val recents: List<FileEntry> get() = recentItems
@@ -155,8 +163,40 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun addSmbRoot(host: String, share: String, username: String, password: String, domain: String, port: Int) {
+        viewModelScope.launch {
+            val credentials = SmbCredentials(
+                host = host.trim(),
+                share = share.trim().trimStart('/'),
+                username = username,
+                password = password,
+                domain = domain.trim(),
+                port = if (port > 0) port else 445
+            )
+            testingSmb = true
+            val result = smbRepository.saveCredentials(credentials)
+            testingSmb = false
+            if (!result.success) {
+                showMessage(result.message)
+                return@launch
+            }
+            val uri = SmbUri.build(credentials.host, credentials.share, "", credentials.port)
+            val label = credentials.displayLabel
+            settingsRepository.addRoot(RootLocation(uri, label))
+            selectRoot(RootLocation(uri, label))
+            showMessage("Added $label")
+        }
+    }
+
+    fun forgetSmbRoot(location: RootLocation) = viewModelScope.launch {
+        smbRepository.forget(location.uri)
+        settingsRepository.removeRoot(location.uri)
+        showMessage("Removed ${location.label}")
+    }
+
     fun removeRoot(location: RootLocation) = viewModelScope.launch {
         if (location.uri.scheme == "file") return@launch
+        if (SmbUri.isSmb(location.uri)) smbRepository.forget(location.uri)
         settingsRepository.removeRoot(location.uri)
         showMessage("Removed ${location.label}")
     }
@@ -232,7 +272,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         loadingJob?.cancel()
         loadingJob = viewModelScope.launch {
             isLoading = true
-            _searchResults.value = fileRepository.search(root.uri, query, _settings.value.showHidden)
+            _searchResults.value = if (SmbUri.isSmb(root.uri)) {
+                smbRepository.search(root.uri, query, _settings.value.showHidden)
+            } else {
+                fileRepository.search(root.uri, query, _settings.value.showHidden)
+            }
             isLoading = false
         }
     }
@@ -263,7 +307,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun createFolder(name: String) {
         val location = navigationPath.lastOrNull() ?: return
         viewModelScope.launch {
-            val result = fileRepository.createFolder(location.uri, name)
+            val result = if (SmbUri.isSmb(location.uri)) {
+                smbRepository.createFolder(location.uri, name)
+            } else {
+                fileRepository.createFolder(location.uri, name)
+            }
             showMessage(result.message)
             if (result.success) refresh()
         }
@@ -272,14 +320,22 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun createFile(name: String) {
         val location = navigationPath.lastOrNull() ?: return
         viewModelScope.launch {
-            val result = fileRepository.createFile(location.uri, name)
+            val result = if (SmbUri.isSmb(location.uri)) {
+                smbRepository.createFile(location.uri, name)
+            } else {
+                fileRepository.createFile(location.uri, name)
+            }
             showMessage(result.message)
             if (result.success) refresh()
         }
     }
 
     fun rename(entry: FileEntry, name: String) = viewModelScope.launch {
-        val result = fileRepository.rename(entry, name)
+        val result = if (SmbUri.isSmb(entry.uri)) {
+            smbRepository.rename(entry, name)
+        } else {
+            fileRepository.rename(entry, name)
+        }
         showMessage(result.message)
         if (result.success) { clearSelection(); refresh() }
     }
@@ -299,9 +355,14 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteSelected() = delete(selectedEntries())
     fun delete(entries: List<FileEntry>) = viewModelScope.launch {
-        val result = fileRepository.delete(entries)
+        val smbEntries = entries.filter { SmbUri.isSmb(it.uri) }
+        val localEntries = entries.filterNot { SmbUri.isSmb(it.uri) }
+        val results = mutableListOf<OperationResult>()
+        if (smbEntries.isNotEmpty()) results += smbRepository.delete(smbEntries)
+        if (localEntries.isNotEmpty()) results += fileRepository.delete(localEntries)
+        val result = results.firstOrNull { !it.success } ?: results.firstOrNull() ?: OperationResult(true, "Nothing to delete")
         showMessage(result.message)
-        if (result.success) { clearSelection(); refresh() }
+        if (results.all { it.success }) { clearSelection(); refresh() }
     }
 
     fun copySelected(mode: ClipboardMode) {
@@ -317,7 +378,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         val location = navigationPath.lastOrNull() ?: return
         viewModelScope.launch {
             isLoading = true
-            val result = fileRepository.paste(content, location.uri)
+            val result = if (SmbUri.isSmb(location.uri)) {
+                smbRepository.paste(content, location.uri)
+            } else {
+                fileRepository.paste(content, location.uri)
+            }
             isLoading = false
             showMessage(result.message)
             if (result.success) { clipboard = null; refresh() }
@@ -338,6 +403,66 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         entry.isZipContainer() -> { inspectArchive(entry); recordOpened(entry); true }
         entry.isEditableText() -> { openTextEditor(entry); recordOpened(entry); true }
         else -> false
+    }
+
+    fun openEntry(entry: FileEntry, onOpenFile: (FileEntry) -> Unit) {
+        if (!SmbUri.isSmb(entry.uri) || entry.isDirectory) {
+            if (!openBuiltInTool(entry)) { recordOpened(entry); onOpenFile(entry) }
+            return
+        }
+        viewModelScope.launch {
+            isLoading = true
+            val local = materialize(entry)
+            isLoading = false
+            if (local == null) { showMessage("Could not open ${entry.name}"); return@launch }
+            if (!openBuiltInTool(local)) { recordOpened(entry); onOpenFile(local) }
+        }
+    }
+
+    private suspend fun materialize(entry: FileEntry): FileEntry? {
+        if (!SmbUri.isSmb(entry.uri)) return entry
+        val safeName = entry.name.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        val target = File(getApplication<Application>().cacheDir, safeName)
+        val ok = smbRepository.copyToLocal(entry.uri, target)
+        if (!ok || !target.exists()) return null
+        return entry.copy(uri = Uri.fromFile(target))
+    }
+
+    private val thumbnailCache = mutableMapOf<String, File>()
+
+    fun thumbnailSource(entry: FileEntry): File? {
+        if (entry.isDirectory) return null
+        if (!entry.isImageFile() && !entry.isVideoFile()) return null
+        if (SmbUri.isSmb(entry.uri)) return thumbnailCache[entry.uri.toString()]
+        return entry.uri.path?.let(::File)
+    }
+
+    fun loadThumbnail(entry: FileEntry) {
+        if (entry.isDirectory) return
+        if (!entry.isImageFile() && !entry.isVideoFile()) return
+        if (!SmbUri.isSmb(entry.uri)) return
+        val key = entry.uri.toString()
+        if (thumbnailCache.containsKey(key)) return
+        viewModelScope.launch {
+            val local = materialize(entry) ?: return@launch
+            local.uri.path?.let { thumbnailCache[key] = File(it) }
+            thumbnailVersion++
+        }
+    }
+
+    var thumbnailVersion by mutableStateOf(0)
+        private set
+
+    fun showImage(entry: FileEntry) {
+        recordOpened(entry)
+        if (SmbUri.isSmb(entry.uri)) {
+            viewModelScope.launch {
+                val local = materialize(entry)
+                if (local != null) imagePreview = local
+            }
+        } else {
+            imagePreview = entry
+        }
     }
 
     fun inspectApk(entry: FileEntry) {
@@ -406,7 +531,6 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun showImage(entry: FileEntry) { imagePreview = entry; recordOpened(entry) }
     fun dismissImage() { imagePreview = null }
 
     fun calculateChecksum(entry: FileEntry) {
@@ -414,7 +538,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         checksumValue = null
         checksumLoading = true
         viewModelScope.launch {
-            checksumValue = advancedToolsRepository.sha256(entry.uri)
+            val target = materialize(entry) ?: entry
+            checksumValue = advancedToolsRepository.sha256(target.uri)
             checksumLoading = false
             if (checksumValue == null) showMessage("Could not calculate SHA-256")
         }
@@ -432,7 +557,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         loadingJob?.cancel()
         loadingJob = viewModelScope.launch {
             isLoading = true
-            _entries.value = fileRepository.list(location.uri, sortOption, ascending, _settings.value.showHidden)
+            _entries.value = if (SmbUri.isSmb(location.uri)) {
+                smbRepository.list(location.uri, sortOption, ascending, _settings.value.showHidden)
+            } else {
+                fileRepository.list(location.uri, sortOption, ascending, _settings.value.showHidden)
+            }
             isLoading = false
         }
     }
@@ -441,7 +570,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         val root = _currentRoot.value ?: return
         viewModelScope.launch {
             isStorageLoading = true
-            _storage.value = fileRepository.calculateStorage(root.uri, _settings.value.showHidden)
+            _storage.value = if (SmbUri.isSmb(root.uri)) {
+                smbRepository.calculateStorage(root.uri, _settings.value.showHidden)
+            } else {
+                fileRepository.calculateStorage(root.uri, _settings.value.showHidden)
+            }
             isStorageLoading = false
         }
     }

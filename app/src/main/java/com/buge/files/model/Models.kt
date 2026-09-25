@@ -84,6 +84,7 @@ data class AppSettings(
     val viewMode: ViewMode = ViewMode.LIST,
     val compactMode: Boolean = false,
     val showHidden: Boolean = false,
+    val showThumbnails: Boolean = false,
     val hapticFeedback: Boolean = true
 )
 

@@ -252,5 +252,6 @@ class AdvancedToolsRepository(private val context: Context) {
 }
 
 fun FileEntry.isImageFile(): Boolean = mimeType.orEmpty().startsWith("image/") || extension in setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif")
+fun FileEntry.isVideoFile(): Boolean = mimeType.orEmpty().startsWith("video/") || extension in setOf("mp4", "mkv", "webm", "avi", "mov", "3gp", "m4v", "flv", "wmv")
 fun FileEntry.isZipContainer(): Boolean = extension in setOf("zip", "apk", "jar", "epub", "cbz")
 fun FileEntry.isEditableText(): Boolean = mimeType.orEmpty().startsWith("text/") || extension in setOf("kt", "kts", "java", "xml", "json", "yaml", "yml", "properties", "gradle", "md", "txt", "csv", "html", "css", "js", "ts", "tsx", "jsx", "py", "sh", "sql", "c", "cpp", "h", "hpp", "go", "rs", "toml", "ini", "log")

@@ -84,5 +84,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
+    implementation(libs.smbj)
+    implementation(libs.androidx.security.crypto)
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

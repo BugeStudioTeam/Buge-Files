@@ -153,6 +153,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import java.io.File
 import kotlinx.coroutines.flow.collectLatest
 import java.text.DateFormat
 import java.util.Date
@@ -255,6 +256,7 @@ fun BugeApp(
                             onDelete = { deleteRequest = selected },
                             rootMenuExpanded = showRootMenu,
                             onAddLocation = onRequestFolder,
+                            onAddSmb = { showRootMenu = false; viewModel.showSmbDialog() },
                             onRemoveRoot = viewModel::removeRoot
                         )
                     },
@@ -297,13 +299,14 @@ fun BugeApp(
                                 isLoading = viewModel.isLoading,
                                 viewMode = settings.viewMode,
                                 compact = settings.compactMode,
+                                showThumbnails = settings.showThumbnails,
                                 clipboard = viewModel.clipboard,
                                 isBookmarked = viewModel.navigationPath.lastOrNull()?.let(viewModel::isBookmarked) ?: false,
                                 onRequestFolder = onRequestFolder,
                                 onRequestDirectStorage = onRequestDirectStorage,
                                 selectionActive = viewModel.selection.isNotEmpty(),
                                 onOpenDirectory = viewModel::openDirectory,
-                                onOpenFile = { if (!viewModel.openBuiltInTool(it)) { viewModel.recordOpened(it); onOpenFile(it) } },
+                                onOpenFile = { viewModel.openEntry(it, onOpenFile) },
                                 onToggleSelection = viewModel::toggleSelection,
                                 isSelected = viewModel::isSelected,
                                 onInfo = viewModel::showInfo,
@@ -312,7 +315,7 @@ fun BugeApp(
                             )
                             AppDestination.RECENTS -> RecentsScreen(
                                 modifier = Modifier.padding(padding), language = language, items = viewModel.recents,
-                                onOpen = { if (!viewModel.openBuiltInTool(it)) { viewModel.recordOpened(it); onOpenFile(it) } }, onInfo = viewModel::showInfo
+                                onOpen = { viewModel.openEntry(it, onOpenFile) }, onInfo = viewModel::showInfo
                             )
                             AppDestination.FAVORITES -> FavoritesScreen(
                                 modifier = Modifier.padding(padding), language = language, items = bookmarks,
@@ -373,6 +376,17 @@ fun BugeApp(
         viewModel.apkTarget?.let { file ->
             ApkInspectorSheet(file = file, metadata = viewModel.apkMetadata, loading = viewModel.apkLoading, language = language, onInstall = { onInstallApk(file) }, onDismiss = viewModel::dismissApk)
         }
+        if (viewModel.smbDialogVisible) {
+            SmbConnectionDialog(
+                language = language,
+                loading = viewModel.testingSmb,
+                onDismiss = viewModel::dismissSmbDialog,
+                onConnect = { host, share, user, password, domain, port ->
+                    viewModel.dismissSmbDialog()
+                    viewModel.addSmbRoot(host, share, user, password, domain, port)
+                }
+            )
+        }
         viewModel.editorTarget?.let { file ->
             CodeEditorScreen(file = file, content = viewModel.editorText, loading = viewModel.editorLoading, language = language, onContentChange = viewModel::updateEditorText, onSave = viewModel::saveEditor, onDismiss = viewModel::dismissEditor)
         }
@@ -389,8 +403,8 @@ fun BugeApp(
             FileDetailsSheet(
                 file = file, language = language,
                 onDismiss = viewModel::dismissInfo,
-                onOpen = { viewModel.recordOpened(file); onOpenFile(file); viewModel.dismissInfo() },
-                onOpenTool = { viewModel.openBuiltInTool(file); viewModel.dismissInfo() },
+                onOpen = { viewModel.dismissInfo(); viewModel.openEntry(file, onOpenFile) },
+                onOpenTool = { viewModel.dismissInfo(); viewModel.openEntry(file, onOpenFile) },
                 onChecksum = { viewModel.calculateChecksum(file); viewModel.dismissInfo() },
                 onShare = { onShareFiles(listOf(file)) },
                 onRename = { renameTarget = file; viewModel.dismissInfo() },
@@ -409,7 +423,7 @@ private fun BugeTopBar(
     onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowActions: () -> Unit,
     onChangeView: () -> Unit, onClearSelection: () -> Unit, onSelectAll: () -> Unit,
     onCopy: () -> Unit, onMove: () -> Unit, onRename: () -> Unit, onCompress: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
-    rootMenuExpanded: Boolean, onAddLocation: () -> Unit, onRemoveRoot: (RootLocation) -> Unit
+    rootMenuExpanded: Boolean, onAddLocation: () -> Unit, onAddSmb: () -> Unit, onRemoveRoot: (RootLocation) -> Unit
 ) {
     val title = when { selectionCount > 0 -> "$selectionCount ${language.t("items")}"; isSearching -> ""; else -> "Buge Files" }
     var selectionMenu by remember { mutableStateOf(false) }
@@ -440,6 +454,7 @@ private fun BugeTopBar(
                         }
                         HorizontalDivider()
                         DropdownMenuItem(text = { Text(language.t("add_location")) }, leadingIcon = { Icon(Icons.Outlined.Add, null) }, onClick = onAddLocation)
+                        DropdownMenuItem(text = { Text(language.t("add_smb")) }, leadingIcon = { Icon(Icons.Outlined.Storage, null) }, onClick = onAddSmb)
                     }
                 }
             }
@@ -501,7 +516,7 @@ private fun navigationItems(language: AppLanguage): List<Triple<AppDestination, 
 @Composable
 private fun BrowseScreen(
     viewModel: BugeViewModel, modifier: Modifier, language: AppLanguage, root: RootLocation?, directStorageAvailable: Boolean, path: List<RootLocation>, entries: List<FileEntry>,
-    searchActive: Boolean, isLoading: Boolean, viewMode: ViewMode, compact: Boolean, clipboard: ClipboardState?, isBookmarked: Boolean,
+    searchActive: Boolean, isLoading: Boolean, viewMode: ViewMode, compact: Boolean, showThumbnails: Boolean, clipboard: ClipboardState?, isBookmarked: Boolean,
     onRequestFolder: () -> Unit, onRequestDirectStorage: () -> Unit, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit,
     onToggleSelection: (FileEntry) -> Unit, isSelected: (FileEntry) -> Boolean, onInfo: (FileEntry) -> Unit,
     onToggleBookmark: () -> Unit, onPaste: () -> Unit
@@ -560,14 +575,14 @@ private fun BrowseScreen(
             if (entries.isEmpty() && !isLoading) item { EmptyFolder(language, searchActive) }
             if (viewMode == ViewMode.LIST) {
                 items(entries, key = { it.uri.toString() }) { entry ->
-                    FileListItem(entry, language, compact, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo)
+                    FileListItem(entry, language, compact, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
                 }
             }
         }
         if (viewMode == ViewMode.GRID && entries.isNotEmpty()) {
             LazyVerticalGrid(columns = GridCells.Adaptive(145.dp), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
                 items(entries, key = { it.uri.toString() }) { entry ->
-                    FileGridItem(entry, language, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo)
+                    FileGridItem(entry, language, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
                 }
             }
         }
@@ -613,14 +628,15 @@ private fun EmptyFolder(language: AppLanguage, searching: Boolean) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FileListItem(entry: FileEntry, language: AppLanguage, compact: Boolean, selected: Boolean, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit, onToggleSelection: (FileEntry) -> Unit, onInfo: (FileEntry) -> Unit) {
+private fun FileListItem(entry: FileEntry, language: AppLanguage, compact: Boolean, selected: Boolean, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit, onToggleSelection: (FileEntry) -> Unit, onInfo: (FileEntry) -> Unit, showThumbnails: Boolean = false, thumbnailSource: (FileEntry) -> File? = { null }, onNeedThumbnail: (FileEntry) -> Unit = {}, thumbnailVersion: Int = 0) {
     val icon = iconFor(entry)
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
     val selectionScale by animateFloatAsState(if (selected) 0.985f else 1f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow), label = "listSelectionScale")
     val itemShape = RoundedCornerShape(if (compact) 14.dp else 20.dp)
+    if (showThumbnails) LaunchedEffect(entry.uri, thumbnailVersion) { onNeedThumbnail(entry) }
     Surface(shape = itemShape, color = container, modifier = Modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)).scale(selectionScale).clip(itemShape).combinedClickable(onClick = { if (selectionActive || selected) onToggleSelection(entry) else if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry) }, onLongClick = { onToggleSelection(entry) })) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = if (compact) 7.dp else 11.dp)) {
-            if (selected) Checkbox(checked = true, onCheckedChange = { onToggleSelection(entry) }) else FileGlyph(icon, entry.isDirectory, entry = entry)
+            if (selected) Checkbox(checked = true, onCheckedChange = { onToggleSelection(entry) }) else FileGlyph(icon, entry.isDirectory, entry = entry, showThumbnails = showThumbnails, thumbnailFile = thumbnailSource(entry), versionKey = thumbnailVersion)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(entry.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -633,13 +649,14 @@ private fun FileListItem(entry: FileEntry, language: AppLanguage, compact: Boole
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FileGridItem(entry: FileEntry, language: AppLanguage, selected: Boolean, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit, onToggleSelection: (FileEntry) -> Unit, onInfo: (FileEntry) -> Unit) {
+private fun FileGridItem(entry: FileEntry, language: AppLanguage, selected: Boolean, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit, onToggleSelection: (FileEntry) -> Unit, onInfo: (FileEntry) -> Unit, showThumbnails: Boolean = false, thumbnailSource: (FileEntry) -> File? = { null }, onNeedThumbnail: (FileEntry) -> Unit = {}, thumbnailVersion: Int = 0) {
     val selectionScale by animateFloatAsState(if (selected) 0.96f else 1f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow), label = "gridSelectionScale")
     val itemShape = RoundedCornerShape(16.dp)
+    if (showThumbnails) LaunchedEffect(entry.uri, thumbnailVersion) { onNeedThumbnail(entry) }
     ElevatedCard(shape = itemShape, colors = CardDefaults.elevatedCardColors(containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow), modifier = Modifier.fillMaxWidth().animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)).scale(selectionScale).clip(itemShape).combinedClickable(onClick = { if (selectionActive || selected) onToggleSelection(entry) else if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry) }, onLongClick = { onToggleSelection(entry) })) {
         Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                FileGlyph(iconFor(entry), entry.isDirectory, size = 36.dp, entry = entry)
+                FileGlyph(iconFor(entry), entry.isDirectory, size = 36.dp, entry = entry, showThumbnails = showThumbnails, thumbnailFile = thumbnailSource(entry), versionKey = thumbnailVersion)
                 IconButton(onClick = { onInfo(entry) }, modifier = Modifier.size(30.dp)) { Icon(Icons.Outlined.MoreVert, language.t("details")) }
             }
             Spacer(Modifier.height(22.dp)); Text(entry.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
@@ -649,15 +666,25 @@ private fun FileGridItem(entry: FileEntry, language: AppLanguage, selected: Bool
 }
 
 @Composable
-private fun FileGlyph(icon: ImageVector, folder: Boolean, size: Dp = 30.dp, entry: FileEntry? = null) {
+private fun FileGlyph(icon: ImageVector, folder: Boolean, size: Dp = 30.dp, entry: FileEntry? = null, showThumbnails: Boolean = false, thumbnailFile: File? = null, versionKey: Int = 0) {
     val context = LocalContext.current
     var apkIcon by remember(entry?.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var thumbnailFailed by remember(entry?.uri, versionKey) { mutableStateOf(false) }
     LaunchedEffect(entry?.uri) {
         if (entry?.isApkPackage() == true) apkIcon = ApkRepository(context).loadIcon(entry)
     }
+    val thumbnail = entry?.takeIf { showThumbnails && !it.isDirectory && (it.isImageFile() || it.isVideoFile()) }?.let { thumbnailFile }
     Surface(color = if (folder) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer, shape = RoundedCornerShape(12.dp), modifier = Modifier.size(size + 16.dp)) {
         Box(contentAlignment = Alignment.Center) {
-            if (apkIcon != null) {
+            if (thumbnail != null && !thumbnailFailed) {
+                AsyncImage(
+                    model = thumbnail,
+                    contentDescription = entry?.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(size + 16.dp).clip(RoundedCornerShape(12.dp)),
+                    onError = { thumbnailFailed = true }
+                )
+            } else if (apkIcon != null) {
                 androidx.compose.foundation.Image(bitmap = apkIcon!!.asImageBitmap(), contentDescription = null, modifier = Modifier.size(size), contentScale = ContentScale.Fit)
             } else {
                 Icon(icon, null, modifier = Modifier.size(size), tint = if (folder) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer)
@@ -778,6 +805,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
             item { SettingsSection(language.t("behavior")) }
             item { SettingSwitch(language.t("compact"), settings.compactMode) { onSettingsChange(settings.copy(compactMode = it)) } }
             item { SettingSwitch(language.t("hidden"), settings.showHidden) { onSettingsChange(settings.copy(showHidden = it)) } }
+            item { SettingSwitch(language.t("thumbnails"), settings.showThumbnails) { onSettingsChange(settings.copy(showThumbnails = it)) } }
             item { SettingSwitch(language.t("haptics"), settings.hapticFeedback) { onSettingsChange(settings.copy(hapticFeedback = it)) } }
             item { SettingsSection(language.t("about")) }
             item {
@@ -974,6 +1002,49 @@ private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, asce
 private fun NameDialog(title: String, hint: String, language: AppLanguage, initialValue: String = "", confirmLabel: String = language.t("create"), onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var value by remember { mutableStateOf(initialValue) }
     AlertDialog(onDismissRequest = onDismiss, title = { Text(title) }, text = { OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text(hint) }, singleLine = true) }, confirmButton = { TextButton(onClick = { onConfirm(value.trim()) }, enabled = value.trim().isNotEmpty()) { Text(confirmLabel) } }, dismissButton = { TextButton(onClick = onDismiss) { Text(language.t("cancel")) } })
+}
+
+@Composable
+private fun SmbConnectionDialog(
+    language: AppLanguage,
+    loading: Boolean,
+    onDismiss: () -> Unit,
+    onConnect: (String, String, String, String, String, Int) -> Unit
+) {
+    var host by remember { mutableStateOf("") }
+    var share by remember { mutableStateOf("") }
+    var user by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var domain by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf("445") }
+    val canConnect = host.isNotBlank() && share.isNotBlank() && !loading
+    AlertDialog(
+        onDismissRequest = { if (!loading) onDismiss() },
+        icon = { Icon(Icons.Outlined.Storage, null) },
+        title = { Text(language.t("smb_title")) },
+        text = {
+            Column {
+                OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text(language.t("smb_host")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = share, onValueChange = { share = it }, label = { Text(language.t("smb_share")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = user, onValueChange = { user = it }, label = { Text(language.t("smb_user")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text(language.t("smb_password")) }, singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = domain, onValueChange = { domain = it }, label = { Text(language.t("smb_domain")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = port, onValueChange = { port = it.filter { c -> c.isDigit() } }, label = { Text(language.t("smb_port")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConnect(host.trim(), share.trim(), user, password, domain.trim(), port.toIntOrNull() ?: 445) },
+                enabled = canConnect
+            ) { Text(if (loading) language.t("smb_testing") else language.t("smb_connect")) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !loading) { Text(language.t("cancel")) } }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

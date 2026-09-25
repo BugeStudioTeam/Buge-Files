@@ -20,6 +20,7 @@ class SettingsRepository(private val context: Context) {
         val viewMode = stringPreferencesKey("view_mode")
         val compact = stringPreferencesKey("compact")
         val hidden = stringPreferencesKey("hidden")
+        val thumbnails = stringPreferencesKey("thumbnails")
         val haptics = stringPreferencesKey("haptics")
         val roots = stringSetPreferencesKey("roots")
         val bookmarks = stringSetPreferencesKey("bookmarks")
@@ -33,6 +34,7 @@ class SettingsRepository(private val context: Context) {
             viewMode = enumValue(prefs[Keys.viewMode], ViewMode.LIST),
             compactMode = prefs[Keys.compact]?.toBoolean() ?: false,
             showHidden = prefs[Keys.hidden]?.toBoolean() ?: false,
+            showThumbnails = prefs[Keys.thumbnails]?.toBoolean() ?: false,
             hapticFeedback = prefs[Keys.haptics]?.toBoolean() ?: true
         )
     }
@@ -52,6 +54,7 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.viewMode] = settings.viewMode.name
         prefs[Keys.compact] = settings.compactMode.toString()
         prefs[Keys.hidden] = settings.showHidden.toString()
+        prefs[Keys.thumbnails] = settings.showThumbnails.toString()
         prefs[Keys.haptics] = settings.hapticFeedback.toString()
     }
 
