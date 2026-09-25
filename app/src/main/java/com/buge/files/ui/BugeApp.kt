@@ -779,37 +779,45 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
             item { Text(language.t("settings"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 4.dp)) }
             item { SettingsSection(language.t("appearance")) }
             item {
-                SettingsActionCard(
-                    title = language.t("theme"),
-                    summary = themePreferenceLabel(language, settings.theme),
-                    icon = Icons.Outlined.Palette,
-                    onClick = { appearanceDialog = AppearanceDialog.THEME }
-                )
-            }
-            item {
-                SettingsActionCard(
-                    title = language.t("color"),
-                    summary = colorSourceLabel(language, settings.colorSource),
-                    icon = Icons.Outlined.Palette,
-                    onClick = { appearanceDialog = AppearanceDialog.COLOR }
-                )
-            }
-            item {
-                SettingsActionCard(
-                    title = language.t("language"),
-                    summary = settings.language.nativeName,
-                    icon = Icons.Outlined.Language,
-                    onClick = { appearanceDialog = AppearanceDialog.LANGUAGE }
-                )
+                Column {
+                    SettingsActionCard(
+                        title = language.t("theme"),
+                        summary = themePreferenceLabel(language, settings.theme),
+                        icon = Icons.Outlined.Palette,
+                        index = 0,
+                        count = 3,
+                        onClick = { appearanceDialog = AppearanceDialog.THEME }
+                    )
+                    SettingsActionCard(
+                        title = language.t("color"),
+                        summary = colorSourceLabel(language, settings.colorSource),
+                        icon = Icons.Outlined.Palette,
+                        index = 1,
+                        count = 3,
+                        onClick = { appearanceDialog = AppearanceDialog.COLOR }
+                    )
+                    SettingsActionCard(
+                        title = language.t("language"),
+                        summary = settings.language.nativeName,
+                        icon = Icons.Outlined.Language,
+                        index = 2,
+                        count = 3,
+                        onClick = { appearanceDialog = AppearanceDialog.LANGUAGE }
+                    )
+                }
             }
             item { SettingsSection(language.t("behavior")) }
-            item { SettingSwitch(language.t("compact"), settings.compactMode) { onSettingsChange(settings.copy(compactMode = it)) } }
-            item { SettingSwitch(language.t("hidden"), settings.showHidden) { onSettingsChange(settings.copy(showHidden = it)) } }
-            item { SettingSwitch(language.t("thumbnails"), settings.showThumbnails) { onSettingsChange(settings.copy(showThumbnails = it)) } }
-            item { SettingSwitch(language.t("haptics"), settings.hapticFeedback) { onSettingsChange(settings.copy(hapticFeedback = it)) } }
+            item {
+                Column {
+                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 4) { onSettingsChange(settings.copy(compactMode = it)) }
+                    SettingSwitch(language.t("hidden"), settings.showHidden, 1, 4) { onSettingsChange(settings.copy(showHidden = it)) }
+                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 2, 4) { onSettingsChange(settings.copy(showThumbnails = it)) }
+                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 3, 4) { onSettingsChange(settings.copy(hapticFeedback = it)) }
+                }
+            }
             item { SettingsSection(language.t("about")) }
             item {
-                ElevatedCard(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)) {
+                Surface(shape = groupItemShape(0, 1), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(18.dp)) {
                         Text("Buge Files", style = MaterialTheme.typography.titleLarge)
                         Spacer(Modifier.height(4.dp))
@@ -851,14 +859,24 @@ private fun SettingsSection(text: String) {
     Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp))
 }
 
+private fun groupItemShape(index: Int, count: Int): RoundedCornerShape {
+    val outer = 24.dp
+    val inner = 4.dp
+    return when {
+        count <= 1 -> RoundedCornerShape(outer)
+        index == 0 -> RoundedCornerShape(topStart = outer, topEnd = outer, bottomStart = inner, bottomEnd = inner)
+        index == count - 1 -> RoundedCornerShape(topStart = inner, topEnd = inner, bottomStart = outer, bottomEnd = outer)
+        else -> RoundedCornerShape(inner)
+    }
+}
+
 @Composable
-private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, onClick: () -> Unit) {
-    val cardShape = RoundedCornerShape(16.dp)
-    ElevatedCard(
-        shape = cardShape,
-        modifier = Modifier.fillMaxWidth().clip(cardShape).clickable(role = Role.Button, onClick = onClick),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
+private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, index: Int, count: Int, onClick: () -> Unit) {
+    val shape = groupItemShape(index, count)
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(role = Role.Button, onClick = onClick)
     ) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
@@ -978,8 +996,9 @@ private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: 
 }
 
 @Composable
-private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange) } }
+private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, onChange: (Boolean) -> Unit) {
+    val shape = groupItemShape(index, count)
+    Surface(shape = shape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().clip(shape)) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange) } }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
