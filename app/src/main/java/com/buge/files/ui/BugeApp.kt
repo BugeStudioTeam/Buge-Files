@@ -817,7 +817,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
             }
             item { SettingsSection(language.t("about")) }
             item {
-                Surface(shape = groupItemShape(0, 1), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                Surface(shape = groupItemShape(0, 1), color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(18.dp)) {
                         Text("Buge Files", style = MaterialTheme.typography.titleLarge)
                         Spacer(Modifier.height(4.dp))
@@ -875,7 +875,7 @@ private fun SettingsActionCard(title: String, summary: String, icon: ImageVector
     val shape = groupItemShape(index, count)
     Surface(
         shape = shape,
-        color = MaterialTheme.colorScheme.surface,
+        color = CardDefaults.elevatedCardColors().containerColor,
         modifier = Modifier.fillMaxWidth().clip(shape).clickable(role = Role.Button, onClick = onClick)
     ) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -998,7 +998,7 @@ private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: 
 @Composable
 private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, onChange: (Boolean) -> Unit) {
     val shape = groupItemShape(index, count)
-    Surface(shape = shape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().clip(shape)) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange) } }
+    Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape)) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange) } }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
