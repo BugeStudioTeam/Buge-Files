@@ -1,6 +1,7 @@
 package com.buge.files
 
 import android.Manifest
+import android.content.ContentResolver
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -19,6 +20,7 @@ import java.io.File
 class MainActivity : ComponentActivity() {
     private val viewModel: BugeViewModel by viewModels()
     private var awaitingAllFilesAccess = false
+    private var selectMode = false
 
     private val folderPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri ?: return@registerForActivityResult
@@ -37,6 +39,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        selectMode = intent?.action == Intent.ACTION_GET_CONTENT || intent?.action == Intent.ACTION_OPEN_DOCUMENT
         enableEdgeToEdge()
         setContent {
             BugeApp(
@@ -45,7 +48,8 @@ class MainActivity : ComponentActivity() {
                 onRequestDirectStorage = ::requestDirectStorageAccess,
                 onOpenFile = ::openFile,
                 onInstallApk = ::installApk,
-                onShareFiles = ::shareFiles
+                onShareFiles = ::shareFiles,
+                pickOnly = selectMode
             )
         }
     }
@@ -80,6 +84,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openFile(file: FileEntry) {
+        if (selectMode) {
+            deliverSelection(file)
+            return
+        }
         val uri = safeUri(file) ?: run {
             Toast.makeText(this, "The selected file is no longer available", Toast.LENGTH_SHORT).show()
             return
@@ -90,6 +98,26 @@ class MainActivity : ComponentActivity() {
         }
         runCatching { startActivity(Intent.createChooser(intent, "Open with")) }
             .onFailure { Toast.makeText(this, "No compatible app found", Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun deliverSelection(file: FileEntry) {
+        if (file.isDirectory) return
+        val uri = safeUri(file) ?: run {
+            Toast.makeText(this, "The selected file is no longer available", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
+            val caller = referrer?.authority ?: intent?.callingPackage
+            if (caller != null) {
+                runCatching { grantUriPermission(caller, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            }
+        }
+        val result = Intent().apply {
+            data = uri
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        setResult(RESULT_OK, result)
+        finish()
     }
 
     private fun installApk(file: FileEntry) {

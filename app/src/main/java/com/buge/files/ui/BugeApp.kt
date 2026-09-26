@@ -169,7 +169,8 @@ fun BugeApp(
     onRequestDirectStorage: () -> Unit,
     onOpenFile: (FileEntry) -> Unit,
     onInstallApk: (FileEntry) -> Unit,
-    onShareFiles: (List<FileEntry>) -> Unit
+    onShareFiles: (List<FileEntry>) -> Unit,
+    pickOnly: Boolean = false
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val roots by viewModel.roots.collectAsStateWithLifecycle()
@@ -308,7 +309,7 @@ fun BugeApp(
                                 onRequestDirectStorage = onRequestDirectStorage,
                                 selectionActive = viewModel.selection.isNotEmpty(),
                                 onOpenDirectory = viewModel::openDirectory,
-                                onOpenFile = { viewModel.openEntry(it, onOpenFile) },
+                                onOpenFile = { if (pickOnly) onOpenFile(it) else viewModel.openEntry(it, onOpenFile) },
                                 onToggleSelection = viewModel::toggleSelection,
                                 isSelected = viewModel::isSelected,
                                 onInfo = viewModel::showInfo,
@@ -318,7 +319,7 @@ fun BugeApp(
                             )
                             AppDestination.RECENTS -> RecentsScreen(
                                 modifier = Modifier.padding(padding), language = language, items = viewModel.recents,
-                                onOpen = { viewModel.openEntry(it, onOpenFile) }, onInfo = viewModel::showInfo
+                                onOpen = { if (pickOnly) onOpenFile(it) else viewModel.openEntry(it, onOpenFile) }, onInfo = viewModel::showInfo
                             )
                             AppDestination.FAVORITES -> FavoritesScreen(
                                 modifier = Modifier.padding(padding), language = language, items = bookmarks,
@@ -1087,7 +1088,7 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 28.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) { FileGlyph(iconFor(file), file.isDirectory, 34.dp, entry = file); Spacer(Modifier.width(14.dp)); Column(Modifier.weight(1f)) { Text(file.name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis); Text(if (file.isDirectory) language.t("folder") else file.mimeType.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant) } }
-            Spacer(Modifier.height(20.dp)); DetailLine(language.t("size"), if (file.isDirectory) "${file.childCount} ${language.t("items")}" else formatBytes(file.size)); DetailLine(language.t("modified"), formatDate(file.lastModified)); DetailLine(language.t("type"), if (file.isDirectory) language.t("folder") else file.extension.uppercase())
+            Spacer(Modifier.height(20.dp)); DetailLine(language.t("size"), if (file.isDirectory) directorySummary(file, language) else formatBytes(file.size)); DetailLine(language.t("modified"), formatDate(file.lastModified)); DetailLine(language.t("type"), if (file.isDirectory) language.t("folder") else file.extension.uppercase())
             Spacer(Modifier.height(18.dp)); FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!file.isDirectory) {
                     if (file.isApkPackage() || file.isImageFile() || file.isZipContainer() || file.isEditableText()) FilledTonalButton(onClick = onOpenTool) { Icon(if (file.isApkPackage() || file.isZipContainer()) Icons.Outlined.Archive else if (file.isImageFile()) Icons.Outlined.Image else Icons.Outlined.Description, null); Spacer(Modifier.width(6.dp)); Text(if (file.isApkPackage()) language.t("apk_package") else if (file.isImageFile()) language.t("image_preview") else if (file.isZipContainer()) language.t("archive") else language.t("edit")) }
@@ -1293,7 +1294,8 @@ private fun iconFor(entry: FileEntry): ImageVector = when {
     else -> Icons.Outlined.FileOpen
 }
 
-private fun fileSecondaryText(file: FileEntry, language: AppLanguage): String = if (file.isDirectory) "${file.childCount} ${language.t("items")} · ${formatDate(file.lastModified)}" else "${formatBytes(file.size)} · ${formatDate(file.lastModified)}"
+private fun fileSecondaryText(file: FileEntry, language: AppLanguage): String = if (file.isDirectory) "${directorySummary(file, language)} · ${formatDate(file.lastModified)}" else "${formatBytes(file.size)} · ${formatDate(file.lastModified)}"
+private fun directorySummary(file: FileEntry, language: AppLanguage): String = if (SmbUri.isSmb(file.uri)) "—" else "${file.childCount} ${language.t("items")}"
 private fun formatBytes(bytes: Long): String { if (bytes <= 0) return "0 B"; val units = arrayOf("B", "KB", "MB", "GB", "TB"); val exponent = (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0)).toInt().coerceIn(0, units.lastIndex); return "%.1f %s".format(bytes / 1024.0.pow(exponent), units[exponent]) }
 private fun Double.pow(exponent: Int): Double = java.lang.Math.pow(this, exponent.toDouble())
 private fun formatDate(millis: Long): String = if (millis <= 0L) "—" else DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(millis))

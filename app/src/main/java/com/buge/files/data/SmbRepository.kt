@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.ContentResolver
 import android.net.Uri
 import android.webkit.MimeTypeMap
+import androidx.documentfile.provider.DocumentFile
 import com.hierynomus.msdtyp.AccessMask
 import com.hierynomus.msfscc.FileAttributes
 import com.hierynomus.mssmb2.SMB2CreateDisposition
@@ -313,11 +314,9 @@ class SmbRepository(private val context: Context) {
     }
 
     private fun copyFromSmb(entry: FileEntry, destinationUri: Uri): Boolean {
-        val destinationRoot = destinationUri.path?.let(::File)?.takeIf { it.exists() && it.isDirectory } ?: return false
-        val target = File(destinationRoot, uniqueLocalName(destinationRoot, entry.name, entry.isDirectory))
-        return runCatching {
-            if (entry.isDirectory) {
-                if (!target.mkdirs()) return false
+        if (entry.isDirectory) {
+            val target = createLocalDirectory(entry, destinationUri) ?: return false
+            return runCatching {
                 withShare(entry.uri) { share, _ ->
                     val relative = SmbUri.relativePath(entry.uri)
                     share.list(relative).forEach { item ->
@@ -333,16 +332,55 @@ class SmbRepository(private val context: Context) {
                             size = if (isDirectory) 0L else item.endOfFile,
                             lastModified = item.lastWriteTime?.toEpochMillis() ?: 0L
                         )
-                        copyFromSmb(childEntry, Uri.fromFile(target))
+                        copyFromSmb(childEntry, target)
                     }
                 }
                 true
-            } else {
-                val input = openBlockingStream(entry.uri) ?: return false
-                input.use { stream -> target.outputStream().use { output -> stream.copyTo(output) } }
-                true
-            }
+            }.getOrDefault(false)
+        }
+        return runCatching {
+            val input = openBlockingStream(entry.uri) ?: return false
+            val output = openLocalOutput(entry, destinationUri) ?: return false
+            input.use { stream -> output.use { target -> stream.copyTo(target) } }
+            true
         }.getOrDefault(false)
+    }
+
+    private fun createLocalDirectory(entry: FileEntry, destinationUri: Uri): Uri? {
+        if (destinationUri.scheme == ContentResolver.SCHEME_FILE) {
+            val root = destinationUri.path?.let(::File)?.takeIf { it.exists() && it.isDirectory } ?: return null
+            val target = File(root, uniqueLocalName(root, entry.name, true))
+            return if (target.exists() || target.mkdirs()) Uri.fromFile(target) else null
+        }
+        val parent = DocumentFile.fromTreeUri(context, destinationUri)?.takeIf { it.exists() && it.isDirectory } ?: return null
+        val name = uniqueDocumentName(parent, entry.name, true)
+        return parent.createDirectory(name)?.uri
+    }
+
+    private fun openLocalOutput(entry: FileEntry, destinationUri: Uri): OutputStream? {
+        if (destinationUri.scheme == ContentResolver.SCHEME_FILE) {
+            val root = destinationUri.path?.let(::File)?.takeIf { it.exists() && it.isDirectory } ?: return null
+            return File(root, uniqueLocalName(root, entry.name, false)).outputStream()
+        }
+        val parent = DocumentFile.fromTreeUri(context, destinationUri)?.takeIf { it.exists() && it.isDirectory } ?: return null
+        val existing = parent.findFile(entry.name)
+        if (existing != null && existing.isFile) {
+            return runCatching { context.contentResolver.openOutputStream(existing.uri) }.getOrNull()
+        }
+        val created = parent.createFile(entry.mimeType ?: mimeForName(entry.name), entry.name) ?: return null
+        return runCatching { context.contentResolver.openOutputStream(created.uri) }.getOrNull()
+    }
+
+    private fun uniqueDocumentName(parent: DocumentFile, name: String, isDirectory: Boolean): String {
+        if (parent.findFile(name) == null) return name
+        val stem = name.substringBeforeLast('.', name)
+        val extension = if (name.contains('.') && !isDirectory) ".${name.substringAfterLast('.')}" else ""
+        var index = 1
+        while (true) {
+            val candidate = "$stem ($index)$extension"
+            if (parent.findFile(candidate) == null) return candidate
+            index++
+        }
     }
 
     private fun openBlockingStream(uri: Uri): InputStream? = runCatching {
