@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
-            val caller = referrer?.authority ?: intent?.callingPackage
+            val caller = referrer?.authority ?: callingPackage
             if (caller != null) {
                 runCatching { grantUriPermission(caller, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
             }
