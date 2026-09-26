@@ -126,6 +126,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -157,6 +158,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import java.io.File
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.max
@@ -170,7 +172,10 @@ fun BugeApp(
     onOpenFile: (FileEntry) -> Unit,
     onInstallApk: (FileEntry) -> Unit,
     onShareFiles: (List<FileEntry>) -> Unit,
-    pickOnly: Boolean = false
+    pickOnly: Boolean = false,
+    saveIncoming: Boolean = false,
+    incomingUris: List<Uri> = emptyList(),
+    onSaveIncoming: suspend (Uri, Boolean) -> Unit = { _, _ -> }
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val roots by viewModel.roots.collectAsStateWithLifecycle()
@@ -315,7 +320,10 @@ fun BugeApp(
                                 onInfo = viewModel::showInfo,
                                 onToggleBookmark = { viewModel.navigationPath.lastOrNull()?.let(viewModel::toggleBookmark) },
                                 onPaste = viewModel::paste,
-                                onNavigate = viewModel::navigateTo
+                                onNavigate = viewModel::navigateTo,
+                                saveIncoming = saveIncoming,
+                                incomingCount = incomingUris.size,
+                                onSaveIncoming = onSaveIncoming
                             )
                             AppDestination.RECENTS -> RecentsScreen(
                                 modifier = Modifier.padding(padding), language = language, items = viewModel.recents,
@@ -523,7 +531,8 @@ private fun BrowseScreen(
     searchActive: Boolean, isLoading: Boolean, viewMode: ViewMode, compact: Boolean, showThumbnails: Boolean, clipboard: ClipboardState?, isBookmarked: Boolean,
     onRequestFolder: () -> Unit, onRequestDirectStorage: () -> Unit, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit,
     onToggleSelection: (FileEntry) -> Unit, isSelected: (FileEntry) -> Boolean, onInfo: (FileEntry) -> Unit,
-    onToggleBookmark: () -> Unit, onPaste: () -> Unit, onNavigate: (Int) -> Unit
+    onToggleBookmark: () -> Unit, onPaste: () -> Unit, onNavigate: (Int) -> Unit,
+    saveIncoming: Boolean, incomingCount: Int, onSaveIncoming: suspend (Uri, Boolean) -> Unit
 ) {
     if (root == null) {
         if (directStorageAvailable) EmptyLocationScreen(modifier, language, onRequestFolder)
@@ -553,6 +562,7 @@ private fun BrowseScreen(
         viewModel.saveBrowseScrollPosition(path, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
         onOpenDirectory(entry)
     }
+    val scope = rememberCoroutineScope()
     Column(modifier.fillMaxSize()) {
         LazyColumn(state = listState, modifier = if (viewMode == ViewMode.LIST) Modifier.weight(1f) else Modifier.heightIn(max = 210.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
@@ -571,6 +581,18 @@ private fun BrowseScreen(
                             }
                         }
                         IconButton(onClick = onToggleBookmark) { Icon(if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, if (isBookmarked) language.t("unfavorite") else language.t("favorite")) }
+                    }
+                }
+            }
+            if (saveIncoming && root != null) {
+                item {
+                    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.Archive, null)
+                            Spacer(Modifier.width(12.dp))
+                            Text("$incomingCount ${language.t("items")} ${language.t("save_as").lowercase()}", modifier = Modifier.weight(1f))
+                            FilledTonalButton(onClick = { scope.launch { onSaveIncoming(root.uri, true) } }) { Text(language.t("save_here")) }
+                        }
                     }
                 }
             }

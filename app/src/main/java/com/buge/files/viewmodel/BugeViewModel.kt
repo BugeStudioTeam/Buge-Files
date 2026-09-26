@@ -406,6 +406,18 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun saveIncoming(uris: List<Uri>, destinationUri: Uri): OperationResult? {
+        if (uris.isEmpty()) return OperationResult(false, "Nothing to save")
+        val result = if (SmbUri.isSmb(destinationUri)) {
+            smbRepository.saveExternal(uris, destinationUri)
+        } else {
+            fileRepository.saveExternal(uris, destinationUri)
+        }
+        showMessage(result.message)
+        if (result.success) refresh()
+        return result
+    }
+
     fun rename(entry: FileEntry, name: String) = viewModelScope.launch {
         val result = if (SmbUri.isSmb(entry.uri)) {
             smbRepository.rename(entry, name)

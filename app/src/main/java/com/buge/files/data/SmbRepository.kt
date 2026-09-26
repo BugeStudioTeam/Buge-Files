@@ -3,6 +3,7 @@ package com.buge.files
 import android.content.Context
 import android.content.ContentResolver
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.documentfile.provider.DocumentFile
 import com.hierynomus.msdtyp.AccessMask
@@ -271,6 +272,56 @@ class SmbRepository(private val context: Context) {
             failed == 0 -> OperationResult(true, if (clipboard.mode == ClipboardMode.MOVE) "Moved $completed item(s)" else "Copied $completed item(s)")
             else -> OperationResult(false, "Completed $completed item(s); $failed failed")
         }
+    }
+
+    suspend fun saveExternal(uris: List<Uri>, destinationUri: Uri): OperationResult = withContext(Dispatchers.IO) {
+        var completed = 0
+        var failed = 0
+        uris.forEach { source ->
+            val copied = runCatching {
+                val stream = openExternalStream(source) ?: return@runCatching false
+                val name = externalName(source)
+                stream.use { input ->
+                    withShare(destinationUri) { share, _ ->
+                        val relative = SmbUri.relativePath(destinationUri)
+                        val unique = uniqueSmbName(share, relative, name, false)
+                        val target = if (relative.isBlank()) unique else "$relative/$unique"
+                        share.openFile(
+                            target,
+                            EnumSet.of(AccessMask.GENERIC_WRITE),
+                            null,
+                            SMB2ShareAccess.ALL,
+                            SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                            EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
+                        ).outputStream.use { output -> input.copyTo(output) }
+                        true
+                    }
+                }
+            }.getOrDefault(false)
+            if (copied) completed++ else failed++
+        }
+        when {
+            completed == 0 -> OperationResult(false, "No items were saved")
+            failed == 0 -> OperationResult(true, "Saved $completed item(s)")
+            else -> OperationResult(false, "Saved $completed item(s); $failed failed")
+        }
+    }
+
+    private fun openExternalStream(uri: Uri): InputStream? = runCatching {
+        when (uri.scheme) {
+            ContentResolver.SCHEME_FILE -> uri.path?.let { FileInputStream(File(it)) }
+            else -> context.contentResolver.openInputStream(uri)
+        }
+    }.getOrNull()
+
+    private fun externalName(uri: Uri): String {
+        val displayName = runCatching {
+            context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        }.getOrNull()
+        val fallback = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+        return displayName?.takeIf { it.isNotBlank() } ?: fallback ?: "shared_file"
     }
 
     private fun copyIntoSmb(entry: FileEntry, destinationUri: Uri): Boolean {

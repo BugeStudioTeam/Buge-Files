@@ -204,6 +204,32 @@ class FileRepository(private val context: Context) {
         }
     }
 
+    suspend fun saveExternal(uris: List<Uri>, destinationUri: Uri): OperationResult = withContext(Dispatchers.IO) {
+        var completed = 0
+        var failed = 0
+        uris.forEach { source ->
+            val sourceDocument = when {
+                isDirect(source) -> direct(source)?.let { DocumentFile.fromFile(it) }
+                else -> DocumentFile.fromSingleUri(context, source)?.takeIf { it.exists() }
+            }
+            val copied = if (sourceDocument == null) {
+                false
+            } else if (isDirect(destinationUri)) {
+                val destination = direct(destinationUri)
+                if (destination == null || !destination.isDirectory) false else copyDocumentToDirect(sourceDocument, destination) != null
+            } else {
+                val destination = documentTree(destinationUri)
+                if (destination == null || !destination.canWrite()) false else copyDocumentToDocument(sourceDocument, destination) != null
+            }
+            if (copied) completed++ else failed++
+        }
+        when {
+            completed == 0 -> OperationResult(false, "No items were saved")
+            failed == 0 -> OperationResult(true, "Saved $completed item(s)")
+            else -> OperationResult(false, "Saved $completed item(s); $failed failed")
+        }
+    }
+
     private fun copyDirectToDirect(source: File, destination: File): File? {
         val target = File(destination, uniqueDirectName(destination, source.name, source.isDirectory))
         return try {

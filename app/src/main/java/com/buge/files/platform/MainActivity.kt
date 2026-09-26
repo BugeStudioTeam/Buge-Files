@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
     private val viewModel: BugeViewModel by viewModels()
     private var awaitingAllFilesAccess = false
     private var selectMode = false
+    private var saveMode = false
 
     private val folderPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri ?: return@registerForActivityResult
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         selectMode = intent?.action == Intent.ACTION_GET_CONTENT || intent?.action == Intent.ACTION_OPEN_DOCUMENT
+        saveMode = intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE
         enableEdgeToEdge()
         setContent {
             BugeApp(
@@ -49,10 +51,36 @@ class MainActivity : ComponentActivity() {
                 onOpenFile = ::openFile,
                 onInstallApk = ::installApk,
                 onShareFiles = ::shareFiles,
-                pickOnly = selectMode
+                pickOnly = selectMode,
+                saveIncoming = saveMode,
+                incomingUris = if (saveMode) collectIncomingUris(intent) else emptyList(),
+                onSaveIncoming = { destination, finishAfter ->
+                    val result = viewModel.saveIncoming(collectIncomingUris(intent), destination)
+                    result?.let {
+                        Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+                        if (it.success && finishAfter) finish()
+                    }
+                }
             )
         }
     }
+
+    private fun collectIncomingUris(source: Intent?): List<Uri> {
+        source ?: return emptyList()
+        return when (source.action) {
+            Intent.ACTION_SEND -> listOfNotNull(source.parcelableExtra<Uri>(Intent.EXTRA_STREAM))
+            Intent.ACTION_SEND_MULTIPLE -> source.parcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty()
+            else -> emptyList()
+        }
+    }
+
+    private inline fun <reified T : android.os.Parcelable> Intent.parcelableExtra(key: String): T? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) getParcelableExtra(key, T::class.java)
+        else @Suppress("DEPRECATION") getParcelableExtra(key) as? T
+
+    private inline fun <reified T : android.os.Parcelable> Intent.parcelableArrayListExtra(key: String): ArrayList<T>? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) getParcelableArrayListExtra(key, T::class.java)
+        else @Suppress("DEPRECATION") getParcelableArrayListExtra(key)
 
 
 
