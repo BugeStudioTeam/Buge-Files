@@ -584,14 +584,15 @@ private fun BrowseScreen(
                     }
                 }
             }
-            if (saveIncoming && root != null) {
+            val saveDestination = path.lastOrNull()?.uri ?: root?.uri
+            if (saveIncoming && saveDestination != null) {
                 item {
                     ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Outlined.Archive, null)
                             Spacer(Modifier.width(12.dp))
                             Text("$incomingCount ${language.t("items")} ${language.t("save_as").lowercase()}", modifier = Modifier.weight(1f))
-                            FilledTonalButton(onClick = { scope.launch { onSaveIncoming(root.uri, true) } }) { Text(language.t("save_here")) }
+                            FilledTonalButton(onClick = { scope.launch { onSaveIncoming(saveDestination, true) } }) { Text(language.t("save_here")) }
                         }
                     }
                 }

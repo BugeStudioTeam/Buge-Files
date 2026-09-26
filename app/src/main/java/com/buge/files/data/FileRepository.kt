@@ -3,6 +3,7 @@ package com.buge.files
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
@@ -208,19 +209,25 @@ class FileRepository(private val context: Context) {
         var completed = 0
         var failed = 0
         uris.forEach { source ->
-            val sourceDocument = when {
-                isDirect(source) -> direct(source)?.let { DocumentFile.fromFile(it) }
-                else -> DocumentFile.fromSingleUri(context, source)?.takeIf { it.exists() }
-            }
-            val copied = if (sourceDocument == null) {
-                false
-            } else if (isDirect(destinationUri)) {
-                val destination = direct(destinationUri)
-                if (destination == null || !destination.isDirectory) false else copyDocumentToDirect(sourceDocument, destination) != null
-            } else {
-                val destination = documentTree(destinationUri)
-                if (destination == null || !destination.canWrite()) false else copyDocumentToDocument(sourceDocument, destination) != null
-            }
+            val copied = runCatching {
+                val name = externalName(source)
+                val input = resolver.openInputStream(source) ?: return@runCatching false
+                input.use { stream ->
+                    if (isDirect(destinationUri)) {
+                        val destination = direct(destinationUri) ?: return@runCatching false
+                        if (!destination.isDirectory) return@runCatching false
+                        val target = File(destination, uniqueDirectName(destination, name, false))
+                        FileOutputStream(target).use { output -> stream.copyTo(output) }
+                        target.exists() && target.length() > 0
+                    } else {
+                        val destination = documentTree(destinationUri) ?: return@runCatching false
+                        if (!destination.canWrite()) return@runCatching false
+                        val target = destination.createFile(mimeForName(name), uniqueDocumentName(destination, name, false)) ?: return@runCatching false
+                        resolver.openOutputStream(target.uri, "w")?.use { output -> stream.copyTo(output) } ?: return@runCatching false
+                        target.length() > 0
+                    }
+                }
+            }.getOrDefault(false)
             if (copied) completed++ else failed++
         }
         when {
@@ -228,6 +235,17 @@ class FileRepository(private val context: Context) {
             failed == 0 -> OperationResult(true, "Saved $completed item(s)")
             else -> OperationResult(false, "Saved $completed item(s); $failed failed")
         }
+    }
+
+    private fun externalName(uri: Uri): String {
+        if (isDirect(uri)) return direct(uri)?.name ?: "shared_file"
+        val displayName = runCatching {
+            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        }.getOrNull()
+        val fallback = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+        return displayName?.takeIf { it.isNotBlank() } ?: fallback ?: "shared_file"
     }
 
     private fun copyDirectToDirect(source: File, destination: File): File? {
