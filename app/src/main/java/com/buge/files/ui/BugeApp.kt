@@ -21,6 +21,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -311,7 +313,8 @@ fun BugeApp(
                                 isSelected = viewModel::isSelected,
                                 onInfo = viewModel::showInfo,
                                 onToggleBookmark = { viewModel.navigationPath.lastOrNull()?.let(viewModel::toggleBookmark) },
-                                onPaste = viewModel::paste
+                                onPaste = viewModel::paste,
+                                onNavigate = viewModel::navigateTo
                             )
                             AppDestination.RECENTS -> RecentsScreen(
                                 modifier = Modifier.padding(padding), language = language, items = viewModel.recents,
@@ -519,7 +522,7 @@ private fun BrowseScreen(
     searchActive: Boolean, isLoading: Boolean, viewMode: ViewMode, compact: Boolean, showThumbnails: Boolean, clipboard: ClipboardState?, isBookmarked: Boolean,
     onRequestFolder: () -> Unit, onRequestDirectStorage: () -> Unit, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit,
     onToggleSelection: (FileEntry) -> Unit, isSelected: (FileEntry) -> Boolean, onInfo: (FileEntry) -> Unit,
-    onToggleBookmark: () -> Unit, onPaste: () -> Unit
+    onToggleBookmark: () -> Unit, onPaste: () -> Unit, onNavigate: (Int) -> Unit
 ) {
     if (root == null) {
         if (directStorageAvailable) EmptyLocationScreen(modifier, language, onRequestFolder)
@@ -554,7 +557,18 @@ private fun BrowseScreen(
             item {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Text(text = path.joinToString("  /  ") { it.label }, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Row(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                            path.forEachIndexed { index, location ->
+                                if (index > 0) {
+                                    Text(text = "/", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+                                }
+                                if (index == path.lastIndex) {
+                                    Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
+                                } else {
+                                    Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onNavigate(index) })
+                                }
+                            }
+                        }
                         IconButton(onClick = onToggleBookmark) { Icon(if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, if (isBookmarked) language.t("unfavorite") else language.t("favorite")) }
                     }
                 }

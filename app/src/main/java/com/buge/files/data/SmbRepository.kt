@@ -1,6 +1,7 @@
 package com.buge.files
 
 import android.content.Context
+import android.content.ContentResolver
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import com.hierynomus.msdtyp.AccessMask
@@ -17,6 +18,7 @@ import com.hierynomus.smbj.share.DiskShare
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.EnumSet
@@ -271,30 +273,43 @@ class SmbRepository(private val context: Context) {
     }
 
     private fun copyIntoSmb(entry: FileEntry, destinationUri: Uri): Boolean {
-        val input = openSourceStream(entry) ?: return false
+        if (entry.isDirectory) {
+            return withShare(destinationUri) { share, _ ->
+                val relative = SmbUri.relativePath(destinationUri)
+                val name = uniqueSmbName(share, relative, entry.name, true)
+                val target = if (relative.isBlank()) name else "$relative/$name"
+                share.mkdir(target)
+                true
+            }
+        }
+        val input = openEntryStream(entry) ?: return false
         return input.use { stream ->
             withShare(destinationUri) { share, _ ->
                 val relative = SmbUri.relativePath(destinationUri)
-                if (entry.isDirectory) {
-                    val name = uniqueSmbName(share, relative, entry.name, true)
-                    val target = if (relative.isBlank()) name else "$relative/$name"
-                    share.mkdir(target)
-                    true
-                } else {
-                    val name = uniqueSmbName(share, relative, entry.name, false)
-                    val target = if (relative.isBlank()) name else "$relative/$name"
-                    share.openFile(
-                        target,
-                        EnumSet.of(AccessMask.GENERIC_WRITE),
-                        null,
-                        SMB2ShareAccess.ALL,
-                        SMB2CreateDisposition.FILE_OVERWRITE_IF,
-                        EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
-                    ).outputStream.use { output -> stream.copyTo(output) }
-                    true
-                }
+                val name = uniqueSmbName(share, relative, entry.name, false)
+                val target = if (relative.isBlank()) name else "$relative/$name"
+                share.openFile(
+                    target,
+                    EnumSet.of(AccessMask.GENERIC_WRITE),
+                    null,
+                    SMB2ShareAccess.ALL,
+                    SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                    EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
+                ).outputStream.use { output -> stream.copyTo(output) }
+                true
             }
         }
+    }
+
+    private fun openEntryStream(entry: FileEntry): InputStream? {
+        if (entry.isDirectory) return null
+        if (SmbUri.isSmb(entry.uri)) return openBlockingStream(entry.uri)
+        return runCatching {
+            when (entry.uri.scheme) {
+                ContentResolver.SCHEME_FILE -> entry.uri.path?.let { FileInputStream(File(it)) }
+                else -> context.contentResolver.openInputStream(entry.uri)
+            }
+        }.getOrNull()
     }
 
     private fun copyFromSmb(entry: FileEntry, destinationUri: Uri): Boolean {
@@ -341,11 +356,6 @@ class SmbRepository(private val context: Context) {
                 EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
             ).inputStream
         }
-    }.getOrNull()
-
-    private fun openSourceStream(entry: FileEntry): InputStream? = runCatching {
-        if (entry.isDirectory) return null
-        openBlockingStream(entry.uri)
     }.getOrNull()
 
     private fun deleteOne(entry: FileEntry): Boolean = runCatching {

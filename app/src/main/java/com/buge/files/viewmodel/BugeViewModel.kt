@@ -454,12 +454,27 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         val location = navigationPath.lastOrNull() ?: return
         viewModelScope.launch {
             isLoading = true
-            val result = if (SmbUri.isSmb(location.uri)) {
-                smbRepository.paste(content, location.uri)
-            } else {
-                fileRepository.paste(content, location.uri)
+            val smbEntries = content.entries.filter { SmbUri.isSmb(it.uri) }
+            val localEntries = content.entries.filterNot { SmbUri.isSmb(it.uri) }
+            val destinationIsSmb = SmbUri.isSmb(location.uri)
+            val results = mutableListOf<OperationResult>()
+            if (SmbUri.isSmb(location.uri) || smbEntries.isNotEmpty()) {
+                if (SmbUri.isSmb(location.uri)) {
+                    val forSmb = smbEntries + localEntries
+                    results += smbRepository.paste(content.copy(entries = forSmb), location.uri)
+                } else {
+                    results += smbRepository.paste(content.copy(entries = smbEntries), location.uri)
+                }
+            }
+            if (!destinationIsSmb && localEntries.isNotEmpty()) {
+                results += fileRepository.paste(content.copy(entries = localEntries), location.uri)
             }
             isLoading = false
+            val result = when {
+                results.isEmpty() -> OperationResult(false, "No items were pasted")
+                results.any { it.success } -> OperationResult(true, results.first { it.success }.message)
+                else -> results.first()
+            }
             showMessage(result.message)
             if (result.success) { clipboard = null; refresh() }
         }
