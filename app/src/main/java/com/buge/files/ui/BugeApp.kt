@@ -110,6 +110,7 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -158,6 +159,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import java.io.File
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -525,6 +527,7 @@ private fun navigationItems(language: AppLanguage): List<Triple<AppDestination, 
     Triple(AppDestination.SETTINGS, Icons.Outlined.Settings, language.t("settings"))
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BrowseScreen(
     viewModel: BugeViewModel, modifier: Modifier, language: AppLanguage, root: RootLocation?, directStorageAvailable: Boolean, path: List<RootLocation>, entries: List<FileEntry>,
@@ -563,8 +566,23 @@ private fun BrowseScreen(
         onOpenDirectory(entry)
     }
     val scope = rememberCoroutineScope()
+    var isRefreshing by remember { mutableStateOf(false) }
+    val onPullRefresh: () -> Unit = {
+        if (!isRefreshing) {
+            isRefreshing = true
+            scope.launch {
+                val started = SystemClock.elapsedRealtime()
+                viewModel.refresh()
+                val elapsed = SystemClock.elapsedRealtime() - started
+                if (elapsed < 420L) delay(420L - elapsed)
+                isRefreshing = false
+            }
+        }
+    }
     Column(modifier.fillMaxSize()) {
-        LazyColumn(state = listState, modifier = if (viewMode == ViewMode.LIST) Modifier.weight(1f) else Modifier.heightIn(max = 210.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (viewMode == ViewMode.LIST) {
+            PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -609,18 +627,20 @@ private fun BrowseScreen(
                     }
                 }
             }
-            if (isLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (isLoading && !isRefreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             if (entries.isEmpty() && !isLoading) item { EmptyFolder(language, searchActive) }
-            if (viewMode == ViewMode.LIST) {
-                items(entries, key = { it.uri.toString() }) { entry ->
-                    FileListItem(entry, language, compact, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
+            items(entries, key = { it.uri.toString() }) { entry ->
+                FileListItem(entry, language, compact, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
+            }
                 }
             }
         }
         if (viewMode == ViewMode.GRID && entries.isNotEmpty()) {
-            LazyVerticalGrid(columns = GridCells.Adaptive(145.dp), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
-                items(entries, key = { it.uri.toString() }) { entry ->
-                    FileGridItem(entry, language, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
+            PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
+                LazyVerticalGrid(columns = GridCells.Adaptive(145.dp), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
+                    items(entries, key = { it.uri.toString() }) { entry ->
+                        FileGridItem(entry, language, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
+                    }
                 }
             }
         }
