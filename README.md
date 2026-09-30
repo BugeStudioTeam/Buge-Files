@@ -32,7 +32,7 @@
 
 | Feature                             | Description                                                                      |
 | ----------------------------------- | -------------------------------------------------------------------------------- |
-| **Material Design 3 Expressive UI** | Clean, system-themed interface that follows the latest Android design guidelines |
+| **Material Design 3 Expressive** | Clean, system-themed interface that follows the latest Android design guidelines |
 | **File Browsing**                   | Browse and manage files and folders with a modern card-style layout              |
 | **Smart Categories**                | Automatically organize files by type for quick access                            |
 | **Storage Overview**                | View storage usage with visual progress indicators                               |
