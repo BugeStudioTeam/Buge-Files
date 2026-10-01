@@ -348,10 +348,15 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         loadingJob?.cancel()
         loadingJob = viewModelScope.launch {
             isLoading = true
-            _searchResults.value = if (SmbUri.isSmb(root.uri)) {
-                smbRepository.search(root.uri, query, _settings.value.showHidden)
-            } else {
-                fileRepository.search(root.uri, query, _settings.value.showHidden)
+            _searchResults.value = runCatching {
+                if (SmbUri.isSmb(root.uri)) {
+                    smbRepository.search(root.uri, query, _settings.value.showHidden)
+                } else {
+                    fileRepository.search(root.uri, query, _settings.value.showHidden)
+                }
+            }.getOrElse { error ->
+                showMessage(connectionMessage(error))
+                emptyList()
             }
             isLoading = false
         }
@@ -366,10 +371,30 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         selection = if (entry.uri in selection) selection - entry.uri else selection + entry.uri
     }
 
-    fun selectAll() { selection = _entries.value.map { it.uri }.toSet() }
+    fun selectAll() {
+        val visible = if (isSearching) _searchResults.value else _entries.value
+        selection = visible.map { it.uri }.toSet()
+    }
     fun clearSelection() { selection = emptySet() }
     fun isSelected(entry: FileEntry) = entry.uri in selection
-    fun selectedEntries(): List<FileEntry> = (_entries.value + _searchResults.value + recentItems).distinctBy { it.uri }.filter { it.uri in selection }
+    fun selectedEntries(): List<FileEntry> {
+        val known = (_entries.value + _searchResults.value + recentItems).distinctBy { it.uri }.associateBy { it.uri }
+        return selection.map { uri -> known[uri] ?: entryFromUri(uri) }
+    }
+
+    private fun entryFromUri(uri: Uri): FileEntry {
+        val name = uri.lastPathSegment?.substringAfterLast('/').orEmpty().ifBlank { uri.toString() }
+        val isDirectory = !name.contains('.')
+        return FileEntry(
+            uri = uri,
+            name = name,
+            mimeType = null,
+            isDirectory = isDirectory,
+            size = 0L,
+            lastModified = 0L,
+            childCount = 0
+        )
+    }
 
     fun setSort(option: SortOption) {
         if (option == sortOption) ascending = !ascending else { sortOption = option; ascending = true }
@@ -499,6 +524,13 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun dismissInfo() { pendingInfo = null }
     fun showMessage(value: String) { message = value }
     fun consumeMessage() { message = null }
+
+    private fun connectionMessage(error: Throwable): String {
+        val language = _settings.value.language.resolved()
+        val detail = error.message?.trim().orEmpty()
+        val base = language.t("connection_failed")
+        return if (detail.isEmpty()) base else "$base · ${language.t("connection_failed_detail")}"
+    }
 
     fun openBuiltInTool(entry: FileEntry): Boolean = when {
         entry.isApkPackage() -> { inspectApk(entry); recordOpened(entry); true }
@@ -660,10 +692,15 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         loadingJob?.cancel()
         loadingJob = viewModelScope.launch {
             isLoading = true
-            _entries.value = if (SmbUri.isSmb(location.uri)) {
-                smbRepository.list(location.uri, sortOption, ascending, _settings.value.showHidden)
-            } else {
-                fileRepository.list(location.uri, sortOption, ascending, _settings.value.showHidden)
+            _entries.value = runCatching {
+                if (SmbUri.isSmb(location.uri)) {
+                    smbRepository.list(location.uri, sortOption, ascending, _settings.value.showHidden)
+                } else {
+                    fileRepository.list(location.uri, sortOption, ascending, _settings.value.showHidden)
+                }
+            }.getOrElse { error ->
+                showMessage(connectionMessage(error))
+                emptyList()
             }
             isLoading = false
         }
