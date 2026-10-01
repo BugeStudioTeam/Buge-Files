@@ -253,7 +253,7 @@ fun BugeApp(
                             onQueryChange = viewModel::updateSearch,
                             onCloseSearch = { viewModel.setSearchActive(false) },
                             onToggleRootMenu = { showRootMenu = !showRootMenu },
-                            onSelectRoot = { viewModel.selectRoot(it); showRootMenu = false },
+                            onSelectRoot = { viewModel.selectRoot(it, reportFailure = true); showRootMenu = false },
                             onShowActions = { showActions = true },
                             onChangeView = { viewModel.setViewMode(if (settings.viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST) },
                             onClearSelection = viewModel::clearSelection,
@@ -572,7 +572,7 @@ private fun BrowseScreen(
             isRefreshing = true
             scope.launch {
                 val started = SystemClock.elapsedRealtime()
-                viewModel.refresh()
+                viewModel.refresh(reportFailure = true)
                 val elapsed = SystemClock.elapsedRealtime() - started
                 if (elapsed < 420L) delay(420L - elapsed)
                 isRefreshing = false

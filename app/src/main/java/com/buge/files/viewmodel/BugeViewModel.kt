@@ -160,7 +160,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         val label = document?.name?.takeIf { it.isNotBlank() } ?: "Storage"
         viewModelScope.launch {
             settingsRepository.addRoot(RootLocation(uri, label))
-            selectRoot(RootLocation(uri, label))
+            selectRoot(RootLocation(uri, label), reportFailure = true)
             showMessage("Added $label")
         }
     }
@@ -185,7 +185,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             val uri = SmbUri.build(credentials.host, credentials.share, "", credentials.port)
             val label = credentials.displayLabel
             settingsRepository.addRoot(RootLocation(uri, label))
-            selectRoot(RootLocation(uri, label))
+            selectRoot(RootLocation(uri, label), reportFailure = true)
             showMessage("Added $label")
         }
     }
@@ -236,13 +236,13 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         val root = runCatching { File("/sdcard").canonicalFile }.getOrNull() ?: return null
         return root.takeIf { it.exists() && it.isDirectory }?.let { RootLocation(Uri.fromFile(it), "Internal storage") }
     }
-    fun selectRoot(location: RootLocation) {
+    fun selectRoot(location: RootLocation, reportFailure: Boolean = false) {
         _currentRoot.value = location
         navigationPath = listOf(location)
         selection = emptySet()
         searchQuery = ""
         isSearching = false
-        refresh()
+        refresh(reportFailure = reportFailure)
     }
 
     fun openBookmark(location: RootLocation) {
@@ -262,7 +262,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         selection = emptySet()
         searchQuery = ""
         isSearching = false
-        refresh()
+        refresh(reportFailure = true)
     }
 
     private fun owningRoot(uri: Uri): RootLocation? {
@@ -324,20 +324,20 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         if (!entry.isDirectory) return
         navigationPath = navigationPath + RootLocation(entry.uri, entry.name)
         selection = emptySet()
-        refresh()
+        refresh(reportFailure = true)
     }
 
     fun navigateTo(index: Int) {
         navigationPath = navigationPath.take(index + 1)
         selection = emptySet()
-        refresh()
+        refresh(reportFailure = true)
     }
 
     fun navigateUp(): Boolean {
         if (navigationPath.size <= 1) return false
         navigationPath = navigationPath.dropLast(1)
         selection = emptySet()
-        refresh()
+        refresh(reportFailure = true)
         return true
     }
 
@@ -532,6 +532,12 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         return if (detail.isEmpty()) base else "$base · ${language.t("connection_failed_detail")}"
     }
 
+    private fun readFailureMessage(error: Throwable): String {
+        val language = _settings.value.language.resolved()
+        val detail = error.message?.trim().orEmpty()
+        return if (detail.isEmpty()) language.t("read_failed") else "$detail"
+    }
+
     fun openBuiltInTool(entry: FileEntry): Boolean = when {
         entry.isApkPackage() -> { inspectApk(entry); recordOpened(entry); true }
         entry.isImageFile() -> { imagePreview = entry; recordOpened(entry); true }
@@ -687,19 +693,20 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         while (recentItems.size > 40) recentItems.removeAt(recentItems.lastIndex)
     }
 
-    fun refresh() {
+    fun refresh(reportFailure: Boolean = false) {
         val location = navigationPath.lastOrNull() ?: run { _entries.value = emptyList(); return }
         loadingJob?.cancel()
         loadingJob = viewModelScope.launch {
             isLoading = true
+            val remote = SmbUri.isSmb(location.uri)
             _entries.value = runCatching {
-                if (SmbUri.isSmb(location.uri)) {
+                if (remote) {
                     smbRepository.list(location.uri, sortOption, ascending, _settings.value.showHidden)
                 } else {
                     fileRepository.list(location.uri, sortOption, ascending, _settings.value.showHidden)
                 }
             }.getOrElse { error ->
-                showMessage(connectionMessage(error))
+                if (reportFailure) showMessage(if (remote) connectionMessage(error) else readFailureMessage(error))
                 emptyList()
             }
             isLoading = false
