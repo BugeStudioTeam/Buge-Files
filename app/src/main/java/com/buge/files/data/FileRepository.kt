@@ -260,7 +260,7 @@ class FileRepository(private val context: Context) {
         return runCatching {
             resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) cursor.getLong(0) else 0L
-            }
+            } ?: 0L
         }.getOrDefault(0L)
     }
 
