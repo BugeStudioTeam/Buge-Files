@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.documentfile.provider.DocumentFile
+import com.buge.files.platform.CopyProgressNotifier
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +29,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val fileRepository = FileRepository(application)
     val smbRepository = SmbRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
+    private val copyProgressNotifier = CopyProgressNotifier(application)
     private val apkRepository = ApkRepository(application)
     private val settingsRepository = SettingsRepository(application)
     private var loadingJob: Job? = null
@@ -433,11 +435,23 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun saveIncoming(uris: List<Uri>, destinationUri: Uri): OperationResult? {
         if (uris.isEmpty()) return OperationResult(false, "Nothing to save")
-        val result = if (SmbUri.isSmb(destinationUri)) {
-            smbRepository.saveExternal(uris, destinationUri)
-        } else {
-            fileRepository.saveExternal(uris, destinationUri)
+        val language = _settings.value.language.resolved()
+        val label = language.t("saving")
+        copyProgressNotifier.start(label, label)
+        val onProgress: (Long, Long, Int, Int) -> Unit = { done, total, itemsDone, itemsTotal ->
+            copyProgressNotifier.update(label, label, done, total, itemsDone, itemsTotal)
         }
+        val result = try {
+            if (SmbUri.isSmb(destinationUri)) {
+                smbRepository.saveExternal(uris, destinationUri, onProgress)
+            } else {
+                fileRepository.saveExternal(uris, destinationUri, onProgress)
+            }
+        } catch (error: Throwable) {
+            copyProgressNotifier.finish(false, language.t("transfer_failed"), error.message.orEmpty())
+            throw error
+        }
+        copyProgressNotifier.finish(result.success, language.t(if (result.success) "transfer_complete" else "transfer_failed"), result.message)
         showMessage(result.message)
         if (result.success) refresh()
         return result
@@ -491,26 +505,43 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         val location = navigationPath.lastOrNull() ?: return
         viewModelScope.launch {
             isLoading = true
+            val moving = content.mode == ClipboardMode.MOVE
+            val language = _settings.value.language.resolved()
+            val label = language.t(if (moving) "moving" else "copying")
+            copyProgressNotifier.start(label, label)
+            var notifierFailure: String? = null
+            val onProgress: (Long, Long, Int, Int) -> Unit = { done, total, itemsDone, itemsTotal ->
+                copyProgressNotifier.update(label, label, done, total, itemsDone, itemsTotal)
+            }
             val smbEntries = content.entries.filter { SmbUri.isSmb(it.uri) }
             val localEntries = content.entries.filterNot { SmbUri.isSmb(it.uri) }
             val destinationIsSmb = SmbUri.isSmb(location.uri)
             val results = mutableListOf<OperationResult>()
-            if (SmbUri.isSmb(location.uri) || smbEntries.isNotEmpty()) {
-                if (SmbUri.isSmb(location.uri)) {
-                    val forSmb = smbEntries + localEntries
-                    results += smbRepository.paste(content.copy(entries = forSmb), location.uri)
-                } else {
-                    results += smbRepository.paste(content.copy(entries = smbEntries), location.uri)
+            try {
+                if (SmbUri.isSmb(location.uri) || smbEntries.isNotEmpty()) {
+                    if (SmbUri.isSmb(location.uri)) {
+                        val forSmb = smbEntries + localEntries
+                        results += smbRepository.paste(content.copy(entries = forSmb), location.uri, onProgress)
+                    } else {
+                        results += smbRepository.paste(content.copy(entries = smbEntries), location.uri, onProgress)
+                    }
                 }
-            }
-            if (!destinationIsSmb && localEntries.isNotEmpty()) {
-                results += fileRepository.paste(content.copy(entries = localEntries), location.uri)
+                if (!destinationIsSmb && localEntries.isNotEmpty()) {
+                    results += fileRepository.paste(content.copy(entries = localEntries), location.uri, onProgress)
+                }
+            } catch (error: Throwable) {
+                notifierFailure = error.message
             }
             isLoading = false
             val result = when {
                 results.isEmpty() -> OperationResult(false, "No items were pasted")
                 results.any { it.success } -> OperationResult(true, results.first { it.success }.message)
                 else -> results.first()
+            }
+            if (notifierFailure != null) {
+                copyProgressNotifier.finish(false, language.t("transfer_failed"), notifierFailure)
+            } else {
+                copyProgressNotifier.finish(result.success, language.t(if (result.success) "transfer_complete" else "transfer_failed"), result.message)
             }
             showMessage(result.message)
             if (result.success) { clipboard = null; refresh() }
@@ -564,7 +595,13 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         if (!SmbUri.isSmb(entry.uri)) return entry
         val safeName = entry.name.replace(Regex("[^A-Za-z0-9._-]"), "_")
         val target = File(getApplication<Application>().cacheDir, safeName)
-        val ok = smbRepository.copyToLocal(entry.uri, target)
+        val language = _settings.value.language.resolved()
+        val label = language.t("downloading")
+        copyProgressNotifier.start(label, label)
+        val ok = smbRepository.copyToLocal(entry.uri, target) { done, total, itemsDone, itemsTotal ->
+            copyProgressNotifier.update(label, label, done, total, itemsDone, itemsTotal)
+        }
+        copyProgressNotifier.finish(ok, language.t(if (ok) "transfer_complete" else "transfer_failed"), entry.name)
         if (!ok || !target.exists()) return null
         return entry.copy(uri = Uri.fromFile(target))
     }

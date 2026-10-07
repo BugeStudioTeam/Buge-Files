@@ -240,32 +240,43 @@ class SmbRepository(private val context: Context) {
         }.getOrNull()
     }
 
-    suspend fun copyToLocal(uri: Uri, destination: File): Boolean = withContext(Dispatchers.IO) {
+    suspend fun copyToLocal(uri: Uri, destination: File, onProgress: ((Long, Long, Int, Int) -> Unit)? = null): Boolean = withContext(Dispatchers.IO) {
         runCatching {
+            val total = externalSize(uri)
             val input = openInputStream(uri) ?: return@withContext false
+            val tracker = ProgressTracker(total)
             input.use { stream ->
-                destination.outputStream().use { output -> stream.copyTo(output) }
+                destination.outputStream().use { output -> copyStream(stream, output, tracker) { onProgress?.invoke(tracker.done, total, 1, 1) } }
             }
             true
         }.getOrDefault(false)
     }
 
-    suspend fun paste(clipboard: ClipboardState, destinationUri: Uri): OperationResult = withContext(Dispatchers.IO) {
+    suspend fun paste(clipboard: ClipboardState, destinationUri: Uri, onProgress: ((Long, Long, Int, Int) -> Unit)? = null): OperationResult = withContext(Dispatchers.IO) {
         var completed = 0
         var failed = 0
+        val total = clipboard.entries.size
+        var bytesDone = 0L
+        var bytesTotal = 0L
+        clipboard.entries.forEach { entry -> bytesTotal += entrySizeFor(entry) }
+        val tracker = ProgressTracker(bytesTotal)
+        fun progress() = onProgress?.invoke(bytesDone + tracker.done, bytesTotal, completed + failed, total)
         val destinationIsSmb = SmbUri.isSmb(destinationUri)
         clipboard.entries.forEach { entry ->
+            tracker.reset()
             val copied = runCatching {
                 if (destinationIsSmb) {
-                    copyIntoSmb(entry, destinationUri)
+                    copyIntoSmb(entry, destinationUri, tracker, ::progress)
                 } else {
-                    copyFromSmb(entry, destinationUri)
+                    copyFromSmb(entry, destinationUri, tracker, ::progress)
                 }
             }.getOrDefault(false)
             if (copied) {
                 completed++
                 if (clipboard.mode == ClipboardMode.MOVE && !deleteOne(entry)) failed++
             } else failed++
+            bytesDone += tracker.done
+            progress()
         }
         when {
             completed == 0 -> OperationResult(false, "No items were pasted")
@@ -274,10 +285,17 @@ class SmbRepository(private val context: Context) {
         }
     }
 
-    suspend fun saveExternal(uris: List<Uri>, destinationUri: Uri): OperationResult = withContext(Dispatchers.IO) {
+    suspend fun saveExternal(uris: List<Uri>, destinationUri: Uri, onProgress: ((Long, Long, Int, Int) -> Unit)? = null): OperationResult = withContext(Dispatchers.IO) {
         var completed = 0
         var failed = 0
+        val total = uris.size
+        var bytesDone = 0L
+        var bytesTotal = 0L
+        uris.forEach { source -> bytesTotal += externalSize(source) }
+        val tracker = ProgressTracker(bytesTotal)
+        fun progress() = onProgress?.invoke(bytesDone + tracker.done, bytesTotal, completed + failed, total)
         uris.forEach { source ->
+            tracker.reset()
             val copied = runCatching {
                 val stream = openExternalStream(source) ?: return@runCatching false
                 val name = externalName(source)
@@ -293,18 +311,58 @@ class SmbRepository(private val context: Context) {
                             SMB2ShareAccess.ALL,
                             SMB2CreateDisposition.FILE_OVERWRITE_IF,
                             EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
-                        ).outputStream.use { output -> input.copyTo(output) }
+                        ).outputStream.use { output -> copyStream(input, output, tracker, ::progress) }
                         true
                     }
                 }
             }.getOrDefault(false)
             if (copied) completed++ else failed++
+            bytesDone += tracker.done
+            progress()
         }
         when {
             completed == 0 -> OperationResult(false, "No items were saved")
             failed == 0 -> OperationResult(true, "Saved $completed item(s)")
             else -> OperationResult(false, "Saved $completed item(s); $failed failed")
         }
+    }
+
+    private class ProgressTracker(private val limit: Long) {
+        var done: Long = 0L
+            private set
+
+        fun reset() {
+            done = 0L
+        }
+
+        fun add(delta: Long) {
+            done += delta
+            if (limit > 0L && done > limit) done = limit
+        }
+    }
+
+    private fun copyStream(input: InputStream, output: OutputStream, tracker: ProgressTracker, progress: () -> Unit) {
+        val buffer = ByteArray(COPY_BUFFER_SIZE)
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            if (read == 0) continue
+            output.write(buffer, 0, read)
+            tracker.add(read.toLong())
+            progress()
+        }
+        output.flush()
+    }
+
+    private fun externalSize(uri: Uri): Long = runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else 0L
+        } ?: 0L
+    }.getOrDefault(0L)
+
+    private fun entrySizeFor(entry: FileEntry): Long {
+        if (entry.isDirectory) return 0L
+        return if (entry.size > 0L) entry.size else if (SmbUri.isSmb(entry.uri)) 0L else externalSize(entry.uri)
     }
 
     private fun openExternalStream(uri: Uri): InputStream? = runCatching {
@@ -324,7 +382,7 @@ class SmbRepository(private val context: Context) {
         return displayName?.takeIf { it.isNotBlank() } ?: fallback ?: "shared_file"
     }
 
-    private fun copyIntoSmb(entry: FileEntry, destinationUri: Uri): Boolean {
+    private fun copyIntoSmb(entry: FileEntry, destinationUri: Uri, tracker: ProgressTracker, progress: () -> Unit): Boolean {
         if (entry.isDirectory) {
             return withShare(destinationUri) { share, _ ->
                 val relative = SmbUri.relativePath(destinationUri)
@@ -347,7 +405,7 @@ class SmbRepository(private val context: Context) {
                     SMB2ShareAccess.ALL,
                     SMB2CreateDisposition.FILE_OVERWRITE_IF,
                     EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
-                ).outputStream.use { output -> stream.copyTo(output) }
+                ).outputStream.use { output -> copyStream(stream, output, tracker, progress) }
                 true
             }
         }
@@ -364,7 +422,7 @@ class SmbRepository(private val context: Context) {
         }.getOrNull()
     }
 
-    private fun copyFromSmb(entry: FileEntry, destinationUri: Uri): Boolean {
+    private fun copyFromSmb(entry: FileEntry, destinationUri: Uri, tracker: ProgressTracker, progress: () -> Unit): Boolean {
         if (entry.isDirectory) {
             val target = createLocalDirectory(entry, destinationUri) ?: return false
             return runCatching {
@@ -383,7 +441,7 @@ class SmbRepository(private val context: Context) {
                             size = if (isDirectory) 0L else item.endOfFile,
                             lastModified = item.lastWriteTime?.toEpochMillis() ?: 0L
                         )
-                        copyFromSmb(childEntry, target)
+                        copyFromSmb(childEntry, target, tracker, progress)
                     }
                 }
                 true
@@ -392,7 +450,7 @@ class SmbRepository(private val context: Context) {
         return runCatching {
             val input = openBlockingStream(entry.uri) ?: return false
             val output = openLocalOutput(entry, destinationUri) ?: return false
-            input.use { stream -> output.use { target -> stream.copyTo(target) } }
+            input.use { stream -> output.use { target -> copyStream(stream, target, tracker, progress) } }
             true
         }.getOrDefault(false)
     }
@@ -620,4 +678,8 @@ class SmbRepository(private val context: Context) {
     }
 
     private fun Any.toEpochMillis(): Long = (this as com.hierynomus.msdtyp.FileTime).toEpochMillis()
+
+    private companion object {
+        private const val COPY_BUFFER_SIZE = 128 * 1024
+    }
 }

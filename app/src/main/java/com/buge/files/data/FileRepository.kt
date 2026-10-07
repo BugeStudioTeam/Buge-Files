@@ -174,29 +174,38 @@ class FileRepository(private val context: Context) {
         operationSummary(entries.size, failed, "deleted")
     }
 
-    suspend fun paste(clipboard: ClipboardState, destinationUri: Uri): OperationResult = withContext(Dispatchers.IO) {
+    suspend fun paste(clipboard: ClipboardState, destinationUri: Uri, onProgress: ((Long, Long, Int, Int) -> Unit)? = null): OperationResult = withContext(Dispatchers.IO) {
         var completed = 0
         var failed = 0
+        val total = clipboard.entries.size
+        var bytesDone = 0L
+        var bytesTotal = 0L
+        clipboard.entries.forEach { entry -> bytesTotal += entrySize(entry.uri) }
+        val tracker = ProgressTracker(bytesTotal)
+        fun progress() = onProgress?.invoke(bytesDone + tracker.done, bytesTotal, completed + failed, total)
         clipboard.entries.forEach { entry ->
+            tracker.reset()
             val copied = if (isDirect(destinationUri)) {
                 val destination = direct(destinationUri)
                 when {
                     destination == null || !destination.isDirectory || sourceWouldContainDestination(entry.uri, destination) -> false
-                    isDirect(entry.uri) -> direct(entry.uri)?.let { copyDirectToDirect(it, destination) != null } ?: false
-                    else -> document(entry.uri)?.let { copyDocumentToDirect(it, destination) != null } ?: false
+                    isDirect(entry.uri) -> direct(entry.uri)?.let { copyDirectToDirect(it, destination, tracker, ::progress) != null } ?: false
+                    else -> document(entry.uri)?.let { copyDocumentToDirect(it, destination, tracker, ::progress) != null } ?: false
                 }
             } else {
                 val destination = documentTree(destinationUri)
                 when {
                     destination == null || !destination.canWrite() || entry.uri == destination.uri -> false
-                    isDirect(entry.uri) -> direct(entry.uri)?.let { copyDirectToDocument(it, destination) != null } ?: false
-                    else -> document(entry.uri)?.let { copyDocumentToDocument(it, destination) != null } ?: false
+                    isDirect(entry.uri) -> direct(entry.uri)?.let { copyDirectToDocument(it, destination, tracker, ::progress) != null } ?: false
+                    else -> document(entry.uri)?.let { copyDocumentToDocument(it, destination, tracker, ::progress) != null } ?: false
                 }
             }
             if (copied) {
                 completed++
                 if (clipboard.mode == ClipboardMode.MOVE && !deleteSource(entry.uri)) failed++
             } else failed++
+            bytesDone += tracker.done
+            progress()
         }
         when {
             completed == 0 -> OperationResult(false, "No items were pasted")
@@ -205,10 +214,17 @@ class FileRepository(private val context: Context) {
         }
     }
 
-    suspend fun saveExternal(uris: List<Uri>, destinationUri: Uri): OperationResult = withContext(Dispatchers.IO) {
+    suspend fun saveExternal(uris: List<Uri>, destinationUri: Uri, onProgress: ((Long, Long, Int, Int) -> Unit)? = null): OperationResult = withContext(Dispatchers.IO) {
         var completed = 0
         var failed = 0
+        val total = uris.size
+        var bytesDone = 0L
+        var bytesTotal = 0L
+        uris.forEach { source -> bytesTotal += externalSize(source) }
+        val tracker = ProgressTracker(bytesTotal)
+        fun progress() = onProgress?.invoke(bytesDone + tracker.done, bytesTotal, completed + failed, total)
         uris.forEach { source ->
+            tracker.reset()
             val copied = runCatching {
                 val name = externalName(source)
                 val input = resolver.openInputStream(source) ?: return@runCatching false
@@ -217,23 +233,93 @@ class FileRepository(private val context: Context) {
                         val destination = direct(destinationUri) ?: return@runCatching false
                         if (!destination.isDirectory) return@runCatching false
                         val target = File(destination, uniqueDirectName(destination, name, false))
-                        FileOutputStream(target).use { output -> stream.copyTo(output) }
+                        FileOutputStream(target).use { output -> copyStream(stream, output, tracker, ::progress) }
                         target.exists() && target.length() > 0
                     } else {
                         val destination = documentTree(destinationUri) ?: return@runCatching false
                         if (!destination.canWrite()) return@runCatching false
                         val target = destination.createFile(mimeForName(name), uniqueDocumentName(destination, name, false)) ?: return@runCatching false
-                        resolver.openOutputStream(target.uri, "w")?.use { output -> stream.copyTo(output) } ?: return@runCatching false
+                        resolver.openOutputStream(target.uri, "w")?.use { output -> copyStream(stream, output, tracker, ::progress) } ?: return@runCatching false
                         target.length() > 0
                     }
                 }
             }.getOrDefault(false)
             if (copied) completed++ else failed++
+            bytesDone += tracker.done
+            progress()
         }
         when {
             completed == 0 -> OperationResult(false, "No items were saved")
             failed == 0 -> OperationResult(true, "Saved $completed item(s)")
             else -> OperationResult(false, "Saved $completed item(s); $failed failed")
+        }
+    }
+
+    private fun externalSize(uri: Uri): Long {
+        if (isDirect(uri)) return direct(uri)?.length() ?: 0L
+        return runCatching {
+            resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(0) else 0L
+            }
+        }.getOrDefault(0L)
+    }
+
+    private fun entrySize(uri: Uri): Long {
+        if (isDirect(uri)) return direct(uri)?.let(::directSize) ?: 0L
+        return directSizeDocument(document(uri))
+    }
+
+    private fun directSize(file: File): Long {
+        if (!file.isDirectory) return file.length()
+        var total = 0L
+        val queue = ArrayDeque<File>(); queue += file
+        var scanned = 0
+        while (queue.isNotEmpty() && scanned < 40_000) {
+            queue.removeFirst().listFiles().orEmpty().forEach { child ->
+                scanned++
+                if (child.isDirectory) queue += child else total += child.length()
+            }
+        }
+        return total
+    }
+
+    private fun directSizeDocument(file: DocumentFile?): Long {
+        if (file == null) return 0L
+        if (!file.isDirectory) return file.length()
+        var total = 0L
+        val queue = ArrayDeque<DocumentFile>(); queue += file
+        var scanned = 0
+        while (queue.isNotEmpty() && scanned < 40_000) {
+            queue.removeFirst().listFiles().forEach { child ->
+                scanned++
+                if (child.isDirectory) queue += child else total += child.length()
+            }
+        }
+        return total
+    }
+
+    private fun copyStream(input: java.io.InputStream, output: java.io.OutputStream, tracker: ProgressTracker, progress: () -> Unit) {
+        val buffer = ByteArray(COPY_BUFFER_SIZE)
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            if (read == 0) continue
+            output.write(buffer, 0, read)
+            tracker.add(read.toLong())
+            progress()
+        }
+        output.flush()
+    }
+
+    private class ProgressTracker(private val limit: Long) {
+        var done: Long = 0L
+            private set
+
+        fun reset() { done = 0L }
+
+        fun add(delta: Long) {
+            done += delta
+            if (limit > 0L && done > limit) done = limit
         }
     }
 
@@ -248,60 +334,60 @@ class FileRepository(private val context: Context) {
         return displayName?.takeIf { it.isNotBlank() } ?: fallback ?: "shared_file"
     }
 
-    private fun copyDirectToDirect(source: File, destination: File): File? {
+    private fun copyDirectToDirect(source: File, destination: File, tracker: ProgressTracker, progress: () -> Unit): File? {
         val target = File(destination, uniqueDirectName(destination, source.name, source.isDirectory))
         return try {
             if (source.isDirectory) {
                 if (!target.mkdirs()) return null
-                source.listFiles().orEmpty().forEach { child -> if (copyDirectToDirect(child, target) == null) return null }
+                source.listFiles().orEmpty().forEach { child -> if (copyDirectToDirect(child, target, tracker, progress) == null) return null }
             } else {
-                FileInputStream(source).use { input -> FileOutputStream(target).use { output -> input.copyTo(output) } }
+                FileInputStream(source).use { input -> FileOutputStream(target).use { output -> copyStream(input, output, tracker, progress) } }
             }
             target
         } catch (_: Exception) { target.deleteRecursively(); null }
     }
 
-    private fun copyDocumentToDirect(source: DocumentFile, destination: File): File? {
+    private fun copyDocumentToDirect(source: DocumentFile, destination: File, tracker: ProgressTracker, progress: () -> Unit): File? {
         val target = File(destination, uniqueDirectName(destination, source.name ?: "Untitled", source.isDirectory))
         return try {
             if (source.isDirectory) {
                 if (!target.mkdirs()) return null
-                source.listFiles().forEach { child -> if (copyDocumentToDirect(child, target) == null) return null }
+                source.listFiles().forEach { child -> if (copyDocumentToDirect(child, target, tracker, progress) == null) return null }
             } else {
                 resolver.openInputStream(source.uri).use { input ->
                     if (input == null) return null
-                    FileOutputStream(target).use { output -> BufferedInputStream(input).use { bufferedInput -> BufferedOutputStream(output).use { bufferedOutput -> bufferedInput.copyTo(bufferedOutput) } } }
+                    FileOutputStream(target).use { output -> BufferedInputStream(input).use { bufferedInput -> BufferedOutputStream(output).use { bufferedOutput -> copyStream(bufferedInput, bufferedOutput, tracker, progress) } } }
                 }
             }
             target
         } catch (_: Exception) { target.deleteRecursively(); null }
     }
 
-    private fun copyDirectToDocument(source: File, destination: DocumentFile): DocumentFile? {
+    private fun copyDirectToDocument(source: File, destination: DocumentFile, tracker: ProgressTracker, progress: () -> Unit): DocumentFile? {
         val name = uniqueDocumentName(destination, source.name, source.isDirectory)
         return try {
             if (source.isDirectory) {
                 val target = destination.createDirectory(name) ?: return null
-                source.listFiles().orEmpty().forEach { child -> if (copyDirectToDocument(child, target) == null) return null }
+                source.listFiles().orEmpty().forEach { child -> if (copyDirectToDocument(child, target, tracker, progress) == null) return null }
                 target
             } else {
                 val target = destination.createFile(mimeForName(source.name), name) ?: return null
-                FileInputStream(source).use { input -> resolver.openOutputStream(target.uri, "w").use { output -> if (output == null) return null; input.copyTo(output) } }
+                FileInputStream(source).use { input -> resolver.openOutputStream(target.uri, "w").use { output -> if (output == null) return null; copyStream(input, output, tracker, progress) } }
                 target
             }
         } catch (_: Exception) { null }
     }
 
-    private fun copyDocumentToDocument(source: DocumentFile, destination: DocumentFile): DocumentFile? {
+    private fun copyDocumentToDocument(source: DocumentFile, destination: DocumentFile, tracker: ProgressTracker, progress: () -> Unit): DocumentFile? {
         val name = uniqueDocumentName(destination, source.name ?: "Untitled", source.isDirectory)
         return try {
             if (source.isDirectory) {
                 val target = destination.createDirectory(name) ?: return null
-                source.listFiles().forEach { child -> if (copyDocumentToDocument(child, target) == null) return null }
+                source.listFiles().forEach { child -> if (copyDocumentToDocument(child, target, tracker, progress) == null) return null }
                 target
             } else {
                 val target = destination.createFile(source.type ?: mimeForName(source.name.orEmpty()), name) ?: return null
-                resolver.openInputStream(source.uri).use { input -> resolver.openOutputStream(target.uri, "w").use { output -> if (input == null || output == null) return null; BufferedInputStream(input).use { bufferedInput -> BufferedOutputStream(output).use { bufferedOutput -> bufferedInput.copyTo(bufferedOutput) } } } }
+                resolver.openInputStream(source.uri).use { input -> resolver.openOutputStream(target.uri, "w").use { output -> if (input == null || output == null) return null; BufferedInputStream(input).use { bufferedInput -> BufferedOutputStream(output).use { bufferedOutput -> copyStream(bufferedInput, bufferedOutput, tracker, progress) } } } }
                 target
             }
         } catch (_: Exception) { null }
@@ -372,5 +458,9 @@ class FileRepository(private val context: Context) {
         failed == 0 -> OperationResult(true, if (total == 1) "Item $verb" else "$total items $verb")
         failed == total -> OperationResult(false, "Could not $verb selected items")
         else -> OperationResult(false, "${total - failed} item(s) $verb; $failed failed")
+    }
+
+    companion object {
+        private const val COPY_BUFFER_SIZE = 128 * 1024
     }
 }
