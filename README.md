@@ -21,9 +21,10 @@
 
 <div style="overflow-x: auto; white-space: nowrap; padding: 10px 0;">
 
-**COMING SOON**
-
-
+<img src="https://raw.githubusercontent.com/BugeStudioTeam/Buge-Files/refs/heads/main/images/README/screenshots/1.png" width="260" style="display: inline-block; margin-right: 12px;" />
+  <img src="https://raw.githubusercontent.com/BugeStudioTeam/Buge-Files/refs/heads/main/images/README/screenshots/2.png" width="260" style="display: inline-block; margin-right: 12px;" />
+  <img src="https://raw.githubusercontent.com/BugeStudioTeam/Buge-Files/refs/heads/main/images/README/screenshots/3.png" width="260" style="display: inline-block; margin-right: 12px;" />
+ 
 </div>
 
 ---
