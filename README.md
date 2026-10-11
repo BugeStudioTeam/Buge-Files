@@ -1,7 +1,9 @@
-# Buge Files
-
 <p align="center">
   <img src="https://raw.githubusercontent.com/BugeStudioTeam/Buge-Files/refs/heads/main/images/icons/icon.png" alt="Buge Files Icon" width="120"/>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/BugeStudioTeam/Buge-Files/refs/heads/main/images/title.svg" alt="Buge Files" width="520"/>
 </p>
 
 <p align="center">
