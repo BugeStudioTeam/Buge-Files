@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/BugeStudioTeam/Buge-Files/refs/heads/main/images/title.svg" alt="Buge Files" width="520"/>
+  <img src="https://raw.githubusercontent.com/BugeStudioTeam/Buge-Files/refs/heads/main/images/README/title.svg" alt="Buge Files" width="520"/>
 </p>
 
 <p align="center">
