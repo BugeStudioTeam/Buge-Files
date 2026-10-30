@@ -27,7 +27,10 @@ import kotlinx.coroutines.withContext
 data class BrowseScrollPosition(val index: Int, val offset: Int)
 
 class BugeViewModel(application: Application) : AndroidViewModel(application) {
-    private val fileRepository = FileRepository(application)
+    private val _settings = MutableStateFlow(AppSettings())
+    val settings: StateFlow<AppSettings> = _settings.asStateFlow()
+
+    private val fileRepository = FileRepository(application) { _settings.value.rootAccess }
     val smbRepository = SmbRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val copyProgressNotifier = CopyProgressNotifier(application)
@@ -35,9 +38,6 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val settingsRepository = SettingsRepository(application)
     private var loadingJob: Job? = null
     private val browseScrollPositions = mutableMapOf<String, BrowseScrollPosition>()
-
-    private val _settings = MutableStateFlow(AppSettings())
-    val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
     private val _roots = MutableStateFlow<List<RootLocation>>(emptyList())
     val roots: StateFlow<List<RootLocation>> = _roots.asStateFlow()
