@@ -15,6 +15,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -139,6 +140,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -807,22 +811,74 @@ private fun StorageScreen(modifier: Modifier, language: AppLanguage, root: RootL
             }
         }
         item { Text(language.t("files"), style = MaterialTheme.typography.titleLarge) }
-        items(listOf(
-            Triple(language.t("documents"), data.documents, Icons.Outlined.Description), Triple(language.t("images"), data.images, Icons.Outlined.Image), Triple(language.t("videos"), data.videos, Icons.Outlined.VideoFile), Triple(language.t("audio"), data.audio, Icons.Outlined.AudioFile), Triple(language.t("archives"), data.archives, Icons.Outlined.Archive), Triple(language.t("other"), data.other, Icons.Outlined.FileOpen)
-        ), key = { it.first }) { row -> StorageRow(row.first, row.second, data.total, row.third) }
+        item {
+            val colors = MaterialTheme.colorScheme
+            val slices = listOf(
+                StorageSlice(language.t("documents"), data.documents, colors.primary, Icons.Outlined.Description),
+                StorageSlice(language.t("images"), data.images, colors.secondary, Icons.Outlined.Image),
+                StorageSlice(language.t("videos"), data.videos, colors.tertiary, Icons.Outlined.VideoFile),
+                StorageSlice(language.t("audio"), data.audio, colors.error, Icons.Outlined.AudioFile),
+                StorageSlice(language.t("archives"), data.archives, lerp(colors.primary, colors.tertiary, 0.5f), Icons.Outlined.Archive),
+                StorageSlice(language.t("other"), data.other, lerp(colors.secondary, colors.tertiary, 0.5f), Icons.Outlined.FileOpen)
+            )
+            StorageChartCard(slices, data.total, data.files, language)
+        }
+    }
+}
+
+private data class StorageSlice(val label: String, val value: Long, val color: Color, val icon: ImageVector)
+
+@Composable
+private fun StorageChartCard(slices: List<StorageSlice>, total: Long, files: Int, language: AppLanguage) {
+    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(contentAlignment = Alignment.Center) {
+                StoragePieChart(slices, total, Modifier.size(200.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(formatBytes(total), style = MaterialTheme.typography.titleLarge)
+                    Text("$files ${language.t("files")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                slices.forEach { slice -> StorageLegendRow(slice, total) }
+            }
+        }
     }
 }
 
 @Composable
-private fun StorageRow(label: String, size: Long, total: Long, icon: ImageVector) {
-    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = CircleShape, modifier = Modifier.size(40.dp)) { Box(contentAlignment = Alignment.Center) { Icon(icon, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer) } }
-                Spacer(Modifier.width(12.dp)); Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Text(formatBytes(size), style = MaterialTheme.typography.labelLarge)
-            }
-            LinearProgressIndicator(progress = { if (total == 0L) 0f else size.toFloat() / total.toFloat() }, modifier = Modifier.width(540.dp).padding(top = 10.dp), trackColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+private fun StoragePieChart(slices: List<StorageSlice>, total: Long, modifier: Modifier = Modifier) {
+    val track = MaterialTheme.colorScheme.surfaceContainerHighest
+    Canvas(modifier) {
+        val stroke = 34.dp.toPx()
+        val diameter = size.minDimension - stroke
+        val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+        val arcSize = Size(diameter, diameter)
+        if (total <= 0L) {
+            drawArc(track, -90f, 360f, false, topLeft, arcSize, style = Stroke(stroke))
+            return@Canvas
         }
+        var start = -90f
+        slices.filter { it.value > 0L }.forEach { slice ->
+            val sweep = slice.value.toFloat() / total.toFloat() * 360f
+            drawArc(slice.color, start, sweep, false, topLeft, arcSize, style = Stroke(stroke))
+            start += sweep
+        }
+    }
+}
+
+@Composable
+private fun StorageLegendRow(slice: StorageSlice, total: Long) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Box(Modifier.size(12.dp).background(slice.color, CircleShape)) {}
+        Spacer(Modifier.width(10.dp))
+        Icon(slice.icon, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(8.dp))
+        Text(slice.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(if (total <= 0L) "0%" else "%.0f%%".format(slice.value * 100.0 / total), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Text(formatBytes(slice.value), style = MaterialTheme.typography.labelLarge)
     }
 }
 
