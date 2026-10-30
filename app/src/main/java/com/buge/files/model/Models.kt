@@ -85,7 +85,8 @@ data class AppSettings(
     val compactMode: Boolean = false,
     val showHidden: Boolean = false,
     val showThumbnails: Boolean = false,
-    val hapticFeedback: Boolean = true
+    val hapticFeedback: Boolean = true,
+    val rootAccess: Boolean = false
 )
 
 @Immutable

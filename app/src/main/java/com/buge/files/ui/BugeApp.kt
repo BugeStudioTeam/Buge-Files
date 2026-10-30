@@ -188,6 +188,7 @@ fun BugeApp(
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val currentRoot by viewModel.currentRoot.collectAsStateWithLifecycle()
     val directStorageAvailable by viewModel.directStorageAvailable.collectAsStateWithLifecycle()
+    val rootAvailable by viewModel.rootAvailable.collectAsStateWithLifecycle()
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
@@ -345,7 +346,7 @@ fun BugeApp(
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
                                 modifier = Modifier.padding(padding), language = language, settings = settings,
-                                onSettingsChange = viewModel::updateSettings
+                                rootAvailable = rootAvailable, onSettingsChange = viewModel::updateSettings
                             )
                         }
                     }
@@ -885,7 +886,7 @@ private fun StorageLegendRow(slice: StorageSlice, total: Long) {
 private enum class AppearanceDialog { THEME, COLOR, LANGUAGE }
 
 @Composable
-private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit) {
+private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, onSettingsChange: (AppSettings) -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
 
     Box(modifier.fillMaxSize()) {
@@ -918,6 +919,19 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         count = 3,
                         onClick = { appearanceDialog = AppearanceDialog.LANGUAGE }
                     )
+                }
+            }
+            item { SettingsSection(language.t("advanced")) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SettingSwitch(
+                        label = language.t("root_access"),
+                        checked = settings.rootAccess && rootAvailable,
+                        index = 0,
+                        count = 1,
+                        enabled = rootAvailable,
+                        supportingText = if (rootAvailable) language.t("root_access_summary") else language.t("root_unavailable")
+                    ) { onSettingsChange(settings.copy(rootAccess = it)) }
                 }
             }
             item { SettingsSection(language.t("behavior")) }
@@ -1110,9 +1124,19 @@ private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: 
 }
 
 @Composable
-private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, onChange: (Boolean) -> Unit) {
+private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, enabled: Boolean = true, supportingText: String? = null, onChange: (Boolean) -> Unit) {
     val shape = groupItemShape(index, count)
-    Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape)) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange) } }
+    val labelColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    val supportColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+    Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.titleMedium, color = labelColor)
+                if (supportingText != null) Text(supportingText, style = MaterialTheme.typography.bodySmall, color = supportColor)
+            }
+            Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)

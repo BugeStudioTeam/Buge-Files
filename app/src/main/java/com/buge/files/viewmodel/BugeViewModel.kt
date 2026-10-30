@@ -16,11 +16,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.documentfile.provider.DocumentFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class BrowseScrollPosition(val index: Int, val offset: Int)
 
@@ -43,6 +45,9 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _directStorageAvailable = MutableStateFlow(false)
     val directStorageAvailable: StateFlow<Boolean> = _directStorageAvailable.asStateFlow()
+
+    private val _rootAvailable = MutableStateFlow(false)
+    val rootAvailable: StateFlow<Boolean> = _rootAvailable.asStateFlow()
 
     private val _bookmarks = MutableStateFlow<List<RootLocation>>(emptyList())
     val bookmarks: StateFlow<List<RootLocation>> = _bookmarks.asStateFlow()
@@ -135,6 +140,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             settingsRepository.settings.collect { newSettings ->
                 _settings.value = newSettings
+                updateVisibleRoots()
                 refresh()
             }
         }
@@ -145,6 +151,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         refreshDirectStorageAccess(preferDirect = false)
+        detectRootAccess()
         viewModelScope.launch { settingsRepository.bookmarks.collect { _bookmarks.value = it } }
     }
 
@@ -217,9 +224,33 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         updateVisibleRoots(preferDirect)
     }
 
+    private fun detectRootAccess() {
+        viewModelScope.launch {
+            val available = withContext(Dispatchers.IO) { hasRootAccess() }
+            _rootAvailable.value = available
+            updateVisibleRoots()
+        }
+    }
+
+    private fun hasRootAccess(): Boolean {
+        val binaries = listOf(
+            "/system/bin/su", "/system/xbin/su", "/sbin/su", "/su/bin/su", "/vendor/bin/su",
+            "/data/adb/magisk", "/data/adb/ksu", "/data/adb/ap"
+        )
+        if (binaries.any { runCatching { File(it).exists() }.getOrDefault(false) }) return true
+        return runCatching {
+            val process = ProcessBuilder("sh", "-c", "command -v su").redirectErrorStream(true).start()
+            process.inputStream.bufferedReader().use { it.readText() }
+            process.waitFor() == 0
+        }.getOrDefault(false)
+    }
+
+    private fun rootDirectoryRoot(): RootLocation? =
+        if (_rootAvailable.value && _settings.value.rootAccess) RootLocation(Uri.fromFile(File("/")), "Root directory") else null
+
     private fun updateVisibleRoots(preferDirect: Boolean = false) {
         val direct = directRoot().takeIf { _directStorageAvailable.value }
-        val locations = listOfNotNull(direct) + safRoots
+        val locations = listOfNotNull(direct, rootDirectoryRoot()) + safRoots
         _roots.value = locations
         val current = _currentRoot.value
         when {

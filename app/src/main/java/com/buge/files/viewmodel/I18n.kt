@@ -13,7 +13,7 @@ private val english = mapOf(
     "list" to "List", "grid" to "Grid", "empty" to "This folder is empty", "empty_sub" to "Create a folder or choose a different location.",
     "recent_empty" to "No recent files", "recent_sub" to "Files you open from Buge Files appear here.", "favorites_empty" to "No favorites yet", "favorites_sub" to "Bookmark a folder from Browse to reach it quickly here.", "compress" to "Compress", "archive_name" to "Archive name", "rename_selected" to "Rename selected", "open" to "Open",
     "total" to "Total", "files" to "Files", "folders" to "Folders", "documents" to "Documents", "images" to "Images", "videos" to "Videos", "audio" to "Audio", "archives" to "Archives", "other" to "Other",
-    "appearance" to "Appearance", "theme" to "Theme", "color" to "Color", "language" to "Language", "behavior" to "Behavior", "compact" to "Compact lists", "haptics" to "Haptic feedback", "about" to "About",
+    "appearance" to "Appearance", "theme" to "Theme", "color" to "Color", "language" to "Language", "advanced" to "Advanced", "root_access" to "Root access", "root_access_summary" to "Access protected folders such as Android/data", "root_unavailable" to "Root access is not available on this device", "root_directory" to "Root directory", "behavior" to "Behavior", "compact" to "Compact lists", "haptics" to "Haptic feedback", "about" to "About",
     "connection_failed" to "Can't reach this location", "connection_failed_detail" to "Check the server address, network, and VPN, then try again.",
     "read_failed" to "Can't open this location",
     "copying" to "Copying", "moving" to "Moving", "saving" to "Saving", "downloading" to "Downloading",
