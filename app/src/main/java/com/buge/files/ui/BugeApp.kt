@@ -18,7 +18,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
@@ -138,6 +140,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -153,6 +156,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -928,19 +932,19 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         label = language.t("root_access"),
                         checked = settings.rootAccess && rootAvailable,
                         index = 0,
-                        count = 1,
+                        count = 2,
                         enabled = rootAvailable,
                         supportingText = if (rootAvailable) language.t("root_access_summary") else language.t("root_unavailable")
                     ) { onSettingsChange(settings.copy(rootAccess = it)) }
+                    SettingSwitch(language.t("hidden"), settings.showHidden, 1, 2) { onSettingsChange(settings.copy(showHidden = it)) }
                 }
             }
             item { SettingsSection(language.t("behavior")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 4) { onSettingsChange(settings.copy(compactMode = it)) }
-                    SettingSwitch(language.t("hidden"), settings.showHidden, 1, 4) { onSettingsChange(settings.copy(showHidden = it)) }
-                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 2, 4) { onSettingsChange(settings.copy(showThumbnails = it)) }
-                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 3, 4) { onSettingsChange(settings.copy(hapticFeedback = it)) }
+                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 3) { onSettingsChange(settings.copy(compactMode = it)) }
+                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 3) { onSettingsChange(settings.copy(showThumbnails = it)) }
+                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3) { onSettingsChange(settings.copy(hapticFeedback = it)) }
                 }
             }
             item { SettingsSection(language.t("about")) }
@@ -1304,21 +1308,37 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
                 if (loading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
                 } else {
+                    val lineCount = content.lineSequence().count().coerceAtLeast(1)
+                    val lineNumbers = remember(content) { (1..lineCount).joinToString("\n") }
+                    val editorScroll = rememberScrollState()
+                    val editorStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurface)
                     Row(Modifier.fillMaxSize().padding(12.dp)) {
-                        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(42.dp).fillMaxHeight()) {
-                            LazyColumn(contentPadding = PaddingValues(vertical = 16.dp), horizontalAlignment = Alignment.End) {
-                                items(content.lineSequence().count().coerceAtLeast(1)) { index -> Text("${index + 1}", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp, bottom = 2.dp)) }
+                        Row(Modifier.fillMaxSize().verticalScroll(editorScroll)) {
+                            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(52.dp)) {
+                                Text(
+                                    text = lineNumbers,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 16.dp),
+                                    textAlign = TextAlign.End,
+                                    style = editorStyle.copy(fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
+                            Spacer(Modifier.width(8.dp))
+                            BasicTextField(
+                                value = content,
+                                onValueChange = onContentChange,
+                                modifier = Modifier.weight(1f),
+                                textStyle = editorStyle,
+                                singleLine = false,
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                decorationBox = { innerTextField ->
+                                    Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 16.dp)) {
+                                        if (content.isEmpty()) Text(language.t("code_editor"), style = editorStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        innerTextField()
+                                    }
+                                }
+                            )
                         }
-                        Spacer(Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = content,
-                            onValueChange = onContentChange,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 20.sp),
-                            singleLine = false,
-                            placeholder = { Text(language.t("code_editor")) }
-                        )
                     }
                 }
             }

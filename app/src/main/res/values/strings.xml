@@ -78,7 +78,7 @@
     <string name="language">Language</string>
     <string name="advanced">Advanced</string>
     <string name="root_access">Root access</string>
-    <string name="root_access_summary">Access protected folders such as Android/data</string>
+    <string name="root_access_summary">Access protected folders with ROOT</string>
     <string name="root_unavailable">Root access is not available on this device</string>
     <string name="root_directory">Root directory</string>
     <string name="behavior">Behavior</string>
