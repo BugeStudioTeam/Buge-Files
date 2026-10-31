@@ -60,6 +60,7 @@ import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -83,7 +84,9 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VideoFile
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
@@ -935,25 +938,26 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         index = 0,
                         count = 3,
                         enabled = rootAvailable,
+                        icon = Icons.Outlined.Security,
                         supportingText = if (rootAvailable) language.t("root_access_summary") else language.t("root_unavailable")
                     ) { onSettingsChange(settings.copy(rootAccess = it)) }
                     SettingsActionCard(
                         title = language.t("root_command"),
                         summary = settings.rootCommand,
-                        icon = Icons.Outlined.Security,
+                        icon = Icons.Outlined.Code,
                         index = 1,
                         count = 3,
                         onClick = { rootCommandDialog = true }
                     )
-                    SettingSwitch(language.t("hidden"), settings.showHidden, 2, 3) { onSettingsChange(settings.copy(showHidden = it)) }
+                    SettingSwitch(language.t("hidden"), settings.showHidden, 2, 3, icon = Icons.Outlined.Visibility) { onSettingsChange(settings.copy(showHidden = it)) }
                 }
             }
             item { SettingsSection(language.t("behavior")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 3) { onSettingsChange(settings.copy(compactMode = it)) }
-                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 3) { onSettingsChange(settings.copy(showThumbnails = it)) }
-                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3) { onSettingsChange(settings.copy(hapticFeedback = it)) }
+                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 3, icon = Icons.AutoMirrored.Outlined.List) { onSettingsChange(settings.copy(compactMode = it)) }
+                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 3, icon = Icons.Outlined.Image) { onSettingsChange(settings.copy(showThumbnails = it)) }
+                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3, icon = Icons.Outlined.Vibration) { onSettingsChange(settings.copy(hapticFeedback = it)) }
                 }
             }
             item { SettingsSection(language.t("about")) }
@@ -1151,12 +1155,17 @@ private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: 
 }
 
 @Composable
-private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, enabled: Boolean = true, supportingText: String? = null, onChange: (Boolean) -> Unit) {
+private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, enabled: Boolean = true, icon: ImageVector? = null, supportingText: String? = null, onChange: (Boolean) -> Unit) {
     val shape = groupItemShape(index, count)
     val labelColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
     val supportColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+    val iconColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
     Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(16.dp))
+            }
             Column(Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.titleMedium, color = labelColor)
                 if (supportingText != null) Text(supportingText, style = MaterialTheme.typography.bodySmall, color = supportColor)
