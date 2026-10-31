@@ -74,7 +74,8 @@
 
 | Requirement | Minimum Version        |
 | ----------- | ---------------------- |
-| Android OS  | 8.0 (API 26) or higher |
+| Android OS | 8.0 (API 26) or higher |
+| ROOT (optional) | Device has been rooted and authorized |
 
 ---
 
