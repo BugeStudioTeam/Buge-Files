@@ -1,8 +1,12 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Buge Studio
+
 package com.buge.files
 
 import android.content.Context
 import android.net.Uri
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -22,6 +26,8 @@ class SettingsRepository(private val context: Context) {
         val hidden = stringPreferencesKey("hidden")
         val thumbnails = stringPreferencesKey("thumbnails")
         val haptics = stringPreferencesKey("haptics")
+        val rootAccess = booleanPreferencesKey("root_access")
+        val rootCommand = stringPreferencesKey("root_command")
         val roots = stringSetPreferencesKey("roots")
         val bookmarks = stringSetPreferencesKey("bookmarks")
     }
@@ -35,7 +41,9 @@ class SettingsRepository(private val context: Context) {
             compactMode = prefs[Keys.compact]?.toBoolean() ?: false,
             showHidden = prefs[Keys.hidden]?.toBoolean() ?: false,
             showThumbnails = prefs[Keys.thumbnails]?.toBoolean() ?: false,
-            hapticFeedback = prefs[Keys.haptics]?.toBoolean() ?: true
+            hapticFeedback = prefs[Keys.haptics]?.toBoolean() ?: true,
+            rootAccess = prefs[Keys.rootAccess] ?: false,
+            rootCommand = prefs[Keys.rootCommand]?.takeIf { it.isNotBlank() } ?: "su"
         )
     }
 
@@ -56,6 +64,8 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.hidden] = settings.showHidden.toString()
         prefs[Keys.thumbnails] = settings.showThumbnails.toString()
         prefs[Keys.haptics] = settings.hapticFeedback.toString()
+        prefs[Keys.rootAccess] = settings.rootAccess
+        prefs[Keys.rootCommand] = settings.rootCommand.ifBlank { "su" }
     }
 
     suspend fun addRoot(location: RootLocation) = context.dataStore.edit { prefs ->

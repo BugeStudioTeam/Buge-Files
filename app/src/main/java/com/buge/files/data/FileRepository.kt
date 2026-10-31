@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Buge Studio
+
 package com.buge.files
 
 import android.content.ContentResolver
@@ -19,7 +22,11 @@ import java.util.Locale
  * Handles two genuinely usable sources: direct shared-storage file paths (file://) and
  * persisted Storage Access Framework document trees (content://).
  */
-class FileRepository(private val context: Context) {
+class FileRepository(
+    private val context: Context,
+    private val rootAccessEnabled: () -> Boolean = { false },
+    private val rootCommand: () -> String = { "su" }
+) {
     private val resolver: ContentResolver = context.contentResolver
 
     private fun isDirect(uri: Uri) = uri.scheme == ContentResolver.SCHEME_FILE
@@ -29,10 +36,18 @@ class FileRepository(private val context: Context) {
 
     suspend fun list(directoryUri: Uri, sort: SortOption, ascending: Boolean, showHidden: Boolean): List<FileEntry> = withContext(Dispatchers.IO) {
         val items = when {
-            isDirect(directoryUri) -> direct(directoryUri)?.listFiles().orEmpty().asSequence()
-                .filter { showHidden || !it.name.startsWith('.') }
-                .map(::toEntry)
-                .toList()
+            isDirect(directoryUri) -> {
+                val directory = directoryUri.path?.let(::File)?.takeIf { it.exists() || rootAccessEnabled() }
+                val directItems = directory?.listFiles().orEmpty().asSequence()
+                    .filter { showHidden || !it.name.startsWith('.') }
+                    .map(::toEntry)
+                    .toList()
+                if (directory != null && (requiresRoot(directory) || directItems.isEmpty()) && rootAccessEnabled()) {
+                    listAsRoot(directory, showHidden).ifEmpty { directItems }
+                } else {
+                    directItems
+                }
+            }
             else -> documentTree(directoryUri)?.listFiles().orEmpty().asSequence()
                 .filter { showHidden || !it.name.orEmpty().startsWith('.') }
                 .map(::toEntry)
@@ -418,6 +433,50 @@ class FileRepository(private val context: Context) {
         while (parent.findFile("$stem ($index)$extension") != null) index++
         return "$stem ($index)$extension"
     }
+
+    private fun requiresRoot(directory: File): Boolean {
+        val path = directory.path
+        return path == "/" || path == "/data" || path.startsWith("/data/") ||
+            path.contains("/Android/data") || path.contains("/Android/obb")
+    }
+
+    private fun listAsRoot(directory: File, showHidden: Boolean): List<FileEntry> {
+        val script = """
+            cd ${shellQuote(directory.path)} && for f in * .[!.]* ..?*; do
+              if [ -e "${'$'}f" ] || [ -L "${'$'}f" ]; then
+                if [ -d "${'$'}f" ]; then printf 'd\037%s\n' "${'$'}f";
+                else s=${'$'}(wc -c < "${'$'}f" 2>/dev/null); printf 'f\037%s\037%s\n' "${'$'}{s:-0}" "${'$'}f"; fi
+              fi
+            done
+        """.trimIndent()
+        val output = runRoot(script) ?: return emptyList()
+        return output.lineSequence().mapNotNull { line ->
+            val parts = line.split('\u001f')
+            if (parts.size < 2) return@mapNotNull null
+            val isDirectory = parts[0] == "d"
+            val name = parts.last()
+            if (name.isBlank() || (!showHidden && name.startsWith('.'))) return@mapNotNull null
+            val size = if (isDirectory) 0L else parts.getOrNull(1)?.toLongOrNull() ?: 0L
+            FileEntry(
+                Uri.fromFile(File(directory, name)),
+                name,
+                if (isDirectory) null else mimeForName(name),
+                isDirectory,
+                size,
+                0L,
+                0
+            )
+        }.toList()
+    }
+
+    private fun runRoot(command: String): String? = runCatching {
+        val executable = rootCommand().trim().split(Regex("\\s+")).filter { it.isNotBlank() }.ifEmpty { listOf("su") }
+        val process = ProcessBuilder(executable + listOf("-c", command)).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        if (process.waitFor() == 0) output else null
+    }.getOrNull()
+
+    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 
     private fun toEntry(file: File) = FileEntry(Uri.fromFile(file), file.name, if (file.isDirectory) null else mimeForName(file.name), file.isDirectory, if (file.isFile) file.length().coerceAtLeast(0) else 0, file.lastModified().coerceAtLeast(0), if (file.isDirectory) file.listFiles()?.size ?: 0 else 0)
     private fun toEntry(file: DocumentFile) = FileEntry(file.uri, file.name ?: "Untitled", file.type, file.isDirectory, file.length().coerceAtLeast(0), file.lastModified().coerceAtLeast(0), if (file.isDirectory) file.listFiles().size else 0)

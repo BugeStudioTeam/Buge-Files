@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Buge Studio
+
 @file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 
 package com.buge.files
@@ -15,9 +18,12 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
@@ -57,6 +63,7 @@ import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -73,6 +80,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SelectAll
@@ -80,7 +88,9 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VideoFile
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
@@ -137,18 +147,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -184,6 +200,7 @@ fun BugeApp(
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val currentRoot by viewModel.currentRoot.collectAsStateWithLifecycle()
     val directStorageAvailable by viewModel.directStorageAvailable.collectAsStateWithLifecycle()
+    val rootAvailable by viewModel.rootAvailable.collectAsStateWithLifecycle()
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
@@ -198,6 +215,7 @@ fun BugeApp(
     var deleteRequest by remember { mutableStateOf<List<FileEntry>?>(null) }
     val selected = viewModel.selectedEntries()
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     var lastExitBackPress by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(viewModel.message) {
@@ -341,7 +359,8 @@ fun BugeApp(
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
                                 modifier = Modifier.padding(padding), language = language, settings = settings,
-                                onSettingsChange = viewModel::updateSettings
+                                rootAvailable = rootAvailable, onSettingsChange = viewModel::updateSettings,
+                                onCheckForUpdates = viewModel::checkForUpdates
                             )
                         }
                     }
@@ -423,6 +442,18 @@ fun BugeApp(
                 onShare = { onShareFiles(listOf(file)) },
                 onRename = { renameTarget = file; viewModel.dismissInfo() },
                 onDelete = { deleteRequest = listOf(file); viewModel.dismissInfo() }
+            )
+        }
+        if (viewModel.updateDialogVisible) {
+            UpdateCheckDialog(
+                language = language,
+                checking = viewModel.updateChecking,
+                result = viewModel.updateResult,
+                onDownload = { url ->
+                    runCatching { uriHandler.openUri(url) }
+                    viewModel.dismissUpdateDialog()
+                },
+                onDismiss = viewModel::dismissUpdateDialog
             )
         }
     }
@@ -807,30 +838,134 @@ private fun StorageScreen(modifier: Modifier, language: AppLanguage, root: RootL
             }
         }
         item { Text(language.t("files"), style = MaterialTheme.typography.titleLarge) }
-        items(listOf(
-            Triple(language.t("documents"), data.documents, Icons.Outlined.Description), Triple(language.t("images"), data.images, Icons.Outlined.Image), Triple(language.t("videos"), data.videos, Icons.Outlined.VideoFile), Triple(language.t("audio"), data.audio, Icons.Outlined.AudioFile), Triple(language.t("archives"), data.archives, Icons.Outlined.Archive), Triple(language.t("other"), data.other, Icons.Outlined.FileOpen)
-        ), key = { it.first }) { row -> StorageRow(row.first, row.second, data.total, row.third) }
+        item {
+            val colors = MaterialTheme.colorScheme
+            val slices = listOf(
+                StorageSlice(language.t("documents"), data.documents, colors.primary, Icons.Outlined.Description),
+                StorageSlice(language.t("images"), data.images, colors.secondary, Icons.Outlined.Image),
+                StorageSlice(language.t("videos"), data.videos, colors.tertiary, Icons.Outlined.VideoFile),
+                StorageSlice(language.t("audio"), data.audio, colors.error, Icons.Outlined.AudioFile),
+                StorageSlice(language.t("archives"), data.archives, lerp(colors.primary, colors.tertiary, 0.5f), Icons.Outlined.Archive),
+                StorageSlice(language.t("other"), data.other, lerp(colors.secondary, colors.tertiary, 0.5f), Icons.Outlined.FileOpen)
+            )
+            StorageChartCard(slices, data.total, data.files, language)
+        }
+    }
+}
+
+private data class StorageSlice(val label: String, val value: Long, val color: Color, val icon: ImageVector)
+
+@Composable
+private fun StorageChartCard(slices: List<StorageSlice>, total: Long, files: Int, language: AppLanguage) {
+    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(contentAlignment = Alignment.Center) {
+                StoragePieChart(slices, total, Modifier.size(200.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(formatBytes(total), style = MaterialTheme.typography.titleLarge)
+                    Text("$files ${language.t("files")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                slices.forEach { slice -> StorageLegendRow(slice, total) }
+            }
+        }
     }
 }
 
 @Composable
-private fun StorageRow(label: String, size: Long, total: Long, icon: ImageVector) {
-    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = CircleShape, modifier = Modifier.size(40.dp)) { Box(contentAlignment = Alignment.Center) { Icon(icon, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer) } }
-                Spacer(Modifier.width(12.dp)); Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Text(formatBytes(size), style = MaterialTheme.typography.labelLarge)
-            }
-            LinearProgressIndicator(progress = { if (total == 0L) 0f else size.toFloat() / total.toFloat() }, modifier = Modifier.width(540.dp).padding(top = 10.dp), trackColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+private fun StoragePieChart(slices: List<StorageSlice>, total: Long, modifier: Modifier = Modifier) {
+    val track = MaterialTheme.colorScheme.surfaceContainerHighest
+    Canvas(modifier) {
+        val stroke = 34.dp.toPx()
+        val diameter = size.minDimension - stroke
+        val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+        val arcSize = Size(diameter, diameter)
+        if (total <= 0L) {
+            drawArc(track, -90f, 360f, false, topLeft, arcSize, style = Stroke(stroke))
+            return@Canvas
         }
+        var start = -90f
+        slices.filter { it.value > 0L }.forEach { slice ->
+            val sweep = slice.value.toFloat() / total.toFloat() * 360f
+            drawArc(slice.color, start, sweep, false, topLeft, arcSize, style = Stroke(stroke))
+            start += sweep
+        }
+    }
+}
+
+@Composable
+private fun StorageLegendRow(slice: StorageSlice, total: Long) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Box(Modifier.size(12.dp).background(slice.color, CircleShape)) {}
+        Spacer(Modifier.width(10.dp))
+        Icon(slice.icon, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(8.dp))
+        Text(slice.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(if (total <= 0L) "0%" else "%.0f%%".format(slice.value * 100.0 / total), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Text(formatBytes(slice.value), style = MaterialTheme.typography.labelLarge)
     }
 }
 
 private enum class AppearanceDialog { THEME, COLOR, LANGUAGE }
 
 @Composable
-private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, onSettingsChange: (AppSettings) -> Unit) {
+private fun UpdateCheckDialog(
+    language: AppLanguage,
+    checking: Boolean,
+    result: UpdateCheckResult?,
+    onDownload: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val downloadUrl = result?.downloadUrl
+    val canDownload = result?.updateAvailable == true && !downloadUrl.isNullOrBlank()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Outlined.Refresh, null) },
+        title = { Text(language.t("check_updates")) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (checking) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(language.t("checking_updates"))
+                } else if (result == null) {
+                    Text(language.t("checking_updates"))
+                } else {
+                    val error = result.error
+                    if (error != null) {
+                        Text(language.t("update_check_failed"), style = MaterialTheme.typography.titleMedium)
+                        Text(error, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else if (result.updateAvailable) {
+                        Text(language.t("update_available"), style = MaterialTheme.typography.titleMedium)
+                        Text("${language.t("current_version")}: ${result.currentVersion}")
+                        Text("${language.t("latest_version")}: ${result.latestVersion.orEmpty()}")
+                    } else {
+                        Text(language.t("up_to_date"))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (canDownload) {
+                TextButton(onClick = { onDownload(downloadUrl!!) }) { Text(language.t("download")) }
+            } else {
+                TextButton(onClick = onDismiss) { Text(language.t("done")) }
+            }
+        },
+        dismissButton = {
+            if (canDownload) {
+                TextButton(onClick = onDismiss) { Text(language.t("cancel")) }
+            }
+        }
+    )
+}
+
+@Composable
+private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, onSettingsChange: (AppSettings) -> Unit, onCheckForUpdates: () -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
+    var rootCommandDialog by remember { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -864,24 +999,56 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     )
                 }
             }
+            item { SettingsSection(language.t("advanced")) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SettingSwitch(
+                        label = language.t("root_access"),
+                        checked = settings.rootAccess && rootAvailable,
+                        index = 0,
+                        count = 3,
+                        enabled = rootAvailable,
+                        icon = Icons.Outlined.Security,
+                        supportingText = if (rootAvailable) language.t("root_access_summary") else language.t("root_unavailable")
+                    ) { onSettingsChange(settings.copy(rootAccess = it)) }
+                    SettingsActionCard(
+                        title = language.t("root_command"),
+                        summary = settings.rootCommand,
+                        icon = Icons.Outlined.Code,
+                        index = 1,
+                        count = 3,
+                        onClick = { rootCommandDialog = true }
+                    )
+                    SettingSwitch(language.t("hidden"), settings.showHidden, 2, 3, icon = Icons.Outlined.Visibility) { onSettingsChange(settings.copy(showHidden = it)) }
+                }
+            }
             item { SettingsSection(language.t("behavior")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 4) { onSettingsChange(settings.copy(compactMode = it)) }
-                    SettingSwitch(language.t("hidden"), settings.showHidden, 1, 4) { onSettingsChange(settings.copy(showHidden = it)) }
-                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 2, 4) { onSettingsChange(settings.copy(showThumbnails = it)) }
-                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 3, 4) { onSettingsChange(settings.copy(hapticFeedback = it)) }
+                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 3, icon = Icons.AutoMirrored.Outlined.List) { onSettingsChange(settings.copy(compactMode = it)) }
+                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 3, icon = Icons.Outlined.Image) { onSettingsChange(settings.copy(showThumbnails = it)) }
+                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3, icon = Icons.Outlined.Vibration) { onSettingsChange(settings.copy(hapticFeedback = it)) }
                 }
             }
             item { SettingsSection(language.t("about")) }
             item {
-                Surface(shape = groupItemShape(0, 1), color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(18.dp)) {
-                        Text("Buge Files", style = MaterialTheme.typography.titleLarge)
-                        Spacer(Modifier.height(4.dp))
-                        Text(language.t("file_manager"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(10.dp))
-                        Text("${language.t("version")} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SettingsActionCard(
+                        title = language.t("check_updates"),
+                        summary = language.t("check_updates_summary"),
+                        icon = Icons.Outlined.Refresh,
+                        index = 0,
+                        count = 2,
+                        onClick = onCheckForUpdates
+                    )
+                    Surface(shape = groupItemShape(1, 2), color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(18.dp)) {
+                            Text("Buge Files", style = MaterialTheme.typography.titleLarge)
+                            Spacer(Modifier.height(4.dp))
+                            Text(language.t("file_manager"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(10.dp))
+                            Text("${language.t("version")} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }
@@ -908,6 +1075,20 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                 onDismiss = { appearanceDialog = null }
             )
             null -> Unit
+        }
+
+        if (rootCommandDialog) {
+            NameDialog(
+                title = language.t("root_command"),
+                hint = language.t("root_command"),
+                language = language,
+                initialValue = settings.rootCommand,
+                confirmLabel = language.t("save"),
+                onDismiss = { rootCommandDialog = false }
+            ) { command ->
+                onSettingsChange(settings.copy(rootCommand = command.ifBlank { "su" }))
+                rootCommandDialog = false
+            }
         }
     }
 }
@@ -1054,9 +1235,24 @@ private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: 
 }
 
 @Composable
-private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, onChange: (Boolean) -> Unit) {
+private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, enabled: Boolean = true, icon: ImageVector? = null, supportingText: String? = null, onChange: (Boolean) -> Unit) {
     val shape = groupItemShape(index, count)
-    Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape)) { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Switch(checked = checked, onCheckedChange = onChange) } }
+    val labelColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    val supportColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+    val iconColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+    Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(16.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.titleMedium, color = labelColor)
+                if (supportingText != null) Text(supportingText, style = MaterialTheme.typography.bodySmall, color = supportColor)
+            }
+            Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -1224,21 +1420,37 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
                 if (loading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
                 } else {
+                    val lineCount = content.lineSequence().count().coerceAtLeast(1)
+                    val lineNumbers = remember(content) { (1..lineCount).joinToString("\n") }
+                    val editorScroll = rememberScrollState()
+                    val editorStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurface)
                     Row(Modifier.fillMaxSize().padding(12.dp)) {
-                        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(42.dp).fillMaxHeight()) {
-                            LazyColumn(contentPadding = PaddingValues(vertical = 16.dp), horizontalAlignment = Alignment.End) {
-                                items(content.lineSequence().count().coerceAtLeast(1)) { index -> Text("${index + 1}", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp, bottom = 2.dp)) }
+                        Row(Modifier.fillMaxSize().verticalScroll(editorScroll)) {
+                            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(52.dp)) {
+                                Text(
+                                    text = lineNumbers,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 16.dp),
+                                    textAlign = TextAlign.End,
+                                    style = editorStyle.copy(fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
+                            Spacer(Modifier.width(8.dp))
+                            BasicTextField(
+                                value = content,
+                                onValueChange = onContentChange,
+                                modifier = Modifier.weight(1f),
+                                textStyle = editorStyle,
+                                singleLine = false,
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                decorationBox = { innerTextField ->
+                                    Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 16.dp)) {
+                                        if (content.isEmpty()) Text(language.t("code_editor"), style = editorStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        innerTextField()
+                                    }
+                                }
+                            )
                         }
-                        Spacer(Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = content,
-                            onValueChange = onContentChange,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 20.sp),
-                            singleLine = false,
-                            placeholder = { Text(language.t("code_editor")) }
-                        )
                     }
                 }
             }

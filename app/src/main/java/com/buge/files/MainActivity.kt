@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Buge Studio
+
 package com.buge.files
 
 import android.Manifest
@@ -40,6 +43,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        I18n.initialize(applicationContext)
         selectMode = intent?.action == Intent.ACTION_GET_CONTENT || intent?.action == Intent.ACTION_OPEN_DOCUMENT
         saveMode = intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE
         enableEdgeToEdge()

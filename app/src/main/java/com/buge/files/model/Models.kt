@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Buge Studio
+
 package com.buge.files
 
 import android.net.Uri
@@ -85,11 +88,22 @@ data class AppSettings(
     val compactMode: Boolean = false,
     val showHidden: Boolean = false,
     val showThumbnails: Boolean = false,
-    val hapticFeedback: Boolean = true
+    val hapticFeedback: Boolean = true,
+    val rootAccess: Boolean = false,
+    val rootCommand: String = "su"
 )
 
 @Immutable
 data class RootLocation(val uri: Uri, val label: String)
+
+@Immutable
+data class UpdateCheckResult(
+    val currentVersion: String,
+    val latestVersion: String? = null,
+    val downloadUrl: String? = null,
+    val updateAvailable: Boolean = false,
+    val error: String? = null
+)
 
 @Immutable
 data class ClipboardState(val entries: List<FileEntry>, val mode: ClipboardMode)

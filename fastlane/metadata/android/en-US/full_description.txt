@@ -1,0 +1,26 @@
+Buge Files is a modern, lightweight and privacy‑friendly file manager
+that helps you browse, organize and manage files stored on your device.
+
+Built with Material Design 3 Expressive, it offers a clean and intuitive
+interface for efficient file browsing and storage management.
+
+<b>Features</b>
+<ul>
+    <li>Browse and manage files and folders with a modern card-style layout</li>
+    <li>Smart categories — automatically organize files by type (Images, Videos, Music, Documents, Archives, APK) for quick access</li>
+    <li>Storage overview with visual progress indicators</li>
+    <li>View file details including size and modification date</li>
+    <li>Switch between multiple languages and Light, Dark, or System theme</li>
+    <li>Toggle visibility of hidden files and folders</li>
+    <li>Modern, clean and minimal UI</li>
+    <li>No ads, no analytics, fully open source</li>
+</ul>
+
+<b>Notes</b>
+<ul>
+    <li>Requires Android 8.0 (API 26) or higher</li>
+    <li>ROOT is optional / available for rooted and authorized devices</li>
+    <li>Local-only file access, so your data stays on your device</li>
+</ul>
+
+Source code: https://github.com/BugeStudioTeam/Buge-Files

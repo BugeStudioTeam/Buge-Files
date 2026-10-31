@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Buge Studio
+
 package com.buge.files
 
 import android.Manifest
@@ -16,26 +19,30 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.documentfile.provider.DocumentFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class BrowseScrollPosition(val index: Int, val offset: Int)
 
 class BugeViewModel(application: Application) : AndroidViewModel(application) {
-    private val fileRepository = FileRepository(application)
+    private val _settings = MutableStateFlow(AppSettings())
+    val settings: StateFlow<AppSettings> = _settings.asStateFlow()
+
+    private val fileRepository = FileRepository(application, { _settings.value.rootAccess }, { _settings.value.rootCommand })
     val smbRepository = SmbRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val copyProgressNotifier = CopyProgressNotifier(application)
     private val apkRepository = ApkRepository(application)
+    private val updateRepository = UpdateRepository()
     private val settingsRepository = SettingsRepository(application)
     private var loadingJob: Job? = null
+    private var lastRootCommand: String? = "su"
     private val browseScrollPositions = mutableMapOf<String, BrowseScrollPosition>()
-
-    private val _settings = MutableStateFlow(AppSettings())
-    val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
     private val _roots = MutableStateFlow<List<RootLocation>>(emptyList())
     val roots: StateFlow<List<RootLocation>> = _roots.asStateFlow()
@@ -43,6 +50,9 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _directStorageAvailable = MutableStateFlow(false)
     val directStorageAvailable: StateFlow<Boolean> = _directStorageAvailable.asStateFlow()
+
+    private val _rootAvailable = MutableStateFlow(false)
+    val rootAvailable: StateFlow<Boolean> = _rootAvailable.asStateFlow()
 
     private val _bookmarks = MutableStateFlow<List<RootLocation>>(emptyList())
     val bookmarks: StateFlow<List<RootLocation>> = _bookmarks.asStateFlow()
@@ -124,9 +134,31 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var testingSmb by mutableStateOf(false)
         private set
+    var updateDialogVisible by mutableStateOf(false)
+        private set
+    var updateChecking by mutableStateOf(false)
+        private set
+    var updateResult by mutableStateOf<UpdateCheckResult?>(null)
+        private set
 
     fun showSmbDialog() { smbDialogVisible = true }
     fun dismissSmbDialog() { smbDialogVisible = false }
+
+    fun checkForUpdates() {
+        if (updateChecking) return
+        updateDialogVisible = true
+        updateChecking = true
+        updateResult = null
+        viewModelScope.launch {
+            updateResult = updateRepository.check(BuildConfig.VERSION_NAME)
+            updateChecking = false
+        }
+    }
+
+    fun dismissUpdateDialog() {
+        updateDialogVisible = false
+        updateResult = null
+    }
 
     private val recentItems = mutableStateListOf<FileEntry>()
     val recents: List<FileEntry> get() = recentItems
@@ -135,6 +167,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             settingsRepository.settings.collect { newSettings ->
                 _settings.value = newSettings
+                if (newSettings.rootCommand != lastRootCommand) {
+                    lastRootCommand = newSettings.rootCommand
+                    detectRootAccess()
+                }
+                updateVisibleRoots()
                 refresh()
             }
         }
@@ -145,6 +182,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         refreshDirectStorageAccess(preferDirect = false)
+        detectRootAccess()
         viewModelScope.launch { settingsRepository.bookmarks.collect { _bookmarks.value = it } }
     }
 
@@ -217,9 +255,37 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         updateVisibleRoots(preferDirect)
     }
 
+    private fun detectRootAccess() {
+        viewModelScope.launch {
+            val available = withContext(Dispatchers.IO) { hasRootAccess() }
+            _rootAvailable.value = available
+            updateVisibleRoots()
+        }
+    }
+
+    private fun hasRootAccess(): Boolean {
+        val executable = _settings.value.rootCommand.trim().split(Regex("\\s+")).firstOrNull().orEmpty().ifBlank { "su" }
+        val binaries = listOf(
+            executable,
+            "/system/bin/su", "/system/xbin/su", "/sbin/su", "/su/bin/su", "/vendor/bin/su",
+            "/data/adb/magisk", "/data/adb/ksu", "/data/adb/ap"
+        ).distinct()
+        if (binaries.any { runCatching { File(it).exists() }.getOrDefault(false) }) return true
+        return runCatching {
+            val process = ProcessBuilder("sh", "-c", "command -v ${shellQuote(executable)}").redirectErrorStream(true).start()
+            process.inputStream.bufferedReader().use { it.readText() }
+            process.waitFor() == 0
+        }.getOrDefault(false)
+    }
+
+    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
+
+    private fun rootDirectoryRoot(): RootLocation? =
+        if (_rootAvailable.value && _settings.value.rootAccess) RootLocation(Uri.fromFile(File("/")), "Root directory") else null
+
     private fun updateVisibleRoots(preferDirect: Boolean = false) {
         val direct = directRoot().takeIf { _directStorageAvailable.value }
-        val locations = listOfNotNull(direct) + safRoots
+        val locations = listOfNotNull(direct, rootDirectoryRoot()) + safRoots
         _roots.value = locations
         val current = _currentRoot.value
         when {

@@ -1,3 +1,8 @@
+/*
+ * SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Buge Studio
+ */
+
 import java.util.Properties
 
 plugins {
@@ -18,8 +23,8 @@ android {
         applicationId = "com.buge.files"
         minSdk = 26
         targetSdk = 37
-        versionCode = 27
-        versionName = "1.13.15"
+        versionCode = 32
+        versionName = "1.16.17"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
