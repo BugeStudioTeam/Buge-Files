@@ -17,7 +17,11 @@ val signingProperties = Properties().apply {
 
 android {
     namespace = "com.buge.files"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 0
+        }
+    }
 
     defaultConfig {
         applicationId = "com.buge.files"
