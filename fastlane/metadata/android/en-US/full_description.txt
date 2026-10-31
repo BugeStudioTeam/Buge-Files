@@ -1,24 +1,26 @@
-Buge App Manager is a modern, lightweight and privacy‑friendly app manager
-that helps you inspect, manage and control applications installed on your device.
+Buge Files is a modern, lightweight and privacy‑friendly file manager
+that helps you browse, organize and manage files stored on your device.
 
-You can use Buge App Manager without root access, and optionally enable
-advanced features through Shizuku (https://shizuku.rikka.app/download/) Dhizuku (https://github.com/iamr0s/Dhizuku) or ROOT.
+Built with Material Design 3 Expressive, it offers a clean and intuitive
+interface for efficient file browsing and storage management.
 
 <b>Features</b>
 <ul>
-    <li>View detailed app information — package name, version, permissions, install source and more</li>
-    <li>Export installed apps as APK files for backup or sharing</li>
-    <li>Manage app permissions to improve privacy and security</li>
-    <li>Clear cache and view storage usage</li>
-    <li>Uninstall apps easily (system app removal requires Shizuku)</li>
+    <li>Browse and manage files and folders with a modern card-style layout</li>
+    <li>Smart categories — automatically organize files by type (Images, Videos, Music, Documents, Archives, APK) for quick access</li>
+    <li>Storage overview with visual progress indicators</li>
+    <li>View file details including size and modification date</li>
+    <li>Switch between multiple languages and Light, Dark, or System theme</li>
+    <li>Toggle visibility of hidden files and folders</li>
     <li>Modern, clean and minimal UI</li>
     <li>No ads, no analytics, fully open source</li>
 </ul>
 
 <b>Notes</b>
 <ul>
-    <li>Some advanced operations require Shizuku Dhizuku or ROOT</li>
-    <li>Designed to be safe, but removing essential system apps may still cause issues after reboot</li>
+    <li>Requires Android 8.0 (API 26) or higher</li>
+    <li>ROOT is optional / available for rooted and authorized devices</li>
+    <li>Local-only file access, so your data stays on your device</li>
 </ul>
 
-Source code: https://github.com/BugeStudioTeam/Buge-App-Manager
+Source code: https://github.com/BugeStudioTeam/Buge-Files
