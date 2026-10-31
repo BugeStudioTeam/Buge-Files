@@ -24,6 +24,7 @@ class SettingsRepository(private val context: Context) {
         val thumbnails = stringPreferencesKey("thumbnails")
         val haptics = stringPreferencesKey("haptics")
         val rootAccess = booleanPreferencesKey("root_access")
+        val rootCommand = stringPreferencesKey("root_command")
         val roots = stringSetPreferencesKey("roots")
         val bookmarks = stringSetPreferencesKey("bookmarks")
     }
@@ -38,7 +39,8 @@ class SettingsRepository(private val context: Context) {
             showHidden = prefs[Keys.hidden]?.toBoolean() ?: false,
             showThumbnails = prefs[Keys.thumbnails]?.toBoolean() ?: false,
             hapticFeedback = prefs[Keys.haptics]?.toBoolean() ?: true,
-            rootAccess = prefs[Keys.rootAccess] ?: false
+            rootAccess = prefs[Keys.rootAccess] ?: false,
+            rootCommand = prefs[Keys.rootCommand]?.takeIf { it.isNotBlank() } ?: "su"
         )
     }
 
@@ -60,6 +62,7 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.thumbnails] = settings.showThumbnails.toString()
         prefs[Keys.haptics] = settings.hapticFeedback.toString()
         prefs[Keys.rootAccess] = settings.rootAccess
+        prefs[Keys.rootCommand] = settings.rootCommand.ifBlank { "su" }
     }
 
     suspend fun addRoot(location: RootLocation) = context.dataStore.edit { prefs ->

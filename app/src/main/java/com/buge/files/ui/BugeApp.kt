@@ -892,6 +892,7 @@ private enum class AppearanceDialog { THEME, COLOR, LANGUAGE }
 @Composable
 private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, onSettingsChange: (AppSettings) -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
+    var rootCommandDialog by remember { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -932,11 +933,19 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         label = language.t("root_access"),
                         checked = settings.rootAccess && rootAvailable,
                         index = 0,
-                        count = 2,
+                        count = 3,
                         enabled = rootAvailable,
                         supportingText = if (rootAvailable) language.t("root_access_summary") else language.t("root_unavailable")
                     ) { onSettingsChange(settings.copy(rootAccess = it)) }
-                    SettingSwitch(language.t("hidden"), settings.showHidden, 1, 2) { onSettingsChange(settings.copy(showHidden = it)) }
+                    SettingsActionCard(
+                        title = language.t("root_command"),
+                        summary = settings.rootCommand,
+                        icon = Icons.Outlined.Security,
+                        index = 1,
+                        count = 3,
+                        onClick = { rootCommandDialog = true }
+                    )
+                    SettingSwitch(language.t("hidden"), settings.showHidden, 2, 3) { onSettingsChange(settings.copy(showHidden = it)) }
                 }
             }
             item { SettingsSection(language.t("behavior")) }
@@ -982,6 +991,20 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                 onDismiss = { appearanceDialog = null }
             )
             null -> Unit
+        }
+
+        if (rootCommandDialog) {
+            NameDialog(
+                title = language.t("root_command"),
+                hint = language.t("root_command"),
+                language = language,
+                initialValue = settings.rootCommand,
+                confirmLabel = language.t("save"),
+                onDismiss = { rootCommandDialog = false }
+            ) { command ->
+                onSettingsChange(settings.copy(rootCommand = command.ifBlank { "su" }))
+                rootCommandDialog = false
+            }
         }
     }
 }

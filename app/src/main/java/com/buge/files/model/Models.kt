@@ -86,7 +86,8 @@ data class AppSettings(
     val showHidden: Boolean = false,
     val showThumbnails: Boolean = false,
     val hapticFeedback: Boolean = true,
-    val rootAccess: Boolean = false
+    val rootAccess: Boolean = false,
+    val rootCommand: String = "su"
 )
 
 @Immutable

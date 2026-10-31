@@ -19,7 +19,11 @@ import java.util.Locale
  * Handles two genuinely usable sources: direct shared-storage file paths (file://) and
  * persisted Storage Access Framework document trees (content://).
  */
-class FileRepository(private val context: Context, private val rootAccessEnabled: () -> Boolean = { false }) {
+class FileRepository(
+    private val context: Context,
+    private val rootAccessEnabled: () -> Boolean = { false },
+    private val rootCommand: () -> String = { "su" }
+) {
     private val resolver: ContentResolver = context.contentResolver
 
     private fun isDirect(uri: Uri) = uri.scheme == ContentResolver.SCHEME_FILE
@@ -463,7 +467,8 @@ class FileRepository(private val context: Context, private val rootAccessEnabled
     }
 
     private fun runRoot(command: String): String? = runCatching {
-        val process = ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
+        val executable = rootCommand().trim().split(Regex("\\s+")).filter { it.isNotBlank() }.ifEmpty { listOf("su") }
+        val process = ProcessBuilder(executable + listOf("-c", command)).redirectErrorStream(true).start()
         val output = process.inputStream.bufferedReader().use { it.readText() }
         if (process.waitFor() == 0) output else null
     }.getOrNull()

@@ -30,13 +30,14 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
-    private val fileRepository = FileRepository(application) { _settings.value.rootAccess }
+    private val fileRepository = FileRepository(application, { _settings.value.rootAccess }, { _settings.value.rootCommand })
     val smbRepository = SmbRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val copyProgressNotifier = CopyProgressNotifier(application)
     private val apkRepository = ApkRepository(application)
     private val settingsRepository = SettingsRepository(application)
     private var loadingJob: Job? = null
+    private var lastRootCommand: String? = "su"
     private val browseScrollPositions = mutableMapOf<String, BrowseScrollPosition>()
 
     private val _roots = MutableStateFlow<List<RootLocation>>(emptyList())
@@ -140,6 +141,10 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             settingsRepository.settings.collect { newSettings ->
                 _settings.value = newSettings
+                if (newSettings.rootCommand != lastRootCommand) {
+                    lastRootCommand = newSettings.rootCommand
+                    detectRootAccess()
+                }
                 updateVisibleRoots()
                 refresh()
             }
@@ -233,17 +238,21 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun hasRootAccess(): Boolean {
+        val executable = _settings.value.rootCommand.trim().split(Regex("\\s+")).firstOrNull().orEmpty().ifBlank { "su" }
         val binaries = listOf(
+            executable,
             "/system/bin/su", "/system/xbin/su", "/sbin/su", "/su/bin/su", "/vendor/bin/su",
             "/data/adb/magisk", "/data/adb/ksu", "/data/adb/ap"
-        )
+        ).distinct()
         if (binaries.any { runCatching { File(it).exists() }.getOrDefault(false) }) return true
         return runCatching {
-            val process = ProcessBuilder("sh", "-c", "command -v su").redirectErrorStream(true).start()
+            val process = ProcessBuilder("sh", "-c", "command -v ${shellQuote(executable)}").redirectErrorStream(true).start()
             process.inputStream.bufferedReader().use { it.readText() }
             process.waitFor() == 0
         }.getOrDefault(false)
     }
+
+    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 
     private fun rootDirectoryRoot(): RootLocation? =
         if (_rootAvailable.value && _settings.value.rootAccess) RootLocation(Uri.fromFile(File("/")), "Root directory") else null
