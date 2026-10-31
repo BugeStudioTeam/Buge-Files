@@ -107,8 +107,8 @@
     <string name="install_update">تثبيت التحديث</string>
     <string name="apk_details">تفاصيل APK</string>
     <string name="package_name">اسم الحزمة</string>
-    <string name="min_sdk">الحد الأدنى من Android</string>
-    <string name="target_sdk">الإصدار المستهدف من Android</string>
+    <string name="min_sdk">الحد الأدنى من SDK</string>
+    <string name="target_sdk">الإصدار المستهدف من SDK</string>
     <string name="signing_certificate">شهادة التوقيع</string>
     <string name="requested_permissions">الأذونات المطلوبة</string>
     <string name="installed">مثبت</string>

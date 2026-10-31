@@ -77,6 +77,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SelectAll
@@ -153,6 +154,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -210,6 +212,7 @@ fun BugeApp(
     var deleteRequest by remember { mutableStateOf<List<FileEntry>?>(null) }
     val selected = viewModel.selectedEntries()
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     var lastExitBackPress by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(viewModel.message) {
@@ -353,7 +356,8 @@ fun BugeApp(
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
                                 modifier = Modifier.padding(padding), language = language, settings = settings,
-                                rootAvailable = rootAvailable, onSettingsChange = viewModel::updateSettings
+                                rootAvailable = rootAvailable, onSettingsChange = viewModel::updateSettings,
+                                onCheckForUpdates = viewModel::checkForUpdates
                             )
                         }
                     }
@@ -435,6 +439,18 @@ fun BugeApp(
                 onShare = { onShareFiles(listOf(file)) },
                 onRename = { renameTarget = file; viewModel.dismissInfo() },
                 onDelete = { deleteRequest = listOf(file); viewModel.dismissInfo() }
+            )
+        }
+        if (viewModel.updateDialogVisible) {
+            UpdateCheckDialog(
+                language = language,
+                checking = viewModel.updateChecking,
+                result = viewModel.updateResult,
+                onDownload = { url ->
+                    runCatching { uriHandler.openUri(url) }
+                    viewModel.dismissUpdateDialog()
+                },
+                onDismiss = viewModel::dismissUpdateDialog
             )
         }
     }
@@ -893,7 +909,58 @@ private fun StorageLegendRow(slice: StorageSlice, total: Long) {
 private enum class AppearanceDialog { THEME, COLOR, LANGUAGE }
 
 @Composable
-private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, onSettingsChange: (AppSettings) -> Unit) {
+private fun UpdateCheckDialog(
+    language: AppLanguage,
+    checking: Boolean,
+    result: UpdateCheckResult?,
+    onDownload: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val downloadUrl = result?.downloadUrl
+    val canDownload = result?.updateAvailable == true && !downloadUrl.isNullOrBlank()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Outlined.Refresh, null) },
+        title = { Text(language.t("check_updates")) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (checking) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(language.t("checking_updates"))
+                } else if (result == null) {
+                    Text(language.t("checking_updates"))
+                } else {
+                    val error = result.error
+                    if (error != null) {
+                        Text(language.t("update_check_failed"), style = MaterialTheme.typography.titleMedium)
+                        Text(error, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else if (result.updateAvailable) {
+                        Text(language.t("update_available"), style = MaterialTheme.typography.titleMedium)
+                        Text("${language.t("current_version")}: ${result.currentVersion}")
+                        Text("${language.t("latest_version")}: ${result.latestVersion.orEmpty()}")
+                    } else {
+                        Text(language.t("up_to_date"))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (canDownload) {
+                TextButton(onClick = { onDownload(downloadUrl!!) }) { Text(language.t("download")) }
+            } else {
+                TextButton(onClick = onDismiss) { Text(language.t("done")) }
+            }
+        },
+        dismissButton = {
+            if (canDownload) {
+                TextButton(onClick = onDismiss) { Text(language.t("cancel")) }
+            }
+        }
+    )
+}
+
+@Composable
+private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, onSettingsChange: (AppSettings) -> Unit, onCheckForUpdates: () -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
     var rootCommandDialog by remember { mutableStateOf(false) }
 
@@ -962,13 +1029,23 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
             }
             item { SettingsSection(language.t("about")) }
             item {
-                Surface(shape = groupItemShape(0, 1), color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(18.dp)) {
-                        Text("Buge Files", style = MaterialTheme.typography.titleLarge)
-                        Spacer(Modifier.height(4.dp))
-                        Text(language.t("file_manager"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(10.dp))
-                        Text("${language.t("version")} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SettingsActionCard(
+                        title = language.t("check_updates"),
+                        summary = language.t("check_updates_summary"),
+                        icon = Icons.Outlined.Refresh,
+                        index = 0,
+                        count = 2,
+                        onClick = onCheckForUpdates
+                    )
+                    Surface(shape = groupItemShape(1, 2), color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(18.dp)) {
+                            Text("Buge Files", style = MaterialTheme.typography.titleLarge)
+                            Spacer(Modifier.height(4.dp))
+                            Text(language.t("file_manager"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(10.dp))
+                            Text("${language.t("version")} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }

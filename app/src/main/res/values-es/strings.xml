@@ -116,8 +116,8 @@
     <string name="install_update">Instalar actualización</string>
     <string name="apk_details">Detalles del APK</string>
     <string name="package_name">Nombre del paquete</string>
-    <string name="min_sdk">Android mínimo</string>
-    <string name="target_sdk">Android objetivo</string>
+    <string name="min_sdk">SDK mínimo</string>
+    <string name="target_sdk">SDK objetivo</string>
     <string name="signing_certificate">Certificado de firma</string>
     <string name="requested_permissions">Permisos solicitados</string>
     <string name="installed">Instalado</string>

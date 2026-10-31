@@ -94,6 +94,15 @@ data class AppSettings(
 data class RootLocation(val uri: Uri, val label: String)
 
 @Immutable
+data class UpdateCheckResult(
+    val currentVersion: String,
+    val latestVersion: String? = null,
+    val downloadUrl: String? = null,
+    val updateAvailable: Boolean = false,
+    val error: String? = null
+)
+
+@Immutable
 data class ClipboardState(val entries: List<FileEntry>, val mode: ClipboardMode)
 
 data class OperationResult(val success: Boolean, val message: String)

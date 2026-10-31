@@ -107,8 +107,8 @@
     <string name="install_update">Установить обновление</string>
     <string name="apk_details">Сведения об APK</string>
     <string name="package_name">Имя пакета</string>
-    <string name="min_sdk">Минимальная версия Android</string>
-    <string name="target_sdk">Целевая версия Android</string>
+    <string name="min_sdk">Минимальная версия SDK</string>
+    <string name="target_sdk">Целевая версия SDK</string>
     <string name="signing_certificate">Сертификат подписи</string>
     <string name="requested_permissions">Запрошенные разрешения</string>
     <string name="installed">Установлено</string>

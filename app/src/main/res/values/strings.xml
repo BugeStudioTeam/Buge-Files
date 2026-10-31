@@ -86,6 +86,15 @@
     <string name="compact">Compact lists</string>
     <string name="haptics">Haptic feedback</string>
     <string name="about">About</string>
+    <string name="check_updates">Check for updates</string>
+    <string name="check_updates_summary">Check GitHub for the latest release</string>
+    <string name="checking_updates">Checking for updates…</string>
+    <string name="update_available">Update available</string>
+    <string name="up_to_date">You already have the latest version</string>
+    <string name="update_check_failed">Could not check for updates</string>
+    <string name="current_version">Current version</string>
+    <string name="latest_version">Latest version</string>
+    <string name="download">Download</string>
     <string name="connection_failed">Can\'t reach this location</string>
     <string name="connection_failed_detail">Check the server address, network, and VPN, then try again.</string>
     <string name="read_failed">Can\'t open this location</string>
@@ -138,8 +147,8 @@
     <string name="install_update">Install update</string>
     <string name="apk_details">APK details</string>
     <string name="package_name">Package name</string>
-    <string name="min_sdk">Minimum Android</string>
-    <string name="target_sdk">Target Android</string>
+    <string name="min_sdk">Minimum SDK</string>
+    <string name="target_sdk">Target SDK</string>
     <string name="signing_certificate">Signing certificate</string>
     <string name="requested_permissions">Requested permissions</string>
     <string name="installed">Installed</string>

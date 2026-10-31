@@ -118,8 +118,8 @@
     <string name="install_update">安装更新</string>
     <string name="apk_details">APK 详情</string>
     <string name="package_name">包名</string>
-    <string name="min_sdk">最低 Android 版本</string>
-    <string name="target_sdk">目标 Android 版本</string>
+    <string name="min_sdk">最低 SDK 版本</string>
+    <string name="target_sdk">目标 SDK 版本</string>
     <string name="signing_certificate">签名证书</string>
     <string name="requested_permissions">请求的权限</string>
     <string name="installed">已安装</string>

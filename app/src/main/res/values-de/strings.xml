@@ -107,8 +107,8 @@
     <string name="install_update">Update installieren</string>
     <string name="apk_details">APK-Details</string>
     <string name="package_name">Paketname</string>
-    <string name="min_sdk">Mindest-Android-Version</string>
-    <string name="target_sdk">Ziel-Android-Version</string>
+    <string name="min_sdk">Mindest-SDK-Version</string>
+    <string name="target_sdk">Ziel-SDK-Version</string>
     <string name="signing_certificate">Signaturzertifikat</string>
     <string name="requested_permissions">Angeforderte Berechtigungen</string>
     <string name="installed">Installiert</string>

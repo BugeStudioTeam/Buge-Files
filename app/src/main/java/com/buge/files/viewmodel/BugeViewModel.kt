@@ -35,6 +35,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val copyProgressNotifier = CopyProgressNotifier(application)
     private val apkRepository = ApkRepository(application)
+    private val updateRepository = UpdateRepository()
     private val settingsRepository = SettingsRepository(application)
     private var loadingJob: Job? = null
     private var lastRootCommand: String? = "su"
@@ -130,9 +131,31 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var testingSmb by mutableStateOf(false)
         private set
+    var updateDialogVisible by mutableStateOf(false)
+        private set
+    var updateChecking by mutableStateOf(false)
+        private set
+    var updateResult by mutableStateOf<UpdateCheckResult?>(null)
+        private set
 
     fun showSmbDialog() { smbDialogVisible = true }
     fun dismissSmbDialog() { smbDialogVisible = false }
+
+    fun checkForUpdates() {
+        if (updateChecking) return
+        updateDialogVisible = true
+        updateChecking = true
+        updateResult = null
+        viewModelScope.launch {
+            updateResult = updateRepository.check(BuildConfig.VERSION_NAME)
+            updateChecking = false
+        }
+    }
+
+    fun dismissUpdateDialog() {
+        updateDialogVisible = false
+        updateResult = null
+    }
 
     private val recentItems = mutableStateListOf<FileEntry>()
     val recents: List<FileEntry> get() = recentItems

@@ -107,8 +107,8 @@
     <string name="install_update">更新をインストール</string>
     <string name="apk_details">APK の詳細</string>
     <string name="package_name">パッケージ名</string>
-    <string name="min_sdk">最小 Android バージョン</string>
-    <string name="target_sdk">ターゲット Android バージョン</string>
+    <string name="min_sdk">最小 SDK バージョン</string>
+    <string name="target_sdk">ターゲット SDK バージョン</string>
     <string name="signing_certificate">署名証明書</string>
     <string name="requested_permissions">要求される権限</string>
     <string name="installed">インストール済み</string>
