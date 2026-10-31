@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Copyright (C) 2026 Buge Studio -->
 <resources>
     <string name="connection_failed">No se puede acceder a esta ubicación</string>
     <string name="connection_failed_detail">Comprueba la dirección del servidor, la red y la VPN, y vuelve a intentarlo.</string>
