@@ -1,0 +1,7 @@
+**1.16.18**
+
+**Optimizations** ⚡
+- Added F-Droid compatibility
+
+**Contributors of this version:**
+None
