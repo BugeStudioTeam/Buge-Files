@@ -1,0 +1,7 @@
+**1.16.19**
+
+**Fixes** 🛠
+- Disabled R8 to fix numerous issues
+
+**Contributors of this version:**
+None
