@@ -27,8 +27,8 @@ android {
         applicationId = "com.buge.files"
         minSdk = 26
         targetSdk = 37
-        versionCode = 33
-        versionName = "1.16.18"
+        versionCode = 34
+        versionName = "1.16.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -45,8 +45,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
