@@ -17,7 +17,7 @@
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 <div style="overflow-x: auto; white-space: nowrap; padding: 10px 0;">
 
@@ -29,9 +29,9 @@
 
 ---
 
-## ✨ Features
+## Features
 
-### 🚀 Core Capabilities
+### Core Capabilities
 
 | Feature                             | Description                                                                      |
 | ----------------------------------- | -------------------------------------------------------------------------------- |
@@ -40,14 +40,14 @@
 | **Smart Categories**                | Automatically organize files by type for quick access                            |
 | **Storage Overview**                | View storage usage with visual progress indicators                               |
 
-### 📁 File Manager
+### File Manager
 
 - Browse internal storage with a clean, intuitive interface
 - Open folders and navigate through the file system
 - View file details including size and modification date
 - Quick access to common file types through smart categories
 
-### 🎨 Smart Categories
+### Smart Categories
 
 - **Images**: JPEG, PNG, GIF, BMP, WebP, HEIC
 - **Videos**: MP4, MKV, AVI, MOV, WMV, FLV, WebM
@@ -56,13 +56,13 @@
 - **Archives**: ZIP, RAR, 7Z, TAR, GZ, BZ2
 - **APK**: Android application packages
 
-### ⚙️ Settings
+### Settings
 
 - Switch between multiple languages
 - Light, Dark, or System default theme
 - Toggle visibility of hidden files and folders
 
-### 🛡️ Privacy & Security
+### Privacy & Security
 
 - Clear file organization for better privacy management
 - No unnecessary permissions required
@@ -70,7 +70,7 @@
 
 ---
 
-## 📋 Requirements
+## Requirements
 
 | Requirement | Minimum Version        |
 | ----------- | ---------------------- |
@@ -79,7 +79,7 @@
 
 ---
 
-## 📦 Installation
+## Installation
 
 [<img src="https://raw.githubusercontent.com/BugeStudioTeam/Buge-Files/refs/heads/main/images/README/Release/get-it-on-github.svg"
     alt="Get it on GitHub"
@@ -90,7 +90,7 @@
 
 ---
 
-## ⭐ Star History
+## Star History
 
 <a href="https://www.star-history.com/?repos=BugeStudioTeam%2FBuge-Files&type=date&legend=top-left">
  <picture>
@@ -102,6 +102,6 @@
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the **GNU General Public License v3.0**.
