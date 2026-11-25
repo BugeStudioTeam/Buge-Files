@@ -210,4 +210,6 @@
     <string name="install_all_users">為所有使用者安裝</string>
     <string name="install_all_users_summary">讓裝置上的所有使用者都能使用此應用程式</string>
     <string name="installation">安裝</string>
+    <string name="view_all_permissions">查看所有權限</string>
+    <string name="view_signature">查看簽章</string>
 </resources>

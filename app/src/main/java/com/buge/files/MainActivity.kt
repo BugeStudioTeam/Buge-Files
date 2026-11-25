@@ -4,10 +4,13 @@
 package com.buge.files
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ContentResolver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -31,6 +34,12 @@ class MainActivity : ComponentActivity() {
     private var selectMode = false
     private var saveMode = false
 
+    private val mediaReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            viewModel.refreshStorageRoots()
+        }
+    }
+
     private val folderPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri ?: return@registerForActivityResult
         try {
@@ -49,6 +58,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         I18n.initialize(applicationContext)
+        val mediaFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_MEDIA_MOUNTED)
+            addAction(Intent.ACTION_MEDIA_UNMOUNTED)
+            addAction(Intent.ACTION_MEDIA_EJECT)
+            addAction(Intent.ACTION_MEDIA_REMOVED)
+            addDataScheme("file")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mediaReceiver, mediaFilter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(mediaReceiver, mediaFilter)
+        }
         selectMode = intent?.action == Intent.ACTION_GET_CONTENT || intent?.action == Intent.ACTION_OPEN_DOCUMENT
         saveMode = intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE
         enableEdgeToEdge()
@@ -96,6 +117,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshShizuku()
+        viewModel.refreshStorageRoots()
         if (awaitingAllFilesAccess) {
             awaitingAllFilesAccess = false
             viewModel.refreshDirectStorageAccess(preferDirect = true)
@@ -214,6 +236,11 @@ class MainActivity : ComponentActivity() {
         }.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         runCatching { startActivity(Intent.createChooser(intent, "Share with")) }
             .onFailure { Toast.makeText(this, "No compatible sharing app found", Toast.LENGTH_SHORT).show() }
+    }
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(mediaReceiver) }
+        super.onDestroy()
     }
 
     private fun safeUri(file: FileEntry): Uri? = if (file.uri.scheme == "file") {

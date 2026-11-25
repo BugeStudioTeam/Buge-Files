@@ -210,4 +210,6 @@
     <string name="install_all_users">Установить для всех пользователей</string>
     <string name="install_all_users_summary">Сделать приложение доступным для всех пользователей устройства</string>
     <string name="installation">Установка</string>
+    <string name="view_all_permissions">Показать все разрешения</string>
+    <string name="view_signature">Показать подпись</string>
 </resources>

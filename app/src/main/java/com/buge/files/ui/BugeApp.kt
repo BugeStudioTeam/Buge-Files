@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -41,6 +42,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,8 +63,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -86,6 +91,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -100,7 +106,6 @@ import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VideoFile
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
@@ -134,6 +139,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -164,7 +170,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -272,6 +280,7 @@ fun BugeApp(
                 }
                 Scaffold(
                     modifier = Modifier.weight(1f),
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     topBar = {
                         BugeTopBar(
                             language = language,
@@ -280,6 +289,7 @@ fun BugeApp(
                             selectionCount = viewModel.selection.size,
                             isSearching = viewModel.isSearching,
                             query = viewModel.searchQuery,
+                            titleText = if (viewModel.destination == AppDestination.BROWSE) viewModel.navigationPath.lastOrNull()?.label.orEmpty() else "",
                             viewMode = settings.viewMode,
                             taskCount = tasks.size,
                             onSearch = { viewModel.setSearchActive(true) },
@@ -498,7 +508,7 @@ fun BugeApp(
 @Composable
 private fun BugeTopBar(
     language: AppLanguage, root: RootLocation?, roots: List<RootLocation>, selectionCount: Int,
-    isSearching: Boolean, query: String, viewMode: ViewMode, taskCount: Int,
+    isSearching: Boolean, query: String, titleText: String, viewMode: ViewMode, taskCount: Int,
     onSearch: () -> Unit, onQueryChange: (String) -> Unit, onCloseSearch: () -> Unit,
     onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowTasks: () -> Unit, onShowActions: () -> Unit,
     onRefresh: () -> Unit, onCopyPath: () -> Unit,
@@ -506,7 +516,7 @@ private fun BugeTopBar(
     onCopy: () -> Unit, onMove: () -> Unit, onRename: () -> Unit, onCompress: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
     rootMenuExpanded: Boolean, onAddLocation: () -> Unit, onAddSmb: () -> Unit, onRemoveRoot: (RootLocation) -> Unit
 ) {
-    val title = when { selectionCount > 0 -> "$selectionCount ${language.t("items")}"; isSearching -> ""; else -> "Buge Files" }
+    val title = when { selectionCount > 0 -> "$selectionCount ${language.t("items")}"; else -> titleText }
     var selectionMenu by remember { mutableStateOf(false) }
     var overflowMenu by remember { mutableStateOf(false) }
     CenterAlignedTopAppBar(
@@ -631,8 +641,7 @@ private fun BrowseScreen(
     var restoredPosition by remember(pathKey) { mutableStateOf(savedPosition == null) }
     LaunchedEffect(pathKey, entries.size, listState) {
         if (!restoredPosition && entries.isNotEmpty()) {
-            val maxItemIndex = entries.size + 3
-            listState.scrollToItem(savedPosition!!.index.coerceAtMost(maxItemIndex), savedPosition.offset)
+            listState.scrollToItem(savedPosition!!.index.coerceAtMost((entries.size - 1).coerceAtLeast(0)), savedPosition.offset)
             restoredPosition = true
         }
     }
@@ -660,74 +669,90 @@ private fun BrowseScreen(
             }
         }
     }
-    Column(modifier.fillMaxSize()) {
-        if (viewMode == ViewMode.LIST) {
-            PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            item {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Row(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-                            path.forEachIndexed { index, location ->
-                                if (index > 0) {
-                                    Text(text = "/", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
-                                }
-                                if (index == path.lastIndex) {
-                                    Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
-                                } else {
-                                    Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onNavigate(index) })
-                                }
-                            }
+    val density = LocalDensity.current
+    val slideDistance = with(density) { (LocalConfiguration.current.screenWidthDp * 0.35f).dp.toPx() }
+    val slideOffset = remember { Animatable(0f) }
+    var slideInitialized by remember { mutableStateOf(false) }
+    LaunchedEffect(pathKey) {
+        if (!slideInitialized) {
+            slideInitialized = true
+            return@LaunchedEffect
+        }
+        val forward = viewModel.navigationDirection == NavigationDirection.FORWARD
+        slideOffset.snapTo(if (forward) slideDistance else -slideDistance)
+        slideOffset.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+    }
+    Column(modifier.fillMaxSize().graphicsLayer {
+        translationX = slideOffset.value
+        alpha = 1f - (kotlin.math.abs(slideOffset.value) / slideDistance.coerceAtLeast(1f)) * 0.25f
+    }) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 2.dp)
+            ) {
+                Row(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                    path.forEachIndexed { index, location ->
+                        if (index > 0) {
+                            Text(text = "/", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
                         }
-                        IconButton(onClick = onToggleBookmark) { Icon(if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, if (isBookmarked) language.t("unfavorite") else language.t("favorite")) }
+                        if (index == path.lastIndex) {
+                            Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
+                        } else {
+                            Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onNavigate(index) })
+                        }
                     }
                 }
+                IconButton(onClick = onToggleBookmark) { Icon(if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, if (isBookmarked) language.t("unfavorite") else language.t("favorite")) }
             }
             val saveDestination = path.lastOrNull()?.uri ?: root?.uri
             if (saveIncoming && saveDestination != null) {
-                item {
-                    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
-                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Archive, null)
-                            Spacer(Modifier.width(12.dp))
-                            Text("$incomingCount ${language.t("items")} ${language.t("save_as").lowercase()}", modifier = Modifier.weight(1f))
-                            FilledTonalButton(onClick = { scope.launch { onSaveIncoming(saveDestination, true) } }) { Text(language.t("save_here")) }
-                        }
+                ElevatedCard(
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Archive, null)
+                        Spacer(Modifier.width(12.dp))
+                        Text("$incomingCount ${language.t("items")} ${language.t("save_as").lowercase()}", modifier = Modifier.weight(1f))
+                        FilledTonalButton(onClick = { scope.launch { onSaveIncoming(saveDestination, true) } }) { Text(language.t("save_here")) }
                     }
                 }
             }
             if (activeTask != null) {
-                item {
-                    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(taskIcon(activeTask.type), null)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(taskTitle(activeTask, language), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("${activeTask.entries.size} ${language.t("items")} · ${language.t("task_list")}: $taskCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                            }
-                            FilledTonalButton(onClick = onPaste) { Text(if (activeTask.type == TaskType.COMPRESS) language.t("compress") else language.t("paste")) }
+                ElevatedCard(
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(taskIcon(activeTask.type), null)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(taskTitle(activeTask, language), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("${activeTask.entries.size} ${language.t("items")} · ${language.t("task_list")}: $taskCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        }
+                        FilledTonalButton(onClick = onPaste) { Text(if (activeTask.type == TaskType.COMPRESS) language.t("compress") else language.t("paste")) }
+                    }
+                }
+            }
+            if (isLoading && !isRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp))
+            if (entries.isEmpty() && !isLoading) EmptyFolder(language, searchActive)
+            if (viewMode == ViewMode.LIST) {
+                PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(entries, key = { it.uri.toString() }) { entry ->
+                            FileListItem(entry, language, compact, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
+                        }
+                    }
+                }
+            } else {
+                PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
+                    LazyVerticalGrid(columns = GridCells.Adaptive(145.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
+                        items(entries, key = { it.uri.toString() }) { entry ->
+                            FileGridItem(entry, language, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
                         }
                     }
                 }
             }
-            if (isLoading && !isRefreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-            if (entries.isEmpty() && !isLoading) item { EmptyFolder(language, searchActive) }
-            items(entries, key = { it.uri.toString() }) { entry ->
-                FileListItem(entry, language, compact, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
-            }
-                }
-            }
-        }
-        if (viewMode == ViewMode.GRID && entries.isNotEmpty()) {
-            PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
-                LazyVerticalGrid(columns = GridCells.Adaptive(145.dp), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
-                    items(entries, key = { it.uri.toString() }) { entry ->
-                        FileGridItem(entry, language, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -1136,9 +1161,9 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         enabled = settings.installEnabled,
                         onClick = { installerDeclarationDialog = true }
                     )
-                    SettingSwitch(language.t("allow_downgrade"), settings.allowDowngrade, 3, 6, icon = Icons.Outlined.Refresh, supportingText = language.t("allow_downgrade_summary")) { onSettingsChange(settings.copy(allowDowngrade = it)) }
+                    SettingSwitch(language.t("allow_downgrade"), settings.allowDowngrade, 3, 6, icon = Icons.Outlined.ArrowDownward, supportingText = language.t("allow_downgrade_summary")) { onSettingsChange(settings.copy(allowDowngrade = it)) }
                     SettingSwitch(language.t("allow_test_packages"), settings.allowTestPackages, 4, 6, icon = Icons.Outlined.Code, supportingText = language.t("allow_test_packages_summary")) { onSettingsChange(settings.copy(allowTestPackages = it)) }
-                    SettingSwitch(language.t("install_all_users"), settings.installAllUsers, 5, 6, icon = Icons.Outlined.Share, supportingText = language.t("install_all_users_summary")) { onSettingsChange(settings.copy(installAllUsers = it)) }
+                    SettingSwitch(language.t("install_all_users"), settings.installAllUsers, 5, 6, icon = Icons.Outlined.People, supportingText = language.t("install_all_users_summary")) { onSettingsChange(settings.copy(installAllUsers = it)) }
                 }
             }
             item { SettingsSection(language.t("about")) }
@@ -1434,7 +1459,18 @@ private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: In
                 Text(label, style = MaterialTheme.typography.titleMedium, color = labelColor)
                 if (supportingText != null) Text(supportingText, style = MaterialTheme.typography.bodySmall, color = supportColor)
             }
-            Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+            Switch(
+                checked = checked,
+                onCheckedChange = null,
+                enabled = enabled,
+                thumbContent = {
+                    Icon(
+                        imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                    )
+                }
+            )
         }
     }
 }
@@ -1623,67 +1659,152 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, language: AppLanguage, onInstall: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    FileGlyph(Icons.Outlined.Archive, false, 30.dp, entry = file)
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(metadata?.displayName ?: file.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(language.t("apk_details"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    var showPermissions by remember { mutableStateOf(false) }
+    var showSignature by remember { mutableStateOf(false) }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 3.dp,
+            modifier = Modifier.widthIn(max = 540.dp).fillMaxWidth()
+        ) {
+            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                FileGlyph(Icons.Outlined.Archive, false, 52.dp, entry = file)
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    metadata?.displayName ?: file.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (metadata != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        metadata.packageName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "${language.t("version")} ${metadata.versionName} (${metadata.versionCode})",
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    if (metadata.isInstalled) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "${metadata.installedVersionName ?: "—"} (${metadata.installedVersionCode ?: "—"}) → ${metadata.versionName} (${metadata.versionCode})",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (metadata.isNewerThanInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
                     }
-                    IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, language.t("close")) }
+                    Spacer(Modifier.height(16.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+                        ApkPill("Min: API ${metadata.minSdk}")
+                        ApkPill("Target: API ${metadata.targetSdk}")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                        ApkPill("${language.t("size")}: ${formatBytes(file.size)}")
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(onClick = { showPermissions = true }, shape = CircleShape) { Text(language.t("view_all_permissions")) }
+                        OutlinedButton(onClick = { showSignature = true }, shape = CircleShape) { Text(language.t("view_signature")) }
+                    }
+                } else if (!loading) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("APK metadata is unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
+                if (loading) {
+                    Spacer(Modifier.height(14.dp))
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+                Spacer(Modifier.height(18.dp))
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    FilledTonalButton(
+                        onClick = onInstall,
+                        enabled = metadata != null && !loading,
+                        shape = groupItemShape(0, 2),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                    ) { Text(language.t("install")) }
+                    FilledTonalButton(
+                        onClick = onDismiss,
+                        shape = groupItemShape(1, 2),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                    ) { Text(language.t("cancel")) }
                 }
             }
-            if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-            metadata?.let { apk ->
-                item {
-                    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = if (apk.isNewerThanInstalled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow)) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(if (apk.isInstalled) language.t("installed") else language.t("not_installed"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.height(4.dp))
-                            Text(if (apk.isInstalled) "${apk.installedVersionName ?: "—"} · ${apk.installedVersionCode ?: "—"}" else language.t("system_installer"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (apk.isInstalled) Text(if (apk.isNewerThanInstalled) language.t("newer_update") else language.t("same_or_older"), style = MaterialTheme.typography.labelMedium, color = if (apk.isNewerThanInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+    if (showPermissions) {
+        PermissionListDialog(title = language.t("requested_permissions"), permissions = metadata?.requestedPermissions.orEmpty(), language = language, onDismiss = { showPermissions = false })
+    }
+    if (showSignature) {
+        SignatureDialog(title = language.t("signing_certificate"), signatures = metadata?.certificateSha256.orEmpty(), language = language, onDismiss = { showSignature = false })
+    }
+}
+
+@Composable
+private fun ApkPill(text: String) {
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Text(text, style = MaterialTheme.typography.labelMedium, maxLines = 1, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+    }
+}
+
+@Composable
+private fun PermissionListDialog(title: String, permissions: List<String>, language: AppLanguage, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            if (permissions.isEmpty()) {
+                Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                    items(permissions) { permission ->
+                        Text(permission, fontFamily = FontFamily.Monospace, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
+}
+
+@Composable
+private fun SignatureDialog(title: String, signatures: List<String>, language: AppLanguage, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            if (signatures.isEmpty()) {
+                Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    signatures.forEach { signature ->
+                        SelectionContainer {
+                            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                                Text(signature, fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth().padding(12.dp))
+                            }
                         }
                     }
                 }
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DetailLine(language.t("package_name"), apk.packageName)
-                        DetailLine(language.t("version"), "${apk.versionName} · ${apk.versionCode}")
-                        DetailLine(language.t("min_sdk"), "API ${apk.minSdk}")
-                        DetailLine(language.t("target_sdk"), "API ${apk.targetSdk}")
-                        DetailLine(language.t("size"), formatBytes(file.size))
-                    }
-                }
-                item {
-                    Text(language.t("signing_certificate"), style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(6.dp))
-                    if (apk.certificateSha256.isEmpty()) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant) else apk.certificateSha256.forEach { fingerprint ->
-                        SelectionContainer { Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) { Text(fingerprint, fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp)) } }
-                    }
-                }
-                item {
-                    Text("${language.t("requested_permissions")} (${apk.requestedPermissions.size})", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(6.dp))
-                    if (apk.requestedPermissions.isEmpty()) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant) else FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        apk.requestedPermissions.forEach { permission -> AssistChip(onClick = {}, label = { Text(permission.substringAfterLast('.'), maxLines = 1) }) }
-                    }
-                }
-                item {
-                    FilledTonalButton(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.FileOpen, null); Spacer(Modifier.width(8.dp)); Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
-                    }
-                    Text(language.t("system_installer"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
-                }
             }
-            if (!loading && metadata == null) item { Text("APK metadata is unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-    }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
 }
 
 @Composable

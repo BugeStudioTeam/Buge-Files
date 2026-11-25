@@ -210,4 +210,6 @@
     <string name="install_all_users">すべてのユーザーにインストール</string>
     <string name="install_all_users_summary">デバイス上のすべてのユーザーがアプリを使用できるようにする</string>
     <string name="installation">インストール</string>
+    <string name="view_all_permissions">すべての権限を表示</string>
+    <string name="view_signature">署名を表示</string>
 </resources>

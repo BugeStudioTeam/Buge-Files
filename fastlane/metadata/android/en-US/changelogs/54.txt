@@ -1,0 +1,35 @@
+**2.25.30**
+
+**Added**
+- Shizuku access to /sdcard/Android/data and /obb — browse, copy, move, delete, rename, and open preview (issue #17 by @XieyilinMain)
+- Task list: copy/move/compress operations enter a queue and can be executed after navigation; copy tasks are reusable (issue #16 by @glxguard)
+- Automatic detection of external storage such as SD cards and USB drives, shown in the top-left storage menu (issue #18 by @aquamail)
+- Archives now open in a browser view; root directory shows the archive name, with nesting and back navigation support
+- New install group in settings:
+  - Shizuku/Root install method
+  - Installer declaration
+  - Allow downgrade (enabled by default)
+  - Test package (disabled by default)
+  - Install for all users (disabled by default)
+- Installation failure automatically copies the full error message
+- APK check now shown in a centered floating window: centered icon/name/package name/version comparison, Min/Target/Size pills, permissions and signature dialogs
+
+**Changed**
+- Removed "Buge Files" from the top bar; browse page now shows the current folder name
+- Top-right sort replaced with a three-dot menu: task list, filter, refresh, copy path
+- Settings cards now have 24dp corners when pressed, restoring on release
+- Updated Material Design 3 Expressive UI for switches
+- Removed left-side icons from color and language dialogs
+- Unified style for install and cancel buttons
+- Optimized filter page
+
+**Fixes**
+- Fixed blank space at the top of the browse page: path is now a fixed header, reduced padding, removed animation layout wrapper
+
+**Optimizations**
+- Completed language translations
+
+**Contributors of this version:**
+- @XieyilinMain
+- @glxguard
+- @aquamail
