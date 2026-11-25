@@ -1332,11 +1332,12 @@ private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: 
 
 @Composable
 private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, enabled: Boolean = true, icon: ImageVector? = null, supportingText: String? = null, onChange: (Boolean) -> Unit) {
-    val shape = groupItemShape(index, count)
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = pressedGroupShape(index, count, interactionSource)
     val labelColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
     val supportColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
     val iconColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
-    Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape)) {
+    Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, enabled = enabled, role = Role.Switch) { onChange(!checked) }) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))

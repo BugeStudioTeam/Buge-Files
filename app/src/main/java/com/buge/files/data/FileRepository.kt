@@ -67,7 +67,7 @@ class FileRepository(
     suspend fun copyToLocalCopy(uri: Uri, target: File): Boolean = withContext(Dispatchers.IO) {
         val source = uri.path?.let(::File) ?: return@withContext false
         target.parentFile?.mkdirs()
-        val result = runElevated("cp -f ${shellQuote(source.path)} ${shellQuote(target.path)}")
+        val result = runElevated("cp -a ${shellQuote(source.path)} ${shellQuote(target.path)}")
         result != null && target.exists()
     }
 
@@ -172,10 +172,11 @@ class FileRepository(
         if (isDirect(parentUri)) {
             val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
+            val elevated = needsElevation(parent) && elevatedEnabled()
             when {
-                target.exists() -> OperationResult(false, "An item with that name already exists")
+                target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 target.mkdir() -> OperationResult(true, "Folder created")
-                needsElevation(parent) && elevatedEnabled() && runElevated("mkdir -p ${shellQuote(target.path)}") != null -> OperationResult(true, "Folder created")
+                elevated && runElevated("mkdir -p ${shellQuote(target.path)}") != null -> OperationResult(true, "Folder created")
                 else -> OperationResult(false, "Could not create folder")
             }
         } else {
@@ -190,10 +191,11 @@ class FileRepository(
         if (isDirect(parentUri)) {
             val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
+            val elevated = needsElevation(parent) && elevatedEnabled()
             when {
-                target.exists() -> OperationResult(false, "An item with that name already exists")
+                target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 target.createNewFile() -> OperationResult(true, "File created")
-                needsElevation(parent) && elevatedEnabled() && runElevated("touch ${shellQuote(target.path)}") != null -> OperationResult(true, "File created")
+                elevated && runElevated("touch ${shellQuote(target.path)}") != null -> OperationResult(true, "File created")
                 else -> OperationResult(false, "Could not create file")
             }
         } else {
@@ -211,10 +213,11 @@ class FileRepository(
         if (isDirect(entry.uri)) {
             val source = elevatedDirect(entry.uri) ?: return@withContext OperationResult(false, "File is not available")
             val target = File(source.parentFile, newName)
+            val elevated = needsElevation(source) && elevatedEnabled()
             when {
-                target.exists() -> OperationResult(false, "An item with that name already exists")
+                target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 source.renameTo(target) -> OperationResult(true, "Renamed")
-                needsElevation(source) && elevatedEnabled() && runElevated("mv ${shellQuote(source.path)} ${shellQuote(target.path)}") != null -> OperationResult(true, "Renamed")
+                elevated && runElevated("mv ${shellQuote(source.path)} ${shellQuote(target.path)}") != null -> OperationResult(true, "Renamed")
                 else -> OperationResult(false, "Could not rename item")
             }
         } else {

@@ -180,4 +180,13 @@
     <string name="shizuku_access_summary">使用 Shizuku 存取 Android/data 與 Android/obb</string>
     <string name="shizuku_unavailable">此裝置上未執行 Shizuku</string>
     <string name="shizuku_permission_required">授予 Shizuku 權限以啟用存取</string>
+    <string name="connection_failed">無法連線到此位置</string>
+    <string name="connection_failed_detail">請檢查伺服器位址、網路與 VPN，然後再試一次。</string>
+    <string name="read_failed">無法開啟此位置</string>
+    <string name="copying">複製中</string>
+    <string name="moving">移動中</string>
+    <string name="saving">儲存中</string>
+    <string name="downloading">下載中</string>
+    <string name="transfer_complete">傳輸完成</string>
+    <string name="transfer_failed">傳輸失敗</string>
 </resources>
