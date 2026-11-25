@@ -353,7 +353,8 @@ fun BugeApp(
                                 viewMode = settings.viewMode,
                                 compact = settings.compactMode,
                                 showThumbnails = settings.showThumbnails,
-                                clipboard = viewModel.clipboard,
+                                activeTask = activeTask,
+                                taskCount = tasks.size,
                                 isBookmarked = viewModel.navigationPath.lastOrNull()?.let(viewModel::isBookmarked) ?: false,
                                 onRequestFolder = onRequestFolder,
                                 onRequestDirectStorage = onRequestDirectStorage,
@@ -384,8 +385,9 @@ fun BugeApp(
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
                                 modifier = Modifier.padding(padding), language = language, settings = settings,
-                                rootAvailable = rootAvailable, onSettingsChange = viewModel::updateSettings,
-                                onCheckForUpdates = viewModel::checkForUpdates
+                                rootAvailable = rootAvailable, shizukuAvailable = shizukuAvailable, shizukuPermission = shizukuPermission,
+                                onSettingsChange = viewModel::updateSettings, onCheckForUpdates = viewModel::checkForUpdates,
+                                onRequestShizuku = viewModel::requestShizukuPermission
                             )
                         }
                     }
@@ -399,6 +401,17 @@ fun BugeApp(
                 viewMode = settings.viewMode, showHidden = settings.showHidden,
                 onSort = viewModel::setSort, onView = viewModel::setViewMode, onToggleHidden = viewModel::toggleHidden,
                 onDismiss = { showActions = false }
+            )
+        }
+        if (showTasks) {
+            TaskListSheet(
+                language = language,
+                tasks = tasks,
+                activeId = viewModel.activeTaskId,
+                onActivate = { viewModel.setActiveTask(it); showTasks = false },
+                onRemove = viewModel::removeTask,
+                onClear = viewModel::clearTasks,
+                onDismiss = { showTasks = false }
             )
         }
         if (showCreateFile) {
@@ -488,15 +501,17 @@ fun BugeApp(
 @Composable
 private fun BugeTopBar(
     language: AppLanguage, root: RootLocation?, roots: List<RootLocation>, selectionCount: Int,
-    isSearching: Boolean, query: String, viewMode: ViewMode, sortOption: SortOption, ascending: Boolean,
+    isSearching: Boolean, query: String, viewMode: ViewMode, taskCount: Int,
     onSearch: () -> Unit, onQueryChange: (String) -> Unit, onCloseSearch: () -> Unit,
-    onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowActions: () -> Unit,
+    onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowTasks: () -> Unit, onShowActions: () -> Unit,
+    onRefresh: () -> Unit, onCopyPath: () -> Unit,
     onChangeView: () -> Unit, onClearSelection: () -> Unit, onSelectAll: () -> Unit,
     onCopy: () -> Unit, onMove: () -> Unit, onRename: () -> Unit, onCompress: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
     rootMenuExpanded: Boolean, onAddLocation: () -> Unit, onAddSmb: () -> Unit, onRemoveRoot: (RootLocation) -> Unit
 ) {
     val title = when { selectionCount > 0 -> "$selectionCount ${language.t("items")}"; isSearching -> ""; else -> "Buge Files" }
     var selectionMenu by remember { mutableStateOf(false) }
+    var overflowMenu by remember { mutableStateOf(false) }
     CenterAlignedTopAppBar(
         title = {
             if (isSearching) {
@@ -549,7 +564,20 @@ private fun BugeTopBar(
                 else -> {
                     IconButton(onClick = onSearch) { Icon(Icons.Outlined.Search, language.t("search")) }
                     IconButton(onClick = onChangeView) { Icon(if (viewMode == ViewMode.LIST) Icons.Outlined.GridView else Icons.AutoMirrored.Outlined.List, language.t("view")) }
-                    IconButton(onClick = onShowActions) { Icon(Icons.AutoMirrored.Outlined.Sort, "${language.t("sort")}: ${sortOption.name} ${if (ascending) "↑" else "↓"}") }
+                    Box {
+                        IconButton(onClick = { overflowMenu = true }) { Icon(Icons.Outlined.MoreVert, language.t("more")) }
+                        DropdownMenu(expanded = overflowMenu, onDismissRequest = { overflowMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(language.t("task_list")) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Outlined.List, null) },
+                                trailingIcon = { if (taskCount > 0) Text("$taskCount", style = MaterialTheme.typography.labelLarge) },
+                                onClick = { overflowMenu = false; onShowTasks() }
+                            )
+                            DropdownMenuItem(text = { Text(language.t("filter")) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Sort, null) }, onClick = { overflowMenu = false; onShowActions() })
+                            DropdownMenuItem(text = { Text(language.t("refresh")) }, leadingIcon = { Icon(Icons.Outlined.Refresh, null) }, onClick = { overflowMenu = false; onRefresh() })
+                            DropdownMenuItem(text = { Text(language.t("copy_path")) }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) }, onClick = { overflowMenu = false; onCopyPath() })
+                        }
+                    }
                 }
             }
         },
