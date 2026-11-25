@@ -63,6 +63,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.ArrowDownward
@@ -137,6 +139,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -1456,7 +1459,18 @@ private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: In
                 Text(label, style = MaterialTheme.typography.titleMedium, color = labelColor)
                 if (supportingText != null) Text(supportingText, style = MaterialTheme.typography.bodySmall, color = supportColor)
             }
-            Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+            Switch(
+                checked = checked,
+                onCheckedChange = null,
+                enabled = enabled,
+                thumbContent = {
+                    Icon(
+                        imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                    )
+                }
+            )
         }
     }
 }
@@ -1725,7 +1739,7 @@ private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: 
                         shape = groupItemShape(0, 2),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
                     ) { Text(language.t("install")) }
-                    OutlinedButton(
+                    FilledTonalButton(
                         onClick = onDismiss,
                         shape = groupItemShape(1, 2),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
