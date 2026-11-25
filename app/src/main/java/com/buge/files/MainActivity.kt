@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        viewModel.refreshShizuku()
         if (awaitingAllFilesAccess) {
             awaitingAllFilesAccess = false
             viewModel.refreshDirectStorageAccess(preferDirect = true)

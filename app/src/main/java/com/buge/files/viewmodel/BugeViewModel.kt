@@ -884,7 +884,14 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         archiveItems = emptyList()
         archiveLoading = true
         viewModelScope.launch {
-            val result = advancedToolsRepository.listZip(entry.uri)
+            val local = if (needsMaterialize(entry)) materialize(entry) else entry
+            if (local == null) {
+                archiveLoading = false
+                archiveTarget = null
+                return@launch
+            }
+            archiveTarget = local
+            val result = advancedToolsRepository.listZip(local.uri)
             archiveItems = result.items
             archiveLoading = false
             result.message?.let(::showMessage)
@@ -956,5 +963,10 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             }
             isStorageLoading = false
         }
+    }
+
+    override fun onCleared() {
+        ShizukuShell.removePermissionListener(shizukuListener)
+        super.onCleared()
     }
 }
