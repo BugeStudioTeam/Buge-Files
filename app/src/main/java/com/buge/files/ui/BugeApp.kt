@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -276,6 +277,7 @@ fun BugeApp(
                 }
                 Scaffold(
                     modifier = Modifier.weight(1f),
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     topBar = {
                         BugeTopBar(
                             language = language,
@@ -636,8 +638,7 @@ private fun BrowseScreen(
     var restoredPosition by remember(pathKey) { mutableStateOf(savedPosition == null) }
     LaunchedEffect(pathKey, entries.size, listState) {
         if (!restoredPosition && entries.isNotEmpty()) {
-            val maxItemIndex = entries.size + 3
-            listState.scrollToItem(savedPosition!!.index.coerceAtMost(maxItemIndex), savedPosition.offset)
+            listState.scrollToItem(savedPosition!!.index.coerceAtMost((entries.size - 1).coerceAtLeast(0)), savedPosition.offset)
             restoredPosition = true
         }
     }
@@ -683,74 +684,74 @@ private fun BrowseScreen(
             translationX = slideOffset.value
             alpha = 1f - (kotlin.math.abs(slideOffset.value) / (widthPx * 0.35f).coerceAtLeast(1f)) * 0.25f
         }) {
-        if (viewMode == ViewMode.LIST) {
-            PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            item {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Row(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-                            path.forEachIndexed { index, location ->
-                                if (index > 0) {
-                                    Text(text = "/", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
-                                }
-                                if (index == path.lastIndex) {
-                                    Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
-                                } else {
-                                    Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onNavigate(index) })
-                                }
-                            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 2.dp)
+            ) {
+                Row(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                    path.forEachIndexed { index, location ->
+                        if (index > 0) {
+                            Text(text = "/", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
                         }
-                        IconButton(onClick = onToggleBookmark) { Icon(if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, if (isBookmarked) language.t("unfavorite") else language.t("favorite")) }
+                        if (index == path.lastIndex) {
+                            Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
+                        } else {
+                            Text(text = location.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onNavigate(index) })
+                        }
                     }
                 }
+                IconButton(onClick = onToggleBookmark) { Icon(if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, if (isBookmarked) language.t("unfavorite") else language.t("favorite")) }
             }
             val saveDestination = path.lastOrNull()?.uri ?: root?.uri
             if (saveIncoming && saveDestination != null) {
-                item {
-                    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
-                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Archive, null)
-                            Spacer(Modifier.width(12.dp))
-                            Text("$incomingCount ${language.t("items")} ${language.t("save_as").lowercase()}", modifier = Modifier.weight(1f))
-                            FilledTonalButton(onClick = { scope.launch { onSaveIncoming(saveDestination, true) } }) { Text(language.t("save_here")) }
-                        }
+                ElevatedCard(
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Archive, null)
+                        Spacer(Modifier.width(12.dp))
+                        Text("$incomingCount ${language.t("items")} ${language.t("save_as").lowercase()}", modifier = Modifier.weight(1f))
+                        FilledTonalButton(onClick = { scope.launch { onSaveIncoming(saveDestination, true) } }) { Text(language.t("save_here")) }
                     }
                 }
             }
             if (activeTask != null) {
-                item {
-                    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(taskIcon(activeTask.type), null)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(taskTitle(activeTask, language), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("${activeTask.entries.size} ${language.t("items")} · ${language.t("task_list")}: $taskCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                            }
-                            FilledTonalButton(onClick = onPaste) { Text(if (activeTask.type == TaskType.COMPRESS) language.t("compress") else language.t("paste")) }
+                ElevatedCard(
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(taskIcon(activeTask.type), null)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(taskTitle(activeTask, language), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("${activeTask.entries.size} ${language.t("items")} · ${language.t("task_list")}: $taskCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        }
+                        FilledTonalButton(onClick = onPaste) { Text(if (activeTask.type == TaskType.COMPRESS) language.t("compress") else language.t("paste")) }
+                    }
+                }
+            }
+            if (isLoading && !isRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp))
+            if (entries.isEmpty() && !isLoading) EmptyFolder(language, searchActive)
+            if (viewMode == ViewMode.LIST) {
+                PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(entries, key = { it.uri.toString() }) { entry ->
+                            FileListItem(entry, language, compact, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
+                        }
+                    }
+                }
+            } else {
+                PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
+                    LazyVerticalGrid(columns = GridCells.Adaptive(145.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
+                        items(entries, key = { it.uri.toString() }) { entry ->
+                            FileGridItem(entry, language, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
                         }
                     }
                 }
             }
-            if (isLoading && !isRefreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-            if (entries.isEmpty() && !isLoading) item { EmptyFolder(language, searchActive) }
-            items(entries, key = { it.uri.toString() }) { entry ->
-                FileListItem(entry, language, compact, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
-            }
-                }
-            }
         }
-        if (viewMode == ViewMode.GRID && entries.isNotEmpty()) {
-            PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
-                LazyVerticalGrid(columns = GridCells.Adaptive(145.dp), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
-                    items(entries, key = { it.uri.toString() }) { entry ->
-                        FileGridItem(entry, language, isSelected(entry), selectionActive, openDirectoryAndSavePosition, onOpenFile, onToggleSelection, onInfo, showThumbnails = showThumbnails, thumbnailSource = viewModel::thumbnailSource, onNeedThumbnail = viewModel::loadThumbnail, thumbnailVersion = viewModel.thumbnailVersion)
-                    }
-                }
-            }
-        }
-    }
     }
 }
 
