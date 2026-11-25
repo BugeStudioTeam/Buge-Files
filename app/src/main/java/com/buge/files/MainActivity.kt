@@ -4,6 +4,8 @@
 package com.buge.files
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentResolver
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -18,10 +20,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MainActivity : ComponentActivity() {
     private val viewModel: BugeViewModel by viewModels()
+    private val appInstaller by lazy { AppInstaller(applicationContext) }
     private var awaitingAllFilesAccess = false
     private var selectMode = false
     private var saveMode = false
@@ -90,6 +95,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        viewModel.refreshShizuku()
         if (awaitingAllFilesAccess) {
             awaitingAllFilesAccess = false
             viewModel.refreshDirectStorageAccess(preferDirect = true)
@@ -153,6 +159,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun installApk(file: FileEntry) {
+        val settings = viewModel.settings.value
+        if (settings.installEnabled) {
+            lifecycleScope.launch {
+                Toast.makeText(this@MainActivity, "Installing…", Toast.LENGTH_SHORT).show()
+                val result = appInstaller.install(file, settings)
+                if (!result.success) {
+                    runCatching {
+                        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Buge Files installation error", result.detail ?: result.message))
+                    }
+                }
+                val text = if (result.success) result.message else "${result.message}\nFailure details copied to clipboard"
+                Toast.makeText(this@MainActivity, text, Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         val uri = safeUri(file) ?: run {
             Toast.makeText(this, "The APK is no longer available", Toast.LENGTH_SHORT).show()
             return

@@ -25,7 +25,8 @@ import java.util.Locale
 class FileRepository(
     private val context: Context,
     private val rootAccessEnabled: () -> Boolean = { false },
-    private val rootCommand: () -> String = { "su" }
+    private val rootCommand: () -> String = { "su" },
+    private val shizukuEnabled: () -> Boolean = { false }
 ) {
     private val resolver: ContentResolver = context.contentResolver
 
@@ -34,16 +35,65 @@ class FileRepository(
     private fun documentTree(uri: Uri): DocumentFile? = DocumentFile.fromTreeUri(context, uri)?.takeIf { it.exists() && it.isDirectory }
     private fun document(uri: Uri): DocumentFile? = DocumentFile.fromSingleUri(context, uri)?.takeIf { it.exists() }
 
+    fun canElevate(): Boolean = elevatedEnabled()
+    fun needsElevation(uri: Uri): Boolean = isDirect(uri) && uri.path?.let { needsElevation(File(it)) } == true
+
+    private fun elevatedEnabled(): Boolean =
+        rootAccessEnabled() || (shizukuEnabled() && ShizukuShell.hasPermission())
+
+    private fun isOwnPath(path: String): Boolean {
+        if (path.contains("/Android/data/${context.packageName}")) return true
+        val ownDirs = listOfNotNull(context.filesDir, context.cacheDir, context.externalCacheDir, context.getExternalFilesDir(null))
+        return ownDirs.any { path == it.absolutePath || path.startsWith(it.absolutePath + File.separator) }
+    }
+
+    private fun needsElevation(file: File): Boolean {
+        if (isOwnPath(file.path)) return false
+        return requiresRoot(file) || requiresRoot(file.parentFile ?: file)
+    }
+
+    private fun elevatedDirect(uri: Uri): File? = uri.path?.let(::File)?.takeIf { isDirect(uri) && (it.exists() || (elevatedEnabled() && needsElevation(it))) }
+
+    private fun runShell(command: String): ShellResult? {
+        if (rootAccessEnabled()) {
+            val result = runRootResult("($command) 2>&1")
+            if (result != null && result.exitCode == 0) return result
+        }
+        if (shizukuEnabled() && ShizukuShell.hasPermission()) return ShizukuShell.exec("($command) 2>&1")
+        return null
+    }
+
+    private fun runElevated(command: String): String? =
+        runShell(command)?.takeIf { it.exitCode == 0 }?.output
+
+    private fun runRootResult(command: String): ShellResult? = runCatching {
+        val executable = rootCommand().trim().split(Regex("\\s+")).filter { it.isNotBlank() }.ifEmpty { listOf("su") }
+        val process = ProcessBuilder(executable + listOf("-c", command)).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        ShellResult(process.waitFor(), output)
+    }.getOrNull()
+
+    private fun shellExists(path: String): Boolean =
+        runElevated("if [ -e ${shellQuote(path)} ]; then echo 1; fi")?.trim() == "1"
+
+    suspend fun copyToLocalCopy(uri: Uri, target: File): Boolean = withContext(Dispatchers.IO) {
+        val source = uri.path?.let(::File) ?: return@withContext false
+        target.parentFile?.mkdirs()
+        val command = "cp -r ${shellQuote(source.path)} ${shellQuote(target.path)} && chmod -R a+rX ${shellQuote(target.path)}"
+        val result = runElevated(command)
+        result != null && target.exists()
+    }
+
     suspend fun list(directoryUri: Uri, sort: SortOption, ascending: Boolean, showHidden: Boolean): List<FileEntry> = withContext(Dispatchers.IO) {
         val items = when {
             isDirect(directoryUri) -> {
-                val directory = directoryUri.path?.let(::File)?.takeIf { it.exists() || rootAccessEnabled() }
+                val directory = directoryUri.path?.let(::File)?.takeIf { it.exists() || elevatedEnabled() }
                 val directItems = directory?.listFiles().orEmpty().asSequence()
                     .filter { showHidden || !it.name.startsWith('.') }
                     .map(::toEntry)
                     .toList()
-                if (directory != null && (requiresRoot(directory) || directItems.isEmpty()) && rootAccessEnabled()) {
-                    listAsRoot(directory, showHidden).ifEmpty { directItems }
+                if (directory != null && (requiresRoot(directory) || directItems.isEmpty()) && elevatedEnabled()) {
+                    listViaShell(directory, showHidden).ifEmpty { directItems }
                 } else {
                     directItems
                 }
@@ -133,10 +183,15 @@ class FileRepository(
     suspend fun createFolder(parentUri: Uri, name: String): OperationResult = withContext(Dispatchers.IO) {
         if (!validName(name)) return@withContext OperationResult(false, "Enter a valid folder name")
         if (isDirect(parentUri)) {
-            val parent = direct(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
+            val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
-            if (target.exists()) OperationResult(false, "An item with that name already exists")
-            else if (target.mkdir()) OperationResult(true, "Folder created") else OperationResult(false, "Could not create folder")
+            val elevated = elevatedEnabled() && (needsElevation(parent) || !parent.canWrite())
+            when {
+                target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
+                target.mkdir() -> OperationResult(true, "Folder created")
+                elevated && runElevated("mkdir -p ${shellQuote(target.path)}") != null -> OperationResult(true, "Folder created")
+                else -> OperationResult(false, "Could not create folder")
+            }
         } else {
             val parent = documentTree(parentUri) ?: return@withContext OperationResult(false, "Folder access is no longer available")
             if (parent.findFile(name) != null) OperationResult(false, "An item with that name already exists")
@@ -147,11 +202,13 @@ class FileRepository(
     suspend fun createFile(parentUri: Uri, name: String): OperationResult = withContext(Dispatchers.IO) {
         if (!validName(name)) return@withContext OperationResult(false, "Enter a valid file name")
         if (isDirect(parentUri)) {
-            val parent = direct(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
+            val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
+            val elevated = elevatedEnabled() && (needsElevation(parent) || !parent.canWrite())
             when {
-                target.exists() -> OperationResult(false, "An item with that name already exists")
+                target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 target.createNewFile() -> OperationResult(true, "File created")
+                elevated && runElevated("touch ${shellQuote(target.path)}") != null -> OperationResult(true, "File created")
                 else -> OperationResult(false, "Could not create file")
             }
         } else {
@@ -167,11 +224,13 @@ class FileRepository(
     suspend fun rename(entry: FileEntry, newName: String): OperationResult = withContext(Dispatchers.IO) {
         if (!validName(newName)) return@withContext OperationResult(false, "Enter a valid name")
         if (isDirect(entry.uri)) {
-            val source = direct(entry.uri) ?: return@withContext OperationResult(false, "File is not available")
+            val source = elevatedDirect(entry.uri) ?: return@withContext OperationResult(false, "File is not available")
             val target = File(source.parentFile, newName)
+            val elevated = elevatedEnabled() && (needsElevation(source) || source.parentFile?.canWrite() == false)
             when {
-                target.exists() -> OperationResult(false, "An item with that name already exists")
+                target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 source.renameTo(target) -> OperationResult(true, "Renamed")
+                elevated && runElevated("mv ${shellQuote(source.path)} ${shellQuote(target.path)}") != null -> OperationResult(true, "Renamed")
                 else -> OperationResult(false, "Could not rename item")
             }
         } else {
@@ -183,7 +242,11 @@ class FileRepository(
     suspend fun delete(entries: List<FileEntry>): OperationResult = withContext(Dispatchers.IO) {
         var failed = 0
         entries.forEach { entry ->
-            val deleted = if (isDirect(entry.uri)) direct(entry.uri)?.deleteRecursively() == true else document(entry.uri)?.delete() == true
+            val deleted = if (isDirect(entry.uri)) {
+                val file = entry.uri.path?.let(::File)
+                if (file != null && elevatedEnabled() && (needsElevation(file) || file.parentFile?.canWrite() == false)) runElevated("rm -rf ${shellQuote(file.path)}") != null
+                else direct(entry.uri)?.deleteRecursively() == true
+            } else document(entry.uri)?.delete() == true
             if (!deleted) failed++
         }
         operationSummary(entries.size, failed, "deleted")
@@ -200,7 +263,14 @@ class FileRepository(
         fun progress() = onProgress?.invoke(bytesDone + tracker.done, bytesTotal, completed + failed, total)
         clipboard.entries.forEach { entry ->
             tracker.reset()
-            val copied = if (isDirect(destinationUri)) {
+            val sourceFile = if (isDirect(entry.uri)) entry.uri.path?.let(::File) else null
+            val destinationDirectory = if (isDirect(destinationUri)) destinationUri.path?.let(::File) else null
+            val viaShell = sourceFile != null && destinationDirectory != null && elevatedEnabled() &&
+                (needsElevation(sourceFile) || needsElevation(destinationDirectory) ||
+                    !sourceFile.canRead() || !destinationDirectory.canWrite())
+            val copied = if (viaShell) {
+                copyDirectViaShell(sourceFile!!, destinationDirectory!!, clipboard.mode == ClipboardMode.MOVE)
+            } else if (isDirect(destinationUri)) {
                 val destination = direct(destinationUri)
                 when {
                     destination == null || !destination.isDirectory || sourceWouldContainDestination(entry.uri, destination) -> false
@@ -217,7 +287,7 @@ class FileRepository(
             }
             if (copied) {
                 completed++
-                if (clipboard.mode == ClipboardMode.MOVE && !deleteSource(entry.uri)) failed++
+                if (clipboard.mode == ClipboardMode.MOVE && !viaShell && !deleteSource(entry.uri)) failed++
             } else failed++
             bytesDone += tracker.done
             progress()
@@ -408,6 +478,25 @@ class FileRepository(
         } catch (_: Exception) { null }
     }
 
+    private fun copyDirectViaShell(source: File, destination: File, move: Boolean): Boolean {
+        val sourcePath = source.path.trimEnd('/')
+        val destinationPath = destination.path.trimEnd('/')
+        if (destinationPath == sourcePath || destinationPath.startsWith("$sourcePath/")) return false
+        val requested = source.name
+        val stem = requested.substringBeforeLast('.', requested)
+        val extension = if (!source.isDirectory && requested.contains('.')) ".${requested.substringAfterLast('.')}" else ""
+        var index = 0
+        var name = requested
+        while (shellExists(File(destination, name).path)) {
+            index++
+            name = "$stem ($index)$extension"
+        }
+        val target = File(destination, name)
+        val command = if (move) "mv ${shellQuote(source.path)} ${shellQuote(target.path)}"
+        else "cp -r ${shellQuote(source.path)} ${shellQuote(target.path)}"
+        return runElevated(command) != null
+    }
+
     private fun deleteSource(uri: Uri): Boolean = if (isDirect(uri)) direct(uri)?.deleteRecursively() == true else document(uri)?.delete() == true
 
     private fun sourceWouldContainDestination(sourceUri: Uri, destination: File): Boolean {
@@ -440,7 +529,7 @@ class FileRepository(
             path.contains("/Android/data") || path.contains("/Android/obb")
     }
 
-    private fun listAsRoot(directory: File, showHidden: Boolean): List<FileEntry> {
+    private fun listViaShell(directory: File, showHidden: Boolean): List<FileEntry> {
         val script = """
             cd ${shellQuote(directory.path)} && for f in * .[!.]* ..?*; do
               if [ -e "${'$'}f" ] || [ -L "${'$'}f" ]; then
@@ -449,7 +538,7 @@ class FileRepository(
               fi
             done
         """.trimIndent()
-        val output = runRoot(script) ?: return emptyList()
+        val output = runElevated(script) ?: return emptyList()
         return output.lineSequence().mapNotNull { line ->
             val parts = line.split('\u001f')
             if (parts.size < 2) return@mapNotNull null
@@ -468,13 +557,6 @@ class FileRepository(
             )
         }.toList()
     }
-
-    private fun runRoot(command: String): String? = runCatching {
-        val executable = rootCommand().trim().split(Regex("\\s+")).filter { it.isNotBlank() }.ifEmpty { listOf("su") }
-        val process = ProcessBuilder(executable + listOf("-c", command)).redirectErrorStream(true).start()
-        val output = process.inputStream.bufferedReader().use { it.readText() }
-        if (process.waitFor() == 0) output else null
-    }.getOrNull()
 
     private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 

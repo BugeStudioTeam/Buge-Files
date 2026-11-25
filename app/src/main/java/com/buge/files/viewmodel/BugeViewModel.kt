@@ -26,14 +26,41 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import rikka.shizuku.Shizuku
 
 data class BrowseScrollPosition(val index: Int, val offset: Int)
+
+private data class ArchiveReturn(val root: RootLocation?, val path: List<RootLocation>)
 
 class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
-    private val fileRepository = FileRepository(application, { _settings.value.rootAccess }, { _settings.value.rootCommand })
+    var shizukuAvailable by mutableStateOf(ShizukuShell.isAvailable())
+        private set
+    var shizukuPermission by mutableStateOf(ShizukuShell.hasPermission())
+        private set
+
+    private val shizukuBinderListener = Shizuku.OnBinderReceivedListener {
+        refreshShizuku()
+        updateVisibleRoots()
+    }
+
+    private val shizukuListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+        if (requestCode == ShizukuShell.REQUEST_CODE) {
+            refreshShizuku()
+            if (grantResult != PackageManager.PERMISSION_GRANTED) showMessage("Shizuku permission was not granted")
+            updateVisibleRoots()
+            refresh()
+        }
+    }
+
+    private val fileRepository = FileRepository(
+        application,
+        { _settings.value.rootAccess },
+        { _settings.value.rootCommand },
+        { _settings.value.shizukuAccess }
+    )
     val smbRepository = SmbRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val copyProgressNotifier = CopyProgressNotifier(application)
@@ -43,6 +70,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private var loadingJob: Job? = null
     private var lastRootCommand: String? = "su"
     private val browseScrollPositions = mutableMapOf<String, BrowseScrollPosition>()
+    private val archiveStack = ArrayDeque<ArchiveReturn>()
 
     private val _roots = MutableStateFlow<List<RootLocation>>(emptyList())
     val roots: StateFlow<List<RootLocation>> = _roots.asStateFlow()
@@ -87,8 +115,13 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var selection by mutableStateOf<Set<Uri>>(emptySet())
         private set
-    var clipboard by mutableStateOf<ClipboardState?>(null)
+    private val _tasks = MutableStateFlow<List<FileTask>>(emptyList())
+    val tasks: StateFlow<List<FileTask>> = _tasks.asStateFlow()
+    var activeTaskId by mutableStateOf<Long?>(null)
         private set
+    var taskRunning by mutableStateOf(false)
+        private set
+    private var nextTaskId = 1L
     var message by mutableStateOf<String?>(null)
         private set
     var pendingInfo by mutableStateOf<FileEntry?>(null)
@@ -164,6 +197,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     val recents: List<FileEntry> get() = recentItems
 
     init {
+        ShizukuShell.addBinderListener(shizukuBinderListener)
+        ShizukuShell.addPermissionListener(shizukuListener)
         viewModelScope.launch {
             settingsRepository.settings.collect { newSettings ->
                 _settings.value = newSettings
@@ -255,6 +290,22 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         updateVisibleRoots(preferDirect)
     }
 
+    fun refreshShizuku() {
+        shizukuAvailable = ShizukuShell.isAvailable()
+        shizukuPermission = ShizukuShell.hasPermission()
+    }
+
+    fun shizukuReady(): Boolean = shizukuAvailable && shizukuPermission && _settings.value.shizukuAccess
+
+    fun requestShizukuPermission() {
+        refreshShizuku()
+        if (!shizukuAvailable) {
+            showMessage(_settings.value.language.resolved().t("shizuku_unavailable"))
+            return
+        }
+        ShizukuShell.requestPermission()
+    }
+
     private fun detectRootAccess() {
         viewModelScope.launch {
             val available = withContext(Dispatchers.IO) { hasRootAccess() }
@@ -284,7 +335,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         if (_rootAvailable.value && _settings.value.rootAccess) RootLocation(Uri.fromFile(File("/")), "Root directory") else null
 
     private fun updateVisibleRoots(preferDirect: Boolean = false) {
-        val direct = directRoot().takeIf { _directStorageAvailable.value }
+        val direct = directRoot().takeIf { _directStorageAvailable.value || shizukuReady() }
         val locations = listOfNotNull(direct, rootDirectoryRoot()) + safRoots
         _roots.value = locations
         val current = _currentRoot.value
@@ -292,6 +343,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             preferDirect && direct != null -> selectRoot(direct)
             current == null && locations.isNotEmpty() -> selectRoot(locations.first())
             current != null && locations.none { it.uri == current.uri } -> {
+                archiveStack.clear()
                 _currentRoot.value = locations.firstOrNull()
                 navigationPath = locations.firstOrNull()?.let { listOf(it) }.orEmpty()
                 refresh()
@@ -301,9 +353,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun directRoot(): RootLocation? {
         val root = runCatching { File("/sdcard").canonicalFile }.getOrNull() ?: return null
-        return root.takeIf { it.exists() && it.isDirectory }?.let { RootLocation(Uri.fromFile(it), "Internal storage") }
+        val accessible = (root.exists() && root.isDirectory) || _directStorageAvailable.value || shizukuReady()
+        return root.takeIf { accessible }?.let { RootLocation(Uri.fromFile(it), "Internal storage") }
     }
     fun selectRoot(location: RootLocation, reportFailure: Boolean = false) {
+        archiveStack.clear()
         _currentRoot.value = location
         navigationPath = listOf(location)
         selection = emptySet()
@@ -313,6 +367,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openBookmark(location: RootLocation) {
+        archiveStack.clear()
         destination = AppDestination.BROWSE
         val owner = owningRoot(location.uri)
         val rootUri = owner?.uri ?: location.uri
@@ -534,15 +589,76 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun compressSelected(archiveName: String) {
         val items = selectedEntries()
-        val destination = navigationPath.lastOrNull() ?: return
         if (items.isEmpty()) return
+        enqueueTask(TaskType.COMPRESS, items, archiveName)
+    }
+
+    private fun enqueueTask(type: TaskType, items: List<FileEntry>, archiveName: String? = null) {
+        val task = FileTask(id = nextTaskId++, type = type, entries = items, archiveName = archiveName)
+        _tasks.value = _tasks.value + task
+        activeTaskId = task.id
+        clearSelection()
+        showMessage(_settings.value.language.resolved().t("tasks_added"))
+    }
+
+    fun setActiveTask(id: Long) { activeTaskId = id }
+
+    fun removeTask(id: Long) {
+        _tasks.value = _tasks.value.filterNot { it.id == id }
+        if (activeTaskId == id) activeTaskId = _tasks.value.lastOrNull()?.id
+    }
+
+    fun clearTasks() {
+        _tasks.value = emptyList()
+        activeTaskId = null
+    }
+
+    private fun updateTask(id: Long, transform: (FileTask) -> FileTask) {
+        _tasks.value = _tasks.value.map { if (it.id == id) transform(it) else it }
+    }
+
+    fun openArchive(entry: FileEntry) {
         viewModelScope.launch {
             isLoading = true
-            val result = advancedToolsRepository.compressToZip(items, destination.uri, archiveName)
+            val source = materialize(entry)
+            if (source == null) {
+                isLoading = false
+                showMessage("Archive is not available")
+                return@launch
+            }
+            val directory = File(getApplication<Application>().cacheDir, "archives/${entry.uri.hashCode()}")
+            directory.deleteRecursively()
+            directory.mkdirs()
+            val result = advancedToolsRepository.extractZip(source.uri, Uri.fromFile(directory))
             isLoading = false
-            showMessage(result.message)
-            if (result.success) { clearSelection(); refresh() }
+            if (!result.success) {
+                showMessage(result.message)
+                return@launch
+            }
+            archiveStack.addLast(ArchiveReturn(_currentRoot.value, navigationPath))
+            val location = RootLocation(Uri.fromFile(directory), entry.name)
+            _currentRoot.value = location
+            navigationPath = listOf(location)
+            selection = emptySet()
+            searchQuery = ""
+            isSearching = false
+            destination = AppDestination.BROWSE
+            refresh()
         }
+    }
+
+    fun isInsideArchive(): Boolean = archiveStack.isNotEmpty() && navigationPath.size == 1
+
+    fun leaveArchive(): Boolean {
+        if (archiveStack.isEmpty()) return false
+        val state = archiveStack.removeLast()
+        _currentRoot.value = state.root
+        navigationPath = state.path
+        selection = emptySet()
+        searchQuery = ""
+        isSearching = false
+        refresh()
+        return true
     }
 
     fun deleteSelected() = delete(selectedEntries())
@@ -560,15 +676,52 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun copySelected(mode: ClipboardMode) {
         val items = selectedEntries()
         if (items.isEmpty()) return
-        clipboard = ClipboardState(items, mode)
-        clearSelection()
-        showMessage(if (mode == ClipboardMode.COPY) "Ready to copy ${items.size} item(s)" else "Ready to move ${items.size} item(s)")
+        enqueueTask(if (mode == ClipboardMode.MOVE) TaskType.MOVE else TaskType.COPY, items)
+    }
+
+    fun activeTask(): FileTask? = _tasks.value.firstOrNull { it.id == activeTaskId }
+
+    fun runTask(id: Long) {
+        val task = _tasks.value.firstOrNull { it.id == id } ?: return
+        val location = navigationPath.lastOrNull() ?: return
+        if (taskRunning) return
+        if (task.type == TaskType.COMPRESS) {
+            runCompressTask(task, location.uri)
+        } else {
+            runPasteTask(task, location.uri)
+        }
     }
 
     fun paste() {
-        val content = clipboard ?: return
-        val location = navigationPath.lastOrNull() ?: return
+        activeTask()?.let { runTask(it.id) }
+    }
+
+    private fun runCompressTask(task: FileTask, destination: Uri) {
         viewModelScope.launch {
+            taskRunning = true
+            updateTask(task.id) { it.copy(state = TaskState.RUNNING) }
+            isLoading = true
+            val prepared = task.entries.map { entry ->
+                if (fileRepository.needsElevation(entry.uri)) materialize(entry) ?: entry else entry
+            }
+            val result = advancedToolsRepository.compressToZip(prepared, destination, task.archiveName.orEmpty())
+            isLoading = false
+            taskRunning = false
+            showMessage(result.message)
+            if (result.success) {
+                removeTask(task.id)
+                refresh()
+            } else {
+                updateTask(task.id) { it.copy(state = TaskState.FAILED, detail = result.message) }
+            }
+        }
+    }
+
+    private fun runPasteTask(task: FileTask, destination: Uri) {
+        val content = ClipboardState(task.entries, if (task.type == TaskType.MOVE) ClipboardMode.MOVE else ClipboardMode.COPY)
+        viewModelScope.launch {
+            taskRunning = true
+            updateTask(task.id) { it.copy(state = TaskState.RUNNING) }
             isLoading = true
             val moving = content.mode == ClipboardMode.MOVE
             val language = _settings.value.language.resolved()
@@ -580,24 +733,25 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             }
             val smbEntries = content.entries.filter { SmbUri.isSmb(it.uri) }
             val localEntries = content.entries.filterNot { SmbUri.isSmb(it.uri) }
-            val destinationIsSmb = SmbUri.isSmb(location.uri)
+            val destinationIsSmb = SmbUri.isSmb(destination)
             val results = mutableListOf<OperationResult>()
             try {
-                if (SmbUri.isSmb(location.uri) || smbEntries.isNotEmpty()) {
-                    if (SmbUri.isSmb(location.uri)) {
+                if (SmbUri.isSmb(destination) || smbEntries.isNotEmpty()) {
+                    if (SmbUri.isSmb(destination)) {
                         val forSmb = smbEntries + localEntries
-                        results += smbRepository.paste(content.copy(entries = forSmb), location.uri, onProgress)
+                        results += smbRepository.paste(content.copy(entries = forSmb), destination, onProgress)
                     } else {
-                        results += smbRepository.paste(content.copy(entries = smbEntries), location.uri, onProgress)
+                        results += smbRepository.paste(content.copy(entries = smbEntries), destination, onProgress)
                     }
                 }
                 if (!destinationIsSmb && localEntries.isNotEmpty()) {
-                    results += fileRepository.paste(content.copy(entries = localEntries), location.uri, onProgress)
+                    results += fileRepository.paste(content.copy(entries = localEntries), destination, onProgress)
                 }
             } catch (error: Throwable) {
                 notifierFailure = error.message
             }
             isLoading = false
+            taskRunning = false
             val result = when {
                 results.isEmpty() -> OperationResult(false, "No items were pasted")
                 results.any { it.success } -> OperationResult(true, results.first { it.success }.message)
@@ -609,8 +763,19 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
                 copyProgressNotifier.finish(result.success, language.t(if (result.success) "transfer_complete" else "transfer_failed"), result.message)
             }
             showMessage(result.message)
-            if (result.success) { clipboard = null; refresh() }
+            when {
+                !result.success -> updateTask(task.id) { it.copy(state = TaskState.FAILED, detail = result.message) }
+                task.type == TaskType.MOVE -> removeTask(task.id)
+                else -> updateTask(task.id) { it.copy(state = TaskState.COMPLETED, runs = it.runs + 1, detail = result.message) }
+            }
+            if (result.success) refresh()
         }
+    }
+
+    fun currentLocationPath(): String {
+        val location = navigationPath.lastOrNull() ?: return ""
+        return if (location.uri.scheme == ContentResolver.SCHEME_FILE) location.uri.path ?: location.uri.toString()
+        else location.uri.toString()
     }
 
     fun toggleBookmark(location: RootLocation) = viewModelScope.launch { settingsRepository.toggleBookmark(location) }
@@ -636,14 +801,17 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openBuiltInTool(entry: FileEntry): Boolean = when {
         entry.isApkPackage() -> { inspectApk(entry); recordOpened(entry); true }
-        entry.isImageFile() -> { imagePreview = entry; recordOpened(entry); true }
-        entry.isZipContainer() -> { inspectArchive(entry); recordOpened(entry); true }
+        entry.isImageFile() -> { showImage(entry); true }
+        entry.isZipContainer() -> { openArchive(entry); recordOpened(entry); true }
         entry.isEditableText() -> { openTextEditor(entry); recordOpened(entry); true }
         else -> false
     }
 
+    private fun needsMaterialize(entry: FileEntry): Boolean =
+        SmbUri.isSmb(entry.uri) || (fileRepository.needsElevation(entry.uri) && fileRepository.canElevate())
+
     fun openEntry(entry: FileEntry, onOpenFile: (FileEntry) -> Unit) {
-        if (!SmbUri.isSmb(entry.uri) || entry.isDirectory) {
+        if (!needsMaterialize(entry) || entry.isDirectory) {
             if (!openBuiltInTool(entry)) { recordOpened(entry); onOpenFile(entry) }
             return
         }
@@ -657,9 +825,18 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun materialize(entry: FileEntry): FileEntry? {
-        if (!SmbUri.isSmb(entry.uri)) return entry
         val safeName = entry.name.replace(Regex("[^A-Za-z0-9._-]"), "_")
-        val target = File(getApplication<Application>().cacheDir, safeName)
+        val app = getApplication<Application>()
+        if (fileRepository.needsElevation(entry.uri)) {
+            if (!fileRepository.canElevate()) return null
+            val directory = app.externalCacheDir ?: app.cacheDir
+            val target = File(directory, "${entry.uri.hashCode()}_$safeName")
+            target.delete()
+            if (!fileRepository.copyToLocalCopy(entry.uri, target)) return null
+            return entry.copy(uri = Uri.fromFile(target))
+        }
+        if (!SmbUri.isSmb(entry.uri)) return entry
+        val target = File(app.cacheDir, safeName)
         val language = _settings.value.language.resolved()
         val label = language.t("downloading")
         copyProgressNotifier.start(label, label)
@@ -676,14 +853,14 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun thumbnailSource(entry: FileEntry): File? {
         if (entry.isDirectory) return null
         if (!entry.isImageFile() && !entry.isVideoFile()) return null
-        if (SmbUri.isSmb(entry.uri)) return thumbnailCache[entry.uri.toString()]
+        if (needsMaterialize(entry)) return thumbnailCache[entry.uri.toString()]
         return entry.uri.path?.let(::File)
     }
 
     fun loadThumbnail(entry: FileEntry) {
         if (entry.isDirectory) return
         if (!entry.isImageFile() && !entry.isVideoFile()) return
-        if (!SmbUri.isSmb(entry.uri)) return
+        if (!needsMaterialize(entry)) return
         val key = entry.uri.toString()
         if (thumbnailCache.containsKey(key)) return
         viewModelScope.launch {
@@ -698,7 +875,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun showImage(entry: FileEntry) {
         recordOpened(entry)
-        if (SmbUri.isSmb(entry.uri)) {
+        if (needsMaterialize(entry)) {
             viewModelScope.launch {
                 val local = materialize(entry)
                 if (local != null) imagePreview = local
@@ -713,7 +890,14 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         apkMetadata = null
         apkLoading = true
         viewModelScope.launch {
-            val result = apkRepository.inspect(entry)
+            val local = if (needsMaterialize(entry)) materialize(entry) else entry
+            if (local == null) {
+                apkLoading = false
+                apkTarget = null
+                return@launch
+            }
+            apkTarget = local
+            val result = apkRepository.inspect(local)
             apkLoading = false
             apkMetadata = result.metadata
             result.message?.let(::showMessage)
@@ -728,7 +912,14 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         editorText = ""
         editorLoading = true
         viewModelScope.launch {
-            val result = advancedToolsRepository.readText(entry.uri)
+            val local = if (needsMaterialize(entry)) materialize(entry) else entry
+            if (local == null) {
+                editorLoading = false
+                editorTarget = null
+                return@launch
+            }
+            editorTarget = local
+            val result = advancedToolsRepository.readText(local.uri)
             editorLoading = false
             result.text?.let { editorText = it }
             result.message?.let(::showMessage)
@@ -754,7 +945,14 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         archiveItems = emptyList()
         archiveLoading = true
         viewModelScope.launch {
-            val result = advancedToolsRepository.listZip(entry.uri)
+            val local = if (needsMaterialize(entry)) materialize(entry) else entry
+            if (local == null) {
+                archiveLoading = false
+                archiveTarget = null
+                return@launch
+            }
+            archiveTarget = local
+            val result = advancedToolsRepository.listZip(local.uri)
             archiveItems = result.items
             archiveLoading = false
             result.message?.let(::showMessage)
@@ -826,5 +1024,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             }
             isStorageLoading = false
         }
+    }
+
+    override fun onCleared() {
+        ShizukuShell.removeBinderListener(shizukuBinderListener)
+        ShizukuShell.removePermissionListener(shizukuListener)
+        super.onCleared()
     }
 }

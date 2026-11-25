@@ -13,12 +13,16 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.text.BasicTextField
@@ -62,11 +66,13 @@ import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
@@ -80,6 +86,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
@@ -88,6 +95,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VideoFile
 import androidx.compose.material.icons.outlined.Visibility
@@ -111,7 +119,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
@@ -156,11 +163,13 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
@@ -204,10 +213,16 @@ fun BugeApp(
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
+    val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val language = settings.language.resolved()
     val snackbars = remember { SnackbarHostState() }
+    val clipboardManager = LocalClipboardManager.current
     var showRootMenu by remember { mutableStateOf(false) }
     var showActions by remember { mutableStateOf(false) }
+    var showTasks by remember { mutableStateOf(false) }
+    val activeTask = tasks.firstOrNull { it.id == viewModel.activeTaskId }
+    val shizukuAvailable = viewModel.shizukuAvailable
+    val shizukuPermission = viewModel.shizukuPermission
     var showCreateFile by remember { mutableStateOf(false) }
     var showCreateFolder by remember { mutableStateOf(false) }
     var showCompress by remember { mutableStateOf(false) }
@@ -230,6 +245,7 @@ fun BugeApp(
             viewModel.selection.isNotEmpty() -> viewModel.clearSelection()
             viewModel.isSearching -> viewModel.setSearchActive(false)
             viewModel.destination != AppDestination.BROWSE -> viewModel.selectDestination(AppDestination.BROWSE)
+            viewModel.isInsideArchive() -> viewModel.leaveArchive()
             viewModel.navigationPath.size > 1 -> viewModel.navigateUp()
             else -> {
                 val now = SystemClock.elapsedRealtime()
@@ -265,14 +281,23 @@ fun BugeApp(
                             isSearching = viewModel.isSearching,
                             query = viewModel.searchQuery,
                             viewMode = settings.viewMode,
-                            sortOption = viewModel.sortOption,
-                            ascending = viewModel.ascending,
+                            taskCount = tasks.size,
                             onSearch = { viewModel.setSearchActive(true) },
                             onQueryChange = viewModel::updateSearch,
                             onCloseSearch = { viewModel.setSearchActive(false) },
                             onToggleRootMenu = { showRootMenu = !showRootMenu },
                             onSelectRoot = { viewModel.selectRoot(it, reportFailure = true); showRootMenu = false },
+                            onShowTasks = { showTasks = true },
                             onShowActions = { showActions = true },
+                            onRefresh = { viewModel.refresh(reportFailure = true) },
+                            onCopyPath = {
+                                val path = viewModel.currentLocationPath()
+                                if (path.isBlank()) viewModel.showMessage(language.t("read_failed"))
+                                else {
+                                    clipboardManager.setText(AnnotatedString(path))
+                                    viewModel.showMessage(language.t("path_copied"))
+                                }
+                            },
                             onChangeView = { viewModel.setViewMode(if (settings.viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST) },
                             onClearSelection = viewModel::clearSelection,
                             onSelectAll = viewModel::selectAll,
@@ -328,7 +353,8 @@ fun BugeApp(
                                 viewMode = settings.viewMode,
                                 compact = settings.compactMode,
                                 showThumbnails = settings.showThumbnails,
-                                clipboard = viewModel.clipboard,
+                                activeTask = activeTask,
+                                taskCount = tasks.size,
                                 isBookmarked = viewModel.navigationPath.lastOrNull()?.let(viewModel::isBookmarked) ?: false,
                                 onRequestFolder = onRequestFolder,
                                 onRequestDirectStorage = onRequestDirectStorage,
@@ -359,8 +385,9 @@ fun BugeApp(
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
                                 modifier = Modifier.padding(padding), language = language, settings = settings,
-                                rootAvailable = rootAvailable, onSettingsChange = viewModel::updateSettings,
-                                onCheckForUpdates = viewModel::checkForUpdates
+                                rootAvailable = rootAvailable, shizukuAvailable = shizukuAvailable, shizukuPermission = shizukuPermission,
+                                onSettingsChange = viewModel::updateSettings, onCheckForUpdates = viewModel::checkForUpdates,
+                                onRequestShizuku = viewModel::requestShizukuPermission
                             )
                         }
                     }
@@ -370,10 +397,21 @@ fun BugeApp(
 
         if (showActions) {
             SortAndViewSheet(
-                language = language, sortOption = viewModel.sortOption, ascending = viewModel.ascending,
+                language = language, sortOption = viewModel.sortOption,
                 viewMode = settings.viewMode, showHidden = settings.showHidden,
                 onSort = viewModel::setSort, onView = viewModel::setViewMode, onToggleHidden = viewModel::toggleHidden,
                 onDismiss = { showActions = false }
+            )
+        }
+        if (showTasks) {
+            TaskListSheet(
+                language = language,
+                tasks = tasks,
+                activeId = viewModel.activeTaskId,
+                onActivate = { viewModel.setActiveTask(it); showTasks = false },
+                onRemove = viewModel::removeTask,
+                onClear = viewModel::clearTasks,
+                onDismiss = { showTasks = false }
             )
         }
         if (showCreateFile) {
@@ -423,9 +461,6 @@ fun BugeApp(
         viewModel.editorTarget?.let { file ->
             CodeEditorScreen(file = file, content = viewModel.editorText, loading = viewModel.editorLoading, language = language, onContentChange = viewModel::updateEditorText, onSave = viewModel::saveEditor, onDismiss = viewModel::dismissEditor)
         }
-        viewModel.archiveTarget?.let { file ->
-            ArchiveBrowserSheet(file = file, items = viewModel.archiveItems, loading = viewModel.archiveLoading, language = language, onExtract = viewModel::extractArchiveToCurrentLocation, onDismiss = viewModel::dismissArchive)
-        }
         viewModel.imagePreview?.let { file ->
             ImageViewerScreen(file = file, language = language, onShare = { onShareFiles(listOf(file)) }, onDismiss = viewModel::dismissImage)
         }
@@ -463,15 +498,17 @@ fun BugeApp(
 @Composable
 private fun BugeTopBar(
     language: AppLanguage, root: RootLocation?, roots: List<RootLocation>, selectionCount: Int,
-    isSearching: Boolean, query: String, viewMode: ViewMode, sortOption: SortOption, ascending: Boolean,
+    isSearching: Boolean, query: String, viewMode: ViewMode, taskCount: Int,
     onSearch: () -> Unit, onQueryChange: (String) -> Unit, onCloseSearch: () -> Unit,
-    onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowActions: () -> Unit,
+    onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowTasks: () -> Unit, onShowActions: () -> Unit,
+    onRefresh: () -> Unit, onCopyPath: () -> Unit,
     onChangeView: () -> Unit, onClearSelection: () -> Unit, onSelectAll: () -> Unit,
     onCopy: () -> Unit, onMove: () -> Unit, onRename: () -> Unit, onCompress: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
     rootMenuExpanded: Boolean, onAddLocation: () -> Unit, onAddSmb: () -> Unit, onRemoveRoot: (RootLocation) -> Unit
 ) {
     val title = when { selectionCount > 0 -> "$selectionCount ${language.t("items")}"; isSearching -> ""; else -> "Buge Files" }
     var selectionMenu by remember { mutableStateOf(false) }
+    var overflowMenu by remember { mutableStateOf(false) }
     CenterAlignedTopAppBar(
         title = {
             if (isSearching) {
@@ -524,7 +561,20 @@ private fun BugeTopBar(
                 else -> {
                     IconButton(onClick = onSearch) { Icon(Icons.Outlined.Search, language.t("search")) }
                     IconButton(onClick = onChangeView) { Icon(if (viewMode == ViewMode.LIST) Icons.Outlined.GridView else Icons.AutoMirrored.Outlined.List, language.t("view")) }
-                    IconButton(onClick = onShowActions) { Icon(Icons.AutoMirrored.Outlined.Sort, "${language.t("sort")}: ${sortOption.name} ${if (ascending) "↑" else "↓"}") }
+                    Box {
+                        IconButton(onClick = { overflowMenu = true }) { Icon(Icons.Outlined.MoreVert, language.t("more")) }
+                        DropdownMenu(expanded = overflowMenu, onDismissRequest = { overflowMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(language.t("task_list")) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Outlined.List, null) },
+                                trailingIcon = { if (taskCount > 0) Text("$taskCount", style = MaterialTheme.typography.labelLarge) },
+                                onClick = { overflowMenu = false; onShowTasks() }
+                            )
+                            DropdownMenuItem(text = { Text(language.t("filter")) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Sort, null) }, onClick = { overflowMenu = false; onShowActions() })
+                            DropdownMenuItem(text = { Text(language.t("refresh")) }, leadingIcon = { Icon(Icons.Outlined.Refresh, null) }, onClick = { overflowMenu = false; onRefresh() })
+                            DropdownMenuItem(text = { Text(language.t("copy_path")) }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) }, onClick = { overflowMenu = false; onCopyPath() })
+                        }
+                    }
                 }
             }
         },
@@ -562,7 +612,7 @@ private fun navigationItems(language: AppLanguage): List<Triple<AppDestination, 
 @Composable
 private fun BrowseScreen(
     viewModel: BugeViewModel, modifier: Modifier, language: AppLanguage, root: RootLocation?, directStorageAvailable: Boolean, path: List<RootLocation>, entries: List<FileEntry>,
-    searchActive: Boolean, isLoading: Boolean, viewMode: ViewMode, compact: Boolean, showThumbnails: Boolean, clipboard: ClipboardState?, isBookmarked: Boolean,
+    searchActive: Boolean, isLoading: Boolean, viewMode: ViewMode, compact: Boolean, showThumbnails: Boolean, activeTask: FileTask?, taskCount: Int, isBookmarked: Boolean,
     onRequestFolder: () -> Unit, onRequestDirectStorage: () -> Unit, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit,
     onToggleSelection: (FileEntry) -> Unit, isSelected: (FileEntry) -> Boolean, onInfo: (FileEntry) -> Unit,
     onToggleBookmark: () -> Unit, onPaste: () -> Unit, onNavigate: (Int) -> Unit,
@@ -646,14 +696,17 @@ private fun BrowseScreen(
                     }
                 }
             }
-            if (clipboard != null) {
+            if (activeTask != null) {
                 item {
                     ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if (clipboard.mode == ClipboardMode.COPY) Icons.Outlined.ContentCopy else Icons.AutoMirrored.Outlined.DriveFileMove, null)
+                            Icon(taskIcon(activeTask.type), null)
                             Spacer(Modifier.width(12.dp))
-                            Text(if (clipboard.mode == ClipboardMode.COPY) "${clipboard.entries.size} ${language.t("items")} ${language.t("copy").lowercase()}" else "${clipboard.entries.size} ${language.t("items")} ${language.t("move").lowercase()}", modifier = Modifier.weight(1f))
-                            FilledTonalButton(onClick = onPaste) { Text(language.t("paste")) }
+                            Column(Modifier.weight(1f)) {
+                                Text(taskTitle(activeTask, language), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${activeTask.entries.size} ${language.t("items")} · ${language.t("task_list")}: $taskCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                            }
+                            FilledTonalButton(onClick = onPaste) { Text(if (activeTask.type == TaskType.COMPRESS) language.t("compress") else language.t("paste")) }
                         }
                     }
                 }
@@ -963,12 +1016,14 @@ private fun UpdateCheckDialog(
 }
 
 @Composable
-private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, onSettingsChange: (AppSettings) -> Unit, onCheckForUpdates: () -> Unit) {
+private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, shizukuAvailable: Boolean, shizukuPermission: Boolean, onSettingsChange: (AppSettings) -> Unit, onCheckForUpdates: () -> Unit, onRequestShizuku: () -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
     var rootCommandDialog by remember { mutableStateOf(false) }
+    var installMethodDialog by remember { mutableStateOf(false) }
+    var installerDeclarationDialog by remember { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item { Text(language.t("settings"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 4.dp)) }
             item { SettingsSection(language.t("appearance")) }
             item {
@@ -1006,28 +1061,84 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         label = language.t("root_access"),
                         checked = settings.rootAccess && rootAvailable,
                         index = 0,
-                        count = 3,
+                        count = 4,
                         enabled = rootAvailable,
                         icon = Icons.Outlined.Security,
                         supportingText = if (rootAvailable) language.t("root_access_summary") else language.t("root_unavailable")
                     ) { onSettingsChange(settings.copy(rootAccess = it)) }
+                    SettingSwitch(
+                        label = language.t("shizuku_access"),
+                        checked = settings.shizukuAccess && shizukuPermission,
+                        index = 1,
+                        count = 4,
+                        enabled = shizukuAvailable,
+                        icon = Icons.Outlined.Terminal,
+                        supportingText = when {
+                            !shizukuAvailable -> language.t("shizuku_unavailable")
+                            !shizukuPermission -> language.t("shizuku_permission_required")
+                            else -> language.t("shizuku_access_summary")
+                        }
+                    ) { enabled ->
+                        if (enabled && !shizukuPermission) {
+                            onRequestShizuku()
+                            onSettingsChange(settings.copy(shizukuAccess = true))
+                        } else {
+                            onSettingsChange(settings.copy(shizukuAccess = enabled))
+                        }
+                    }
                     SettingsActionCard(
                         title = language.t("root_command"),
-                        summary = settings.rootCommand,
+                        summary = language.t("root_command_summary"),
                         icon = Icons.Outlined.Code,
-                        index = 1,
-                        count = 3,
+                        index = 2,
+                        count = 4,
+                        trailingText = settings.rootCommand,
                         onClick = { rootCommandDialog = true }
                     )
-                    SettingSwitch(language.t("hidden"), settings.showHidden, 2, 3, icon = Icons.Outlined.Visibility) { onSettingsChange(settings.copy(showHidden = it)) }
+                    SettingSwitch(language.t("hidden"), settings.showHidden, 3, 4, icon = Icons.Outlined.Visibility, supportingText = language.t("hidden_summary")) { onSettingsChange(settings.copy(showHidden = it)) }
                 }
             }
             item { SettingsSection(language.t("behavior")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 3, icon = Icons.AutoMirrored.Outlined.List) { onSettingsChange(settings.copy(compactMode = it)) }
-                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 3, icon = Icons.Outlined.Image) { onSettingsChange(settings.copy(showThumbnails = it)) }
-                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3, icon = Icons.Outlined.Vibration) { onSettingsChange(settings.copy(hapticFeedback = it)) }
+                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 3, icon = Icons.AutoMirrored.Outlined.List, supportingText = language.t("compact_summary")) { onSettingsChange(settings.copy(compactMode = it)) }
+                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 3, icon = Icons.Outlined.Image, supportingText = language.t("thumbnails_summary")) { onSettingsChange(settings.copy(showThumbnails = it)) }
+                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3, icon = Icons.Outlined.Vibration, supportingText = language.t("haptics_summary")) { onSettingsChange(settings.copy(hapticFeedback = it)) }
+                }
+            }
+            item { SettingsSection(language.t("installation")) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SettingSwitch(
+                        label = language.t("use_app_installer"),
+                        checked = settings.installEnabled,
+                        index = 0,
+                        count = 6,
+                        icon = Icons.Outlined.Settings,
+                        supportingText = language.t("use_app_installer_summary")
+                    ) { onSettingsChange(settings.copy(installEnabled = it)) }
+                    SettingsActionCard(
+                        title = language.t("install_method"),
+                        summary = installMethodLabel(language, settings.installMethod),
+                        icon = Icons.Outlined.Terminal,
+                        index = 1,
+                        count = 6,
+                        enabled = settings.installEnabled,
+                        onClick = { installMethodDialog = true }
+                    )
+                    SettingsActionCard(
+                        title = language.t("installer_declaration"),
+                        summary = language.t("installer_declaration_summary"),
+                        icon = Icons.Outlined.Info,
+                        index = 2,
+                        count = 6,
+                        trailingText = settings.installerPackage.ifBlank { language.t("not_set") },
+                        enabled = settings.installEnabled,
+                        onClick = { installerDeclarationDialog = true }
+                    )
+                    SettingSwitch(language.t("allow_downgrade"), settings.allowDowngrade, 3, 6, icon = Icons.Outlined.Refresh, supportingText = language.t("allow_downgrade_summary")) { onSettingsChange(settings.copy(allowDowngrade = it)) }
+                    SettingSwitch(language.t("allow_test_packages"), settings.allowTestPackages, 4, 6, icon = Icons.Outlined.Code, supportingText = language.t("allow_test_packages_summary")) { onSettingsChange(settings.copy(allowTestPackages = it)) }
+                    SettingSwitch(language.t("install_all_users"), settings.installAllUsers, 5, 6, icon = Icons.Outlined.Share, supportingText = language.t("install_all_users_summary")) { onSettingsChange(settings.copy(installAllUsers = it)) }
                 }
             }
             item { SettingsSection(language.t("about")) }
@@ -1090,6 +1201,29 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                 rootCommandDialog = false
             }
         }
+
+        if (installMethodDialog) {
+            InstallMethodDialog(
+                language = language,
+                selected = settings.installMethod,
+                onSelect = { method -> onSettingsChange(settings.copy(installMethod = method)) },
+                onDismiss = { installMethodDialog = false }
+            )
+        }
+
+        if (installerDeclarationDialog) {
+            NameDialog(
+                title = language.t("installer_declaration"),
+                hint = language.t("installer_package_hint"),
+                language = language,
+                initialValue = "",
+                confirmLabel = language.t("save"),
+                onDismiss = { installerDeclarationDialog = false }
+            ) { value ->
+                onSettingsChange(settings.copy(installerPackage = value.trim()))
+                installerDeclarationDialog = false
+            }
+        }
     }
 }
 
@@ -1098,34 +1232,85 @@ private fun SettingsSection(text: String) {
     Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp))
 }
 
-private fun groupItemShape(index: Int, count: Int): RoundedCornerShape {
+private fun groupCorners(index: Int, count: Int): List<Dp> {
     val outer = 24.dp
     val inner = 4.dp
     return when {
-        count <= 1 -> RoundedCornerShape(outer)
-        index == 0 -> RoundedCornerShape(topStart = outer, topEnd = outer, bottomStart = inner, bottomEnd = inner)
-        index == count - 1 -> RoundedCornerShape(topStart = inner, topEnd = inner, bottomStart = outer, bottomEnd = outer)
-        else -> RoundedCornerShape(inner)
+        count <= 1 -> listOf(outer, outer, outer, outer)
+        index == 0 -> listOf(outer, outer, inner, inner)
+        index == count - 1 -> listOf(inner, inner, outer, outer)
+        else -> listOf(inner, inner, inner, inner)
     }
 }
 
+private fun groupItemShape(index: Int, count: Int): RoundedCornerShape {
+    val corners = groupCorners(index, count)
+    return RoundedCornerShape(corners[0], corners[1], corners[3], corners[2])
+}
+
 @Composable
-private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, index: Int, count: Int, onClick: () -> Unit) {
-    val shape = groupItemShape(index, count)
+private fun pressedGroupShape(index: Int, count: Int, interactionSource: MutableInteractionSource): RoundedCornerShape {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val base = groupCorners(index, count)
+    val outer = 24.dp
+    val spec = spring<Dp>(stiffness = Spring.StiffnessMediumLow)
+    val topStart by animateDpAsState(if (pressed) outer else base[0], spec, label = "topStart")
+    val topEnd by animateDpAsState(if (pressed) outer else base[1], spec, label = "topEnd")
+    val bottomEnd by animateDpAsState(if (pressed) outer else base[2], spec, label = "bottomEnd")
+    val bottomStart by animateDpAsState(if (pressed) outer else base[3], spec, label = "bottomStart")
+    return RoundedCornerShape(topStart, topEnd, bottomEnd, bottomStart)
+}
+
+@Composable
+private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, index: Int, count: Int, trailingText: String? = null, enabled: Boolean = true, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = pressedGroupShape(index, count, interactionSource)
+    val iconColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+    val titleColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    val summaryColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
     Surface(
         shape = shape,
         color = CardDefaults.elevatedCardColors().containerColor,
-        modifier = Modifier.fillMaxWidth().clip(shape).clickable(role = Role.Button, onClick = onClick)
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, enabled = enabled, role = Role.Button, onClick = onClick)
     ) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(16.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(title, style = MaterialTheme.typography.titleMedium, color = titleColor)
+                Text(summary, style = MaterialTheme.typography.bodyMedium, color = summaryColor, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
+            if (trailingText != null) {
+                Spacer(Modifier.width(12.dp))
+                Text(trailingText, style = MaterialTheme.typography.labelLarge, color = summaryColor)
             }
         }
     }
+}
+
+private fun installMethodLabel(language: AppLanguage, method: InstallMethod): String = when (method) {
+    InstallMethod.SHIZUKU -> language.t("install_method_shizuku")
+    InstallMethod.ROOT -> language.t("install_method_root")
+}
+
+@Composable
+private fun InstallMethodDialog(language: AppLanguage, selected: InstallMethod, onSelect: (InstallMethod) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(language.t("install_method")) },
+        text = {
+            Column {
+                InstallMethod.entries.forEach { method ->
+                    AppearanceOptionRow(
+                        label = installMethodLabel(language, method),
+                        selected = selected == method,
+                        onSelect = { onSelect(method) }
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
 }
 
 @Composable
@@ -1159,7 +1344,6 @@ private fun ColorSettingsDialog(language: AppLanguage, settings: AppSettings, on
                     AppearanceOptionRow(
                         label = colorSourceLabel(language, source),
                         selected = settings.colorSource == source,
-                        icon = Icons.Outlined.Palette,
                         onSelect = { onSettingsChange(settings.copy(colorSource = source)) }
                     )
                 }
@@ -1181,7 +1365,6 @@ private fun LanguageSettingsDialog(language: AppLanguage, settings: AppSettings,
                         label = appLanguage.nativeName,
                         supportingText = appLanguage.code,
                         selected = settings.language == appLanguage,
-                        icon = Icons.Outlined.Language,
                         onSelect = { onSettingsChange(settings.copy(language = appLanguage)) }
                     )
                 }
@@ -1236,41 +1419,140 @@ private fun <T> ChoiceRow(values: List<Pair<T, String>>, selected: T, onSelect: 
 
 @Composable
 private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: Int, enabled: Boolean = true, icon: ImageVector? = null, supportingText: String? = null, onChange: (Boolean) -> Unit) {
-    val shape = groupItemShape(index, count)
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = pressedGroupShape(index, count, interactionSource)
     val labelColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
     val supportColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
     val iconColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
-    Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, enabled = enabled, role = Role.Switch) { onChange(!checked) }) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(12.dp))
             }
             Column(Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.titleMedium, color = labelColor)
                 if (supportingText != null) Text(supportingText, style = MaterialTheme.typography.bodySmall, color = supportColor)
             }
-            Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+            Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+        }
+    }
+}
+
+private fun taskIcon(type: TaskType): ImageVector = when (type) {
+    TaskType.COPY -> Icons.Outlined.ContentCopy
+    TaskType.MOVE -> Icons.AutoMirrored.Outlined.DriveFileMove
+    TaskType.COMPRESS -> Icons.Outlined.Archive
+}
+
+private fun taskTitle(task: FileTask, language: AppLanguage): String = when (task.type) {
+    TaskType.COMPRESS -> task.archiveName ?: language.t("compress")
+    TaskType.MOVE -> "${language.t("move")} ${task.entries.firstOrNull()?.name.orEmpty()}".trim()
+    TaskType.COPY -> "${language.t("copy")} ${task.entries.firstOrNull()?.name.orEmpty()}".trim()
+}
+
+private fun taskStateLabel(task: FileTask, language: AppLanguage): String = when (task.state) {
+    TaskState.PENDING -> language.t("task_pending")
+    TaskState.RUNNING -> language.t("task_running")
+    TaskState.COMPLETED -> language.t("task_completed")
+    TaskState.FAILED -> task.detail ?: language.t("task_failed")
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TaskListSheet(language: AppLanguage, tasks: List<FileTask>, activeId: Long?, onActivate: (Long) -> Unit, onRemove: (Long) -> Unit, onClear: () -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().heightIn(max = 640.dp).padding(horizontal = 24.dp).padding(bottom = 28.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(language.t("task_list"), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                if (tasks.isNotEmpty()) IconButton(onClick = onClear) { Icon(Icons.Outlined.DeleteSweep, language.t("clear_tasks")) }
+            }
+            if (tasks.isEmpty()) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Outlined.Pending, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(12.dp))
+                    Text(language.t("no_tasks"), style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(4.dp))
+                    Text(language.t("no_tasks_sub"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
+            } else {
+                Text(language.t("task_copy_hint"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(12.dp))
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(tasks, key = { it.id }) { task ->
+                        val active = task.id == activeId
+                        val shape = RoundedCornerShape(18.dp)
+                        Surface(
+                            shape = shape,
+                            color = if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                            modifier = Modifier.fillMaxWidth().clip(shape).clickable { onActivate(task.id) }
+                        ) {
+                            Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(taskIcon(task.type), null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(taskTitle(task, language), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${task.entries.size} ${language.t("items")} · ${taskStateLabel(task, language)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                if (active) Text(language.t("active_task"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp))
+                                IconButton(onClick = { onRemove(task.id) }) { Icon(Icons.Outlined.Close, language.t("remove_task")) }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, ascending: Boolean, viewMode: ViewMode, showHidden: Boolean, onSort: (SortOption) -> Unit, onView: (ViewMode) -> Unit, onToggleHidden: () -> Unit, onDismiss: () -> Unit) {
+private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, viewMode: ViewMode, showHidden: Boolean, onSort: (SortOption) -> Unit, onView: (ViewMode) -> Unit, onToggleHidden: () -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(language.t("sort"), style = MaterialTheme.typography.headlineSmall)
-            SortOption.entries.forEach { option ->
-                ListItem(headlineContent = { Text(when (option) { SortOption.NAME -> language.t("sort_name"); SortOption.DATE -> language.t("sort_date"); SortOption.SIZE -> language.t("sort_size"); SortOption.TYPE -> language.t("sort_type") }) }, trailingContent = { RadioButton(selected = option == sortOption, onClick = { onSort(option) }) }, modifier = Modifier.combinedClickable(onClick = { onSort(option) }, onLongClick = {}))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SortOption.entries.forEachIndexed { index, option ->
+                    SortOptionRow(
+                        language = language,
+                        option = option,
+                        index = index,
+                        count = SortOption.entries.size,
+                        selected = option == sortOption,
+                        onSelect = { onSort(option) }
+                    )
+                }
             }
-            Text(if (ascending) "↑" else "↓", style = MaterialTheme.typography.titleMedium)
             HorizontalDivider(); Text(language.t("view"), style = MaterialTheme.typography.titleLarge)
             ChoiceRow(listOf(ViewMode.LIST to language.t("list"), ViewMode.GRID to language.t("grid")), viewMode, onView)
             SettingSwitch(language.t("hidden"), showHidden, 0, 1) { onToggleHidden() }
         }
     }
 }
+
+@Composable
+private fun SortOptionRow(language: AppLanguage, option: SortOption, index: Int, count: Int, selected: Boolean, onSelect: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = pressedGroupShape(index, count, interactionSource)
+    Surface(
+        shape = shape,
+        color = CardDefaults.elevatedCardColors().containerColor,
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, role = Role.Button, onClick = onSelect)
+    ) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(sortLabel(language, option), style = MaterialTheme.typography.titleMedium, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+            if (selected) Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+private fun sortLabel(language: AppLanguage, option: SortOption): String = when (option) {
+    SortOption.NAME -> language.t("sort_name")
+    SortOption.DATE -> language.t("sort_date")
+    SortOption.SIZE -> language.t("sort_size")
+    SortOption.TYPE -> language.t("sort_type")
+}
+
 
 @Composable
 private fun NameDialog(title: String, hint: String, language: AppLanguage, initialValue: String = "", confirmLabel: String = language.t("create"), onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
@@ -1450,33 +1732,6 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
                                     }
                                 }
                             )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ArchiveBrowserSheet(file: FileEntry, items: List<ArchiveItem>, loading: Boolean, language: AppLanguage, onExtract: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 700.dp).padding(horizontal = 24.dp).padding(bottom = 20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FileGlyph(Icons.Outlined.Archive, false, 28.dp)
-                Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(file.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis); Text("${items.count { !it.isDirectory }} ${language.t("files")}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                FilledTonalButton(onClick = onExtract, enabled = !loading) { Text(language.t("extract_here")) }
-            }
-            Spacer(Modifier.height(16.dp))
-            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (!loading && items.isEmpty()) Text(language.t("empty"), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 24.dp))
-            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
-                items(items, key = { it.name }) { item ->
-                    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if (item.isDirectory) Icons.Outlined.Folder else Icons.Outlined.Description, null, tint = if (item.isDirectory) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary)
-                            Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(item.name.trimEnd('/'), maxLines = 1, overflow = TextOverflow.Ellipsis); if (!item.isDirectory) Text("${formatBytes(item.size)} · ${formatBytes(item.compressedSize)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         }
                     }
                 }
