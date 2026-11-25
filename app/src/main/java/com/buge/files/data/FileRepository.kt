@@ -226,7 +226,11 @@ class FileRepository(
     suspend fun delete(entries: List<FileEntry>): OperationResult = withContext(Dispatchers.IO) {
         var failed = 0
         entries.forEach { entry ->
-            val deleted = if (isDirect(entry.uri)) direct(entry.uri)?.deleteRecursively() == true else document(entry.uri)?.delete() == true
+            val deleted = if (isDirect(entry.uri)) {
+                val file = entry.uri.path?.let(::File)
+                if (file != null && needsElevation(file) && elevatedEnabled()) runElevated("rm -rf ${shellQuote(file.path)}") != null
+                else direct(entry.uri)?.deleteRecursively() == true
+            } else document(entry.uri)?.delete() == true
             if (!deleted) failed++
         }
         operationSummary(entries.size, failed, "deleted")
@@ -243,7 +247,13 @@ class FileRepository(
         fun progress() = onProgress?.invoke(bytesDone + tracker.done, bytesTotal, completed + failed, total)
         clipboard.entries.forEach { entry ->
             tracker.reset()
-            val copied = if (isDirect(destinationUri)) {
+            val sourceFile = if (isDirect(entry.uri)) entry.uri.path?.let(::File) else null
+            val destinationDirectory = if (isDirect(destinationUri)) destinationUri.path?.let(::File) else null
+            val viaShell = sourceFile != null && destinationDirectory != null && elevatedEnabled() &&
+                (needsElevation(sourceFile) || needsElevation(destinationDirectory))
+            val copied = if (viaShell) {
+                copyDirectViaShell(sourceFile!!, destinationDirectory!!, clipboard.mode == ClipboardMode.MOVE)
+            } else if (isDirect(destinationUri)) {
                 val destination = direct(destinationUri)
                 when {
                     destination == null || !destination.isDirectory || sourceWouldContainDestination(entry.uri, destination) -> false
@@ -260,7 +270,7 @@ class FileRepository(
             }
             if (copied) {
                 completed++
-                if (clipboard.mode == ClipboardMode.MOVE && !deleteSource(entry.uri)) failed++
+                if (clipboard.mode == ClipboardMode.MOVE && !viaShell && !deleteSource(entry.uri)) failed++
             } else failed++
             bytesDone += tracker.done
             progress()
