@@ -168,6 +168,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
@@ -667,23 +668,22 @@ private fun BrowseScreen(
         }
     }
     val density = LocalDensity.current
+    val slideDistance = with(density) { (LocalConfiguration.current.screenWidthDp * 0.35f).dp.toPx() }
     val slideOffset = remember { Animatable(0f) }
     var slideInitialized by remember { mutableStateOf(false) }
-    BoxWithConstraints(modifier.fillMaxSize()) {
-        val widthPx = with(density) { maxWidth.toPx() }
-        LaunchedEffect(pathKey) {
-            if (!slideInitialized) {
-                slideInitialized = true
-                return@LaunchedEffect
-            }
-            val forward = viewModel.navigationDirection == NavigationDirection.FORWARD
-            slideOffset.snapTo(if (forward) widthPx * 0.35f else -widthPx * 0.35f)
-            slideOffset.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+    LaunchedEffect(pathKey) {
+        if (!slideInitialized) {
+            slideInitialized = true
+            return@LaunchedEffect
         }
-        Column(modifier.fillMaxSize().graphicsLayer {
-            translationX = slideOffset.value
-            alpha = 1f - (kotlin.math.abs(slideOffset.value) / (widthPx * 0.35f).coerceAtLeast(1f)) * 0.25f
-        }) {
+        val forward = viewModel.navigationDirection == NavigationDirection.FORWARD
+        slideOffset.snapTo(if (forward) slideDistance else -slideDistance)
+        slideOffset.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+    }
+    Column(modifier.fillMaxSize().graphicsLayer {
+        translationX = slideOffset.value
+        alpha = 1f - (kotlin.math.abs(slideOffset.value) / slideDistance.coerceAtLeast(1f)) * 0.25f
+    }) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 2.dp)
@@ -751,7 +751,6 @@ private fun BrowseScreen(
                     }
                 }
             }
-        }
     }
 }
 
