@@ -284,6 +284,7 @@ fun BugeApp(
                             selectionCount = viewModel.selection.size,
                             isSearching = viewModel.isSearching,
                             query = viewModel.searchQuery,
+                            titleText = if (viewModel.destination == AppDestination.BROWSE) viewModel.navigationPath.lastOrNull()?.label.orEmpty() else "",
                             viewMode = settings.viewMode,
                             taskCount = tasks.size,
                             onSearch = { viewModel.setSearchActive(true) },
@@ -502,7 +503,7 @@ fun BugeApp(
 @Composable
 private fun BugeTopBar(
     language: AppLanguage, root: RootLocation?, roots: List<RootLocation>, selectionCount: Int,
-    isSearching: Boolean, query: String, viewMode: ViewMode, taskCount: Int,
+    isSearching: Boolean, query: String, titleText: String, viewMode: ViewMode, taskCount: Int,
     onSearch: () -> Unit, onQueryChange: (String) -> Unit, onCloseSearch: () -> Unit,
     onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowTasks: () -> Unit, onShowActions: () -> Unit,
     onRefresh: () -> Unit, onCopyPath: () -> Unit,
@@ -510,7 +511,7 @@ private fun BugeTopBar(
     onCopy: () -> Unit, onMove: () -> Unit, onRename: () -> Unit, onCompress: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
     rootMenuExpanded: Boolean, onAddLocation: () -> Unit, onAddSmb: () -> Unit, onRemoveRoot: (RootLocation) -> Unit
 ) {
-    val title = when { selectionCount > 0 -> "$selectionCount ${language.t("items")}"; else -> "" }
+    val title = when { selectionCount > 0 -> "$selectionCount ${language.t("items")}"; else -> titleText }
     var selectionMenu by remember { mutableStateOf(false) }
     var overflowMenu by remember { mutableStateOf(false) }
     CenterAlignedTopAppBar(
