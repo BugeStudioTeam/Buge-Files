@@ -68,6 +68,7 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -90,11 +91,13 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Vibration
@@ -120,7 +123,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
@@ -1175,24 +1177,43 @@ private fun SettingsSection(text: String) {
     Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp))
 }
 
-private fun groupItemShape(index: Int, count: Int): RoundedCornerShape {
+private fun groupCorners(index: Int, count: Int): List<Dp> {
     val outer = 24.dp
     val inner = 4.dp
     return when {
-        count <= 1 -> RoundedCornerShape(outer)
-        index == 0 -> RoundedCornerShape(topStart = outer, topEnd = outer, bottomStart = inner, bottomEnd = inner)
-        index == count - 1 -> RoundedCornerShape(topStart = inner, topEnd = inner, bottomStart = outer, bottomEnd = outer)
-        else -> RoundedCornerShape(inner)
+        count <= 1 -> listOf(outer, outer, outer, outer)
+        index == 0 -> listOf(outer, outer, inner, inner)
+        index == count - 1 -> listOf(inner, inner, outer, outer)
+        else -> listOf(inner, inner, inner, inner)
     }
+}
+
+private fun groupItemShape(index: Int, count: Int): RoundedCornerShape {
+    val corners = groupCorners(index, count)
+    return RoundedCornerShape(corners[0], corners[1], corners[3], corners[2])
+}
+
+@Composable
+private fun pressedGroupShape(index: Int, count: Int, interactionSource: MutableInteractionSource): RoundedCornerShape {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val base = groupCorners(index, count)
+    val outer = 24.dp
+    val spec = spring<Dp>(stiffness = Spring.StiffnessMediumLow)
+    val topStart by animateDpAsState(if (pressed) outer else base[0], spec, label = "topStart")
+    val topEnd by animateDpAsState(if (pressed) outer else base[1], spec, label = "topEnd")
+    val bottomEnd by animateDpAsState(if (pressed) outer else base[2], spec, label = "bottomEnd")
+    val bottomStart by animateDpAsState(if (pressed) outer else base[3], spec, label = "bottomStart")
+    return RoundedCornerShape(topStart, topEnd, bottomEnd, bottomStart)
 }
 
 @Composable
 private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, index: Int, count: Int, onClick: () -> Unit) {
-    val shape = groupItemShape(index, count)
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = pressedGroupShape(index, count, interactionSource)
     Surface(
         shape = shape,
         color = CardDefaults.elevatedCardColors().containerColor,
-        modifier = Modifier.fillMaxWidth().clip(shape).clickable(role = Role.Button, onClick = onClick)
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, role = Role.Button, onClick = onClick)
     ) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
@@ -1336,15 +1357,56 @@ private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, asce
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(language.t("sort"), style = MaterialTheme.typography.headlineSmall)
-            SortOption.entries.forEach { option ->
-                ListItem(headlineContent = { Text(when (option) { SortOption.NAME -> language.t("sort_name"); SortOption.DATE -> language.t("sort_date"); SortOption.SIZE -> language.t("sort_size"); SortOption.TYPE -> language.t("sort_type") }) }, trailingContent = { RadioButton(selected = option == sortOption, onClick = { onSort(option) }) }, modifier = Modifier.combinedClickable(onClick = { onSort(option) }, onLongClick = {}))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SortOption.entries.forEachIndexed { index, option ->
+                    SortOptionRow(
+                        language = language,
+                        option = option,
+                        index = index,
+                        count = SortOption.entries.size,
+                        selected = option == sortOption,
+                        ascending = ascending,
+                        onSelect = { onSort(option) }
+                    )
+                }
             }
-            Text(if (ascending) "↑" else "↓", style = MaterialTheme.typography.titleMedium)
             HorizontalDivider(); Text(language.t("view"), style = MaterialTheme.typography.titleLarge)
             ChoiceRow(listOf(ViewMode.LIST to language.t("list"), ViewMode.GRID to language.t("grid")), viewMode, onView)
             SettingSwitch(language.t("hidden"), showHidden, 0, 1) { onToggleHidden() }
         }
     }
+}
+
+@Composable
+private fun SortOptionRow(language: AppLanguage, option: SortOption, index: Int, count: Int, selected: Boolean, ascending: Boolean, onSelect: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = pressedGroupShape(index, count, interactionSource)
+    Surface(
+        shape = shape,
+        color = CardDefaults.elevatedCardColors().containerColor,
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, role = Role.Button, onClick = onSelect)
+    ) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(sortIcon(option), null, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(16.dp))
+            Text(sortLabel(language, option), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            if (selected) Icon(if (ascending) Icons.Outlined.ArrowUpward else Icons.Outlined.ArrowDownward, null, tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+private fun sortLabel(language: AppLanguage, option: SortOption): String = when (option) {
+    SortOption.NAME -> language.t("sort_name")
+    SortOption.DATE -> language.t("sort_date")
+    SortOption.SIZE -> language.t("sort_size")
+    SortOption.TYPE -> language.t("sort_type")
+}
+
+private fun sortIcon(option: SortOption): ImageVector = when (option) {
+    SortOption.NAME -> Icons.AutoMirrored.Outlined.Sort
+    SortOption.DATE -> Icons.Outlined.Schedule
+    SortOption.SIZE -> Icons.Outlined.Straighten
+    SortOption.TYPE -> Icons.Outlined.Category
 }
 
 @Composable
