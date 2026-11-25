@@ -6,10 +6,12 @@ package com.buge.files
 import android.Manifest
 import android.app.Application
 import android.content.ContentResolver
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.storage.StorageManager
 import android.provider.DocumentsContract
 import java.io.File
 import androidx.compose.runtime.getValue
@@ -71,6 +73,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private var lastRootCommand: String? = "su"
     private val browseScrollPositions = mutableMapOf<String, BrowseScrollPosition>()
     private val archiveStack = ArrayDeque<ArchiveReturn>()
+    private var lastLoadedPathKey: String? = null
 
     private val _roots = MutableStateFlow<List<RootLocation>>(emptyList())
     val roots: StateFlow<List<RootLocation>> = _roots.asStateFlow()
@@ -98,6 +101,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     val storage: StateFlow<StorageBreakdown> = _storage.asStateFlow()
 
     var destination by mutableStateOf(AppDestination.BROWSE)
+        private set
+    var navigationDirection by mutableStateOf(NavigationDirection.FORWARD)
         private set
     var navigationPath by mutableStateOf<List<RootLocation>>(emptyList())
         private set
@@ -334,9 +339,48 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private fun rootDirectoryRoot(): RootLocation? =
         if (_rootAvailable.value && _settings.value.rootAccess) RootLocation(Uri.fromFile(File("/")), "Root directory") else null
 
+    fun refreshStorageRoots() {
+        updateVisibleRoots()
+    }
+
+    private fun externalRoots(): List<RootLocation> {
+        val app = getApplication<Application>()
+        val internal = runCatching { File("/sdcard").canonicalPath }.getOrNull()
+        val manager = app.getSystemService(Context.STORAGE_SERVICE) as? StorageManager
+        val volumes = runCatching { manager?.storageVolumes.orEmpty() }.getOrDefault(emptyList())
+        val descriptions = volumes.mapNotNull { volume ->
+            val dir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) volume.directory else null
+            if (dir == null) null else dir.absolutePath to runCatching { volume.getDescription(app) }.getOrNull()
+        }.toMap()
+        val roots = LinkedHashMap<String, RootLocation>()
+        app.getExternalFilesDirs(null).filterNotNull().forEach { directory ->
+            val path = directory.absolutePath
+            val marker = path.indexOf("/Android/")
+            if (marker <= 0) return@forEach
+            val rootPath = path.substring(0, marker)
+            val root = File(rootPath)
+            val canonical = runCatching { root.canonicalPath }.getOrNull() ?: rootPath
+            if (internal != null && canonical == internal) return@forEach
+            if (!root.exists()) return@forEach
+            val label = descriptions[rootPath] ?: descriptions[canonical] ?: "External storage"
+            roots[canonical] = RootLocation(Uri.fromFile(File(canonical)), label)
+        }
+        if (roots.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            volumes.filter { it.isRemovable }.forEach { volume ->
+                val directory = volume.directory ?: return@forEach
+                val canonical = runCatching { directory.canonicalPath }.getOrNull() ?: return@forEach
+                if (internal != null && canonical == internal) return@forEach
+                if (!directory.exists()) return@forEach
+                val label = runCatching { volume.getDescription(app) }.getOrNull() ?: "External storage"
+                roots[canonical] = RootLocation(Uri.fromFile(directory), label)
+            }
+        }
+        return roots.values.toList()
+    }
+
     private fun updateVisibleRoots(preferDirect: Boolean = false) {
         val direct = directRoot().takeIf { _directStorageAvailable.value || shizukuReady() }
-        val locations = listOfNotNull(direct, rootDirectoryRoot()) + safRoots
+        val locations = (listOfNotNull(direct, rootDirectoryRoot()) + safRoots + externalRoots()).distinctBy { it.uri }
         _roots.value = locations
         val current = _currentRoot.value
         when {
@@ -357,6 +401,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         return root.takeIf { accessible }?.let { RootLocation(Uri.fromFile(it), "Internal storage") }
     }
     fun selectRoot(location: RootLocation, reportFailure: Boolean = false) {
+        navigationDirection = NavigationDirection.FORWARD
         archiveStack.clear()
         _currentRoot.value = location
         navigationPath = listOf(location)
@@ -367,6 +412,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openBookmark(location: RootLocation) {
+        navigationDirection = NavigationDirection.FORWARD
         archiveStack.clear()
         destination = AppDestination.BROWSE
         val owner = owningRoot(location.uri)
@@ -444,12 +490,14 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openDirectory(entry: FileEntry) {
         if (!entry.isDirectory) return
+        navigationDirection = NavigationDirection.FORWARD
         navigationPath = navigationPath + RootLocation(entry.uri, entry.name)
         selection = emptySet()
         refresh(reportFailure = true)
     }
 
     fun navigateTo(index: Int) {
+        navigationDirection = if (index + 1 < navigationPath.size) NavigationDirection.BACK else NavigationDirection.FORWARD
         navigationPath = navigationPath.take(index + 1)
         selection = emptySet()
         refresh(reportFailure = true)
@@ -457,6 +505,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun navigateUp(): Boolean {
         if (navigationPath.size <= 1) return false
+        navigationDirection = NavigationDirection.BACK
         navigationPath = navigationPath.dropLast(1)
         selection = emptySet()
         refresh(reportFailure = true)
@@ -635,6 +684,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
                 showMessage(result.message)
                 return@launch
             }
+            navigationDirection = NavigationDirection.FORWARD
             archiveStack.addLast(ArchiveReturn(_currentRoot.value, navigationPath))
             val location = RootLocation(Uri.fromFile(directory), entry.name)
             _currentRoot.value = location
@@ -651,6 +701,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun leaveArchive(): Boolean {
         if (archiveStack.isEmpty()) return false
+        navigationDirection = NavigationDirection.BACK
         val state = archiveStack.removeLast()
         _currentRoot.value = state.root
         navigationPath = state.path
@@ -995,6 +1046,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refresh(reportFailure: Boolean = false) {
         val location = navigationPath.lastOrNull() ?: run { _entries.value = emptyList(); return }
+        val pathKey = browsePathKey(navigationPath)
+        if (pathKey != lastLoadedPathKey) {
+            lastLoadedPathKey = pathKey
+            _entries.value = emptyList()
+        }
         loadingJob?.cancel()
         loadingJob = viewModelScope.launch {
             isLoading = true

@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -63,6 +64,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -86,6 +88,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -165,6 +168,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -506,7 +510,7 @@ private fun BugeTopBar(
     onCopy: () -> Unit, onMove: () -> Unit, onRename: () -> Unit, onCompress: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit,
     rootMenuExpanded: Boolean, onAddLocation: () -> Unit, onAddSmb: () -> Unit, onRemoveRoot: (RootLocation) -> Unit
 ) {
-    val title = when { selectionCount > 0 -> "$selectionCount ${language.t("items")}"; isSearching -> ""; else -> "Buge Files" }
+    val title = when { selectionCount > 0 -> "$selectionCount ${language.t("items")}"; else -> "" }
     var selectionMenu by remember { mutableStateOf(false) }
     var overflowMenu by remember { mutableStateOf(false) }
     CenterAlignedTopAppBar(
@@ -660,7 +664,24 @@ private fun BrowseScreen(
             }
         }
     }
-    Column(modifier.fillMaxSize()) {
+    val density = LocalDensity.current
+    val slideOffset = remember { Animatable(0f) }
+    var slideInitialized by remember { mutableStateOf(false) }
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val widthPx = with(density) { maxWidth.toPx() }
+        LaunchedEffect(pathKey) {
+            if (!slideInitialized) {
+                slideInitialized = true
+                return@LaunchedEffect
+            }
+            val forward = viewModel.navigationDirection == NavigationDirection.FORWARD
+            slideOffset.snapTo(if (forward) widthPx * 0.35f else -widthPx * 0.35f)
+            slideOffset.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+        }
+        Column(modifier.fillMaxSize().graphicsLayer {
+            translationX = slideOffset.value
+            alpha = 1f - (kotlin.math.abs(slideOffset.value) / (widthPx * 0.35f).coerceAtLeast(1f)) * 0.25f
+        }) {
         if (viewMode == ViewMode.LIST) {
             PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onPullRefresh, modifier = Modifier.weight(1f)) {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -728,6 +749,7 @@ private fun BrowseScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -1136,9 +1158,9 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         enabled = settings.installEnabled,
                         onClick = { installerDeclarationDialog = true }
                     )
-                    SettingSwitch(language.t("allow_downgrade"), settings.allowDowngrade, 3, 6, icon = Icons.Outlined.Refresh, supportingText = language.t("allow_downgrade_summary")) { onSettingsChange(settings.copy(allowDowngrade = it)) }
+                    SettingSwitch(language.t("allow_downgrade"), settings.allowDowngrade, 3, 6, icon = Icons.Outlined.ArrowDownward, supportingText = language.t("allow_downgrade_summary")) { onSettingsChange(settings.copy(allowDowngrade = it)) }
                     SettingSwitch(language.t("allow_test_packages"), settings.allowTestPackages, 4, 6, icon = Icons.Outlined.Code, supportingText = language.t("allow_test_packages_summary")) { onSettingsChange(settings.copy(allowTestPackages = it)) }
-                    SettingSwitch(language.t("install_all_users"), settings.installAllUsers, 5, 6, icon = Icons.Outlined.Share, supportingText = language.t("install_all_users_summary")) { onSettingsChange(settings.copy(installAllUsers = it)) }
+                    SettingSwitch(language.t("install_all_users"), settings.installAllUsers, 5, 6, icon = Icons.Outlined.People, supportingText = language.t("install_all_users_summary")) { onSettingsChange(settings.copy(installAllUsers = it)) }
                 }
             }
             item { SettingsSection(language.t("about")) }

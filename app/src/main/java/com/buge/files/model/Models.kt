@@ -9,6 +9,7 @@ import java.util.Locale
 
 enum class AppDestination { BROWSE, RECENTS, FAVORITES, STORAGE, SETTINGS }
 enum class ViewMode { LIST, GRID }
+enum class NavigationDirection { FORWARD, BACK }
 enum class SortOption { NAME, DATE, SIZE, TYPE }
 enum class ClipboardMode { COPY, MOVE }
 enum class ThemePreference { SYSTEM, LIGHT, DARK }
