@@ -189,4 +189,9 @@
     <string name="shizuku_access_summary">ShizukuでAndroid/dataとAndroid/obbにアクセス</string>
     <string name="shizuku_unavailable">このデバイスでShizukuが実行されていません</string>
     <string name="shizuku_permission_required">アクセスを有効にするにはShizukuの権限を許可してください</string>
+    <string name="root_command_summary">ルートシェルアクセスに使用するコマンド</string>
+    <string name="hidden_summary">ドットで始まるファイルとフォルダを表示</string>
+    <string name="compact_summary">リスト行の間隔を狭くする</string>
+    <string name="thumbnails_summary">ファイル行に画像と動画のプレビューを表示</string>
+    <string name="haptics_summary">選択と長押しで振動する</string>
 </resources>

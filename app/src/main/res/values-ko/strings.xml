@@ -189,4 +189,9 @@
     <string name="shizuku_access_summary">Shizuku로 Android/data 및 Android/obb에 접근</string>
     <string name="shizuku_unavailable">이 기기에서 Shizuku가 실행 중이 아닙니다</string>
     <string name="shizuku_permission_required">접근을 활성화하려면 Shizuku 권한을 허용하세요</string>
+    <string name="root_command_summary">루트 셸 접근에 사용하는 명령</string>
+    <string name="hidden_summary">점으로 시작하는 파일과 폴더 표시</string>
+    <string name="compact_summary">목록 행 간격을 좁게 사용</string>
+    <string name="thumbnails_summary">파일 행에 이미지와 동영상 미리보기 표시</string>
+    <string name="haptics_summary">선택 및 길게 누를 때 진동</string>
 </resources>

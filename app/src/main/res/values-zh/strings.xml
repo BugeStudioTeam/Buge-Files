@@ -189,4 +189,9 @@
     <string name="shizuku_access_summary">使用 Shizuku 访问 Android/data 和 Android/obb</string>
     <string name="shizuku_unavailable">此设备上未运行 Shizuku</string>
     <string name="shizuku_permission_required">授予 Shizuku 权限以启用访问</string>
+    <string name="root_command_summary">用于 Root Shell 访问的命令</string>
+    <string name="hidden_summary">显示以点开头的文件和文件夹</string>
+    <string name="compact_summary">使用更紧凑的列表行间距</string>
+    <string name="thumbnails_summary">在文件行中预览图片和视频</string>
+    <string name="haptics_summary">在选择和长按时振动</string>
 </resources>

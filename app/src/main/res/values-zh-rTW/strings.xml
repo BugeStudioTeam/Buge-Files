@@ -189,4 +189,9 @@
     <string name="downloading">下載中</string>
     <string name="transfer_complete">傳輸完成</string>
     <string name="transfer_failed">傳輸失敗</string>
+    <string name="root_command_summary">用於 Root Shell 存取指令</string>
+    <string name="hidden_summary">顯示以點開頭的檔案與資料夾</string>
+    <string name="compact_summary">使用更緊湊的清單列間距</string>
+    <string name="thumbnails_summary">在檔案列中預覽圖片與影片</string>
+    <string name="haptics_summary">在選取和長按時振動</string>
 </resources>

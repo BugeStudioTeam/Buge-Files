@@ -189,4 +189,9 @@
     <string name="shizuku_access_summary">Доступ к Android/data и Android/obb через Shizuku</string>
     <string name="shizuku_unavailable">Shizuku не запущен на этом устройстве</string>
     <string name="shizuku_permission_required">Предоставьте разрешение Shizuku для включения доступа</string>
+    <string name="root_command_summary">Команда для доступа к root-оболочке</string>
+    <string name="hidden_summary">Показывать файлы и папки, начинающиеся с точки</string>
+    <string name="compact_summary">Использовать более плотные интервалы в списке</string>
+    <string name="thumbnails_summary">Показывать миниатюры изображений и видео в строках</string>
+    <string name="haptics_summary">Вибрация при выборе и долгом нажатии</string>
 </resources>

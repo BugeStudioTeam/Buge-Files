@@ -189,4 +189,9 @@
     <string name="shizuku_access_summary">Accéder à Android/data et Android/obb avec Shizuku</string>
     <string name="shizuku_unavailable">Shizuku ne fonctionne pas sur cet appareil</string>
     <string name="shizuku_permission_required">Accordez l\'autorisation Shizuku pour activer l\'accès</string>
+    <string name="root_command_summary">Commande utilisée pour l\'accès shell root</string>
+    <string name="hidden_summary">Afficher les fichiers et dossiers commençant par un point</string>
+    <string name="compact_summary">Utiliser un espacement plus serré pour les lignes de liste</string>
+    <string name="thumbnails_summary">Afficher un aperçu des images et vidéos dans les lignes de fichiers</string>
+    <string name="haptics_summary">Vibre lors des sélections et des appuis longs</string>
 </resources>

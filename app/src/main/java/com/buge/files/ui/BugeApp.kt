@@ -63,12 +63,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -91,13 +89,11 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.automirrored.outlined.Sort
-import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Vibration
@@ -400,7 +396,7 @@ fun BugeApp(
 
         if (showActions) {
             SortAndViewSheet(
-                language = language, sortOption = viewModel.sortOption, ascending = viewModel.ascending,
+                language = language, sortOption = viewModel.sortOption,
                 viewMode = settings.viewMode, showHidden = settings.showHidden,
                 onSort = viewModel::setSort, onView = viewModel::setViewMode, onToggleHidden = viewModel::toggleHidden,
                 onDismiss = { showActions = false }
@@ -1027,7 +1023,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
     var rootCommandDialog by remember { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item { Text(language.t("settings"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 4.dp)) }
             item { SettingsSection(language.t("appearance")) }
             item {
@@ -1092,21 +1088,22 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     }
                     SettingsActionCard(
                         title = language.t("root_command"),
-                        summary = settings.rootCommand,
+                        summary = language.t("root_command_summary"),
                         icon = Icons.Outlined.Code,
                         index = 2,
                         count = 4,
+                        trailingText = settings.rootCommand,
                         onClick = { rootCommandDialog = true }
                     )
-                    SettingSwitch(language.t("hidden"), settings.showHidden, 3, 4, icon = Icons.Outlined.Visibility) { onSettingsChange(settings.copy(showHidden = it)) }
+                    SettingSwitch(language.t("hidden"), settings.showHidden, 3, 4, icon = Icons.Outlined.Visibility, supportingText = language.t("hidden_summary")) { onSettingsChange(settings.copy(showHidden = it)) }
                 }
             }
             item { SettingsSection(language.t("behavior")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 3, icon = Icons.AutoMirrored.Outlined.List) { onSettingsChange(settings.copy(compactMode = it)) }
-                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 3, icon = Icons.Outlined.Image) { onSettingsChange(settings.copy(showThumbnails = it)) }
-                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3, icon = Icons.Outlined.Vibration) { onSettingsChange(settings.copy(hapticFeedback = it)) }
+                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 3, icon = Icons.AutoMirrored.Outlined.List, supportingText = language.t("compact_summary")) { onSettingsChange(settings.copy(compactMode = it)) }
+                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 3, icon = Icons.Outlined.Image, supportingText = language.t("thumbnails_summary")) { onSettingsChange(settings.copy(showThumbnails = it)) }
+                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3, icon = Icons.Outlined.Vibration, supportingText = language.t("haptics_summary")) { onSettingsChange(settings.copy(hapticFeedback = it)) }
                 }
             }
             item { SettingsSection(language.t("about")) }
@@ -1207,7 +1204,7 @@ private fun pressedGroupShape(index: Int, count: Int, interactionSource: Mutable
 }
 
 @Composable
-private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, index: Int, count: Int, onClick: () -> Unit) {
+private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, index: Int, count: Int, trailingText: String? = null, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val shape = pressedGroupShape(index, count, interactionSource)
     Surface(
@@ -1215,12 +1212,16 @@ private fun SettingsActionCard(title: String, summary: String, icon: ImageVector
         color = CardDefaults.elevatedCardColors().containerColor,
         modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, role = Role.Button, onClick = onClick)
     ) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(16.dp))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
+            if (trailingText != null) {
+                Spacer(Modifier.width(12.dp))
+                Text(trailingText, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -1338,10 +1339,10 @@ private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: In
     val supportColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
     val iconColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
     Surface(shape = shape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, enabled = enabled, role = Role.Switch) { onChange(!checked) }) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(12.dp))
             }
             Column(Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.titleMedium, color = labelColor)
@@ -1420,7 +1421,7 @@ private fun TaskListSheet(language: AppLanguage, tasks: List<FileTask>, activeId
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, ascending: Boolean, viewMode: ViewMode, showHidden: Boolean, onSort: (SortOption) -> Unit, onView: (ViewMode) -> Unit, onToggleHidden: () -> Unit, onDismiss: () -> Unit) {
+private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, viewMode: ViewMode, showHidden: Boolean, onSort: (SortOption) -> Unit, onView: (ViewMode) -> Unit, onToggleHidden: () -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(language.t("sort"), style = MaterialTheme.typography.headlineSmall)
@@ -1432,7 +1433,6 @@ private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, asce
                         index = index,
                         count = SortOption.entries.size,
                         selected = option == sortOption,
-                        ascending = ascending,
                         onSelect = { onSort(option) }
                     )
                 }
@@ -1445,7 +1445,7 @@ private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, asce
 }
 
 @Composable
-private fun SortOptionRow(language: AppLanguage, option: SortOption, index: Int, count: Int, selected: Boolean, ascending: Boolean, onSelect: () -> Unit) {
+private fun SortOptionRow(language: AppLanguage, option: SortOption, index: Int, count: Int, selected: Boolean, onSelect: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val shape = pressedGroupShape(index, count, interactionSource)
     Surface(
@@ -1454,10 +1454,8 @@ private fun SortOptionRow(language: AppLanguage, option: SortOption, index: Int,
         modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, role = Role.Button, onClick = onSelect)
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(sortIcon(option), null, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(16.dp))
-            Text(sortLabel(language, option), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            if (selected) Icon(if (ascending) Icons.Outlined.ArrowUpward else Icons.Outlined.ArrowDownward, null, tint = MaterialTheme.colorScheme.primary)
+            Text(sortLabel(language, option), style = MaterialTheme.typography.titleMedium, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+            if (selected) Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -1469,12 +1467,6 @@ private fun sortLabel(language: AppLanguage, option: SortOption): String = when 
     SortOption.TYPE -> language.t("sort_type")
 }
 
-private fun sortIcon(option: SortOption): ImageVector = when (option) {
-    SortOption.NAME -> Icons.AutoMirrored.Outlined.Sort
-    SortOption.DATE -> Icons.Outlined.Schedule
-    SortOption.SIZE -> Icons.Outlined.Straighten
-    SortOption.TYPE -> Icons.Outlined.Category
-}
 
 @Composable
 private fun NameDialog(title: String, hint: String, language: AppLanguage, initialValue: String = "", confirmLabel: String = language.t("create"), onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
