@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import rikka.shizuku.Shizuku
 
 data class BrowseScrollPosition(val index: Int, val offset: Int)
 
@@ -33,7 +34,26 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
-    private val fileRepository = FileRepository(application, { _settings.value.rootAccess }, { _settings.value.rootCommand })
+    var shizukuAvailable by mutableStateOf(ShizukuShell.isAvailable())
+        private set
+    var shizukuPermission by mutableStateOf(ShizukuShell.hasPermission())
+        private set
+
+    private val shizukuListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+        if (requestCode == ShizukuShell.REQUEST_CODE) {
+            refreshShizuku()
+            if (grantResult != PackageManager.PERMISSION_GRANTED) showMessage("Shizuku permission was not granted")
+            updateVisibleRoots()
+            refresh()
+        }
+    }
+
+    private val fileRepository = FileRepository(
+        application,
+        { _settings.value.rootAccess },
+        { _settings.value.rootCommand },
+        { _settings.value.shizukuAccess }
+    )
     val smbRepository = SmbRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
     private val copyProgressNotifier = CopyProgressNotifier(application)
@@ -87,8 +107,13 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var selection by mutableStateOf<Set<Uri>>(emptySet())
         private set
-    var clipboard by mutableStateOf<ClipboardState?>(null)
+    private val _tasks = MutableStateFlow<List<FileTask>>(emptyList())
+    val tasks: StateFlow<List<FileTask>> = _tasks.asStateFlow()
+    var activeTaskId by mutableStateOf<Long?>(null)
         private set
+    var taskRunning by mutableStateOf(false)
+        private set
+    private var nextTaskId = 1L
     var message by mutableStateOf<String?>(null)
         private set
     var pendingInfo by mutableStateOf<FileEntry?>(null)
@@ -164,6 +189,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     val recents: List<FileEntry> get() = recentItems
 
     init {
+        ShizukuShell.addPermissionListener(shizukuListener)
         viewModelScope.launch {
             settingsRepository.settings.collect { newSettings ->
                 _settings.value = newSettings
