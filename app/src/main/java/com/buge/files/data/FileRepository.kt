@@ -170,10 +170,14 @@ class FileRepository(
     suspend fun createFolder(parentUri: Uri, name: String): OperationResult = withContext(Dispatchers.IO) {
         if (!validName(name)) return@withContext OperationResult(false, "Enter a valid folder name")
         if (isDirect(parentUri)) {
-            val parent = direct(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
+            val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
-            if (target.exists()) OperationResult(false, "An item with that name already exists")
-            else if (target.mkdir()) OperationResult(true, "Folder created") else OperationResult(false, "Could not create folder")
+            when {
+                target.exists() -> OperationResult(false, "An item with that name already exists")
+                target.mkdir() -> OperationResult(true, "Folder created")
+                needsElevation(parent) && elevatedEnabled() && runElevated("mkdir -p ${shellQuote(target.path)}") != null -> OperationResult(true, "Folder created")
+                else -> OperationResult(false, "Could not create folder")
+            }
         } else {
             val parent = documentTree(parentUri) ?: return@withContext OperationResult(false, "Folder access is no longer available")
             if (parent.findFile(name) != null) OperationResult(false, "An item with that name already exists")
@@ -184,11 +188,12 @@ class FileRepository(
     suspend fun createFile(parentUri: Uri, name: String): OperationResult = withContext(Dispatchers.IO) {
         if (!validName(name)) return@withContext OperationResult(false, "Enter a valid file name")
         if (isDirect(parentUri)) {
-            val parent = direct(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
+            val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
             when {
                 target.exists() -> OperationResult(false, "An item with that name already exists")
                 target.createNewFile() -> OperationResult(true, "File created")
+                needsElevation(parent) && elevatedEnabled() && runElevated("touch ${shellQuote(target.path)}") != null -> OperationResult(true, "File created")
                 else -> OperationResult(false, "Could not create file")
             }
         } else {
@@ -204,11 +209,12 @@ class FileRepository(
     suspend fun rename(entry: FileEntry, newName: String): OperationResult = withContext(Dispatchers.IO) {
         if (!validName(newName)) return@withContext OperationResult(false, "Enter a valid name")
         if (isDirect(entry.uri)) {
-            val source = direct(entry.uri) ?: return@withContext OperationResult(false, "File is not available")
+            val source = elevatedDirect(entry.uri) ?: return@withContext OperationResult(false, "File is not available")
             val target = File(source.parentFile, newName)
             when {
                 target.exists() -> OperationResult(false, "An item with that name already exists")
                 source.renameTo(target) -> OperationResult(true, "Renamed")
+                needsElevation(source) && elevatedEnabled() && runElevated("mv ${shellQuote(source.path)} ${shellQuote(target.path)}") != null -> OperationResult(true, "Renamed")
                 else -> OperationResult(false, "Could not rename item")
             }
         } else {
