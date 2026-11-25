@@ -13,12 +13,16 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.text.BasicTextField
@@ -59,6 +63,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -67,6 +73,7 @@ import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
@@ -80,6 +87,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
@@ -156,11 +164,13 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
@@ -204,10 +214,16 @@ fun BugeApp(
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val storage by viewModel.storage.collectAsStateWithLifecycle()
+    val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val language = settings.language.resolved()
     val snackbars = remember { SnackbarHostState() }
+    val clipboardManager = LocalClipboardManager.current
     var showRootMenu by remember { mutableStateOf(false) }
     var showActions by remember { mutableStateOf(false) }
+    var showTasks by remember { mutableStateOf(false) }
+    val activeTask = tasks.firstOrNull { it.id == viewModel.activeTaskId }
+    val shizukuAvailable = viewModel.shizukuAvailable
+    val shizukuPermission = viewModel.shizukuPermission
     var showCreateFile by remember { mutableStateOf(false) }
     var showCreateFolder by remember { mutableStateOf(false) }
     var showCompress by remember { mutableStateOf(false) }
@@ -265,14 +281,23 @@ fun BugeApp(
                             isSearching = viewModel.isSearching,
                             query = viewModel.searchQuery,
                             viewMode = settings.viewMode,
-                            sortOption = viewModel.sortOption,
-                            ascending = viewModel.ascending,
+                            taskCount = tasks.size,
                             onSearch = { viewModel.setSearchActive(true) },
                             onQueryChange = viewModel::updateSearch,
                             onCloseSearch = { viewModel.setSearchActive(false) },
                             onToggleRootMenu = { showRootMenu = !showRootMenu },
                             onSelectRoot = { viewModel.selectRoot(it, reportFailure = true); showRootMenu = false },
+                            onShowTasks = { showTasks = true },
                             onShowActions = { showActions = true },
+                            onRefresh = { viewModel.refresh(reportFailure = true) },
+                            onCopyPath = {
+                                val path = viewModel.currentLocationPath()
+                                if (path.isBlank()) snackbars.showSnackbar(language.t("read_failed"))
+                                else {
+                                    clipboardManager.setText(AnnotatedString(path))
+                                    snackbars.showSnackbar(language.t("path_copied"))
+                                }
+                            },
                             onChangeView = { viewModel.setViewMode(if (settings.viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST) },
                             onClearSelection = viewModel::clearSelection,
                             onSelectAll = viewModel::selectAll,
