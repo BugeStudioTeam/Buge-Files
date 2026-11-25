@@ -461,6 +461,22 @@ class FileRepository(
         } catch (_: Exception) { null }
     }
 
+    private fun copyDirectViaShell(source: File, destination: File, move: Boolean): Boolean {
+        val requested = source.name
+        val stem = requested.substringBeforeLast('.', requested)
+        val extension = if (!source.isDirectory && requested.contains('.')) ".${requested.substringAfterLast('.')}" else ""
+        var index = 0
+        var name = requested
+        while (shellExists(File(destination, name).path)) {
+            index++
+            name = "$stem ($index)$extension"
+        }
+        val target = File(destination, name)
+        val command = if (move) "mv ${shellQuote(source.path)} ${shellQuote(target.path)}"
+        else "cp -a ${shellQuote(source.path)} ${shellQuote(target.path)}"
+        return runElevated(command) != null
+    }
+
     private fun deleteSource(uri: Uri): Boolean = if (isDirect(uri)) direct(uri)?.deleteRecursively() == true else document(uri)?.delete() == true
 
     private fun sourceWouldContainDestination(sourceUri: Uri, destination: File): Boolean {
@@ -493,7 +509,7 @@ class FileRepository(
             path.contains("/Android/data") || path.contains("/Android/obb")
     }
 
-    private fun listAsRoot(directory: File, showHidden: Boolean): List<FileEntry> {
+    private fun listViaShell(directory: File, showHidden: Boolean): List<FileEntry> {
         val script = """
             cd ${shellQuote(directory.path)} && for f in * .[!.]* ..?*; do
               if [ -e "${'$'}f" ] || [ -L "${'$'}f" ]; then
@@ -502,7 +518,7 @@ class FileRepository(
               fi
             done
         """.trimIndent()
-        val output = runRoot(script) ?: return emptyList()
+        val output = runElevated(script) ?: return emptyList()
         return output.lineSequence().mapNotNull { line ->
             val parts = line.split('\u001f')
             if (parts.size < 2) return@mapNotNull null
@@ -521,13 +537,6 @@ class FileRepository(
             )
         }.toList()
     }
-
-    private fun runRoot(command: String): String? = runCatching {
-        val executable = rootCommand().trim().split(Regex("\\s+")).filter { it.isNotBlank() }.ifEmpty { listOf("su") }
-        val process = ProcessBuilder(executable + listOf("-c", command)).redirectErrorStream(true).start()
-        val output = process.inputStream.bufferedReader().use { it.readText() }
-        if (process.waitFor() == 0) output else null
-    }.getOrNull()
 
     private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 
