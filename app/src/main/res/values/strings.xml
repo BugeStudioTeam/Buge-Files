@@ -168,4 +168,25 @@
     <string name="action_copy">Copy</string>
     <string name="action_share">Share</string>
     <string name="action_retry">Retry</string>
+    <string name="more">More</string>
+    <string name="filter">Filter</string>
+    <string name="refresh">Refresh</string>
+    <string name="copy_path">Copy path</string>
+    <string name="path_copied">Path copied</string>
+    <string name="task_list">Task list</string>
+    <string name="tasks_added">Added to task list</string>
+    <string name="no_tasks">No tasks</string>
+    <string name="no_tasks_sub">Copy, move, or compress files to add them here.</string>
+    <string name="clear_tasks">Clear tasks</string>
+    <string name="remove_task">Remove task</string>
+    <string name="active_task">Active</string>
+    <string name="task_pending">Pending</string>
+    <string name="task_running">Running</string>
+    <string name="task_completed">Completed</string>
+    <string name="task_failed">Failed</string>
+    <string name="task_copy_hint">Copy tasks stay available so you can paste them into several folders.</string>
+    <string name="shizuku_access">Shizuku access</string>
+    <string name="shizuku_access_summary">Access Android/data and Android/obb with Shizuku</string>
+    <string name="shizuku_unavailable">Shizuku is not running on this device</string>
+    <string name="shizuku_permission_required">Grant Shizuku permission to enable access</string>
 </resources>

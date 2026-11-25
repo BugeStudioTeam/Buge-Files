@@ -1351,6 +1351,72 @@ private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: In
     }
 }
 
+private fun taskIcon(type: TaskType): ImageVector = when (type) {
+    TaskType.COPY -> Icons.Outlined.ContentCopy
+    TaskType.MOVE -> Icons.AutoMirrored.Outlined.DriveFileMove
+    TaskType.COMPRESS -> Icons.Outlined.Archive
+}
+
+private fun taskTitle(task: FileTask, language: AppLanguage): String = when (task.type) {
+    TaskType.COMPRESS -> task.archiveName ?: language.t("compress")
+    TaskType.MOVE -> "${language.t("move")} ${task.entries.firstOrNull()?.name.orEmpty()}".trim()
+    TaskType.COPY -> "${language.t("copy")} ${task.entries.firstOrNull()?.name.orEmpty()}".trim()
+}
+
+private fun taskStateLabel(task: FileTask, language: AppLanguage): String = when (task.state) {
+    TaskState.PENDING -> language.t("task_pending")
+    TaskState.RUNNING -> language.t("task_running")
+    TaskState.COMPLETED -> language.t("task_completed")
+    TaskState.FAILED -> task.detail ?: language.t("task_failed")
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TaskListSheet(language: AppLanguage, tasks: List<FileTask>, activeId: Long?, onActivate: (Long) -> Unit, onRemove: (Long) -> Unit, onClear: () -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().heightIn(max = 640.dp).padding(horizontal = 24.dp).padding(bottom = 28.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(language.t("task_list"), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                if (tasks.isNotEmpty()) IconButton(onClick = onClear) { Icon(Icons.Outlined.DeleteSweep, language.t("clear_tasks")) }
+            }
+            if (tasks.isEmpty()) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Outlined.Pending, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(12.dp))
+                    Text(language.t("no_tasks"), style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(4.dp))
+                    Text(language.t("no_tasks_sub"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
+            } else {
+                Text(language.t("task_copy_hint"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(12.dp))
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(tasks, key = { it.id }) { task ->
+                        val active = task.id == activeId
+                        val shape = RoundedCornerShape(18.dp)
+                        Surface(
+                            shape = shape,
+                            color = if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                            modifier = Modifier.fillMaxWidth().clip(shape).clickable { onActivate(task.id) }
+                        ) {
+                            Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(taskIcon(task.type), null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(taskTitle(task, language), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${task.entries.size} ${language.t("items")} · ${taskStateLabel(task, language)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                if (active) Text(language.t("active_task"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp))
+                                IconButton(onClick = { onRemove(task.id) }) { Icon(Icons.Outlined.Close, language.t("remove_task")) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SortAndViewSheet(language: AppLanguage, sortOption: SortOption, ascending: Boolean, viewMode: ViewMode, showHidden: Boolean, onSort: (SortOption) -> Unit, onView: (ViewMode) -> Unit, onToggleHidden: () -> Unit, onDismiss: () -> Unit) {
