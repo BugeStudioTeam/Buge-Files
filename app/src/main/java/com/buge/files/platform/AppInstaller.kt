@@ -13,8 +13,11 @@ class AppInstaller(private val context: Context) {
     private val resolver: ContentResolver = context.contentResolver
 
     suspend fun install(file: FileEntry, settings: AppSettings): OperationResult = withContext(Dispatchers.IO) {
-        val apk = prepare(file) ?: return@withContext OperationResult(false, "APK is not available", "APK is not available")
+        val apk = prepare(file) ?: return@withContext failure("APK is not available")
+        val staging = "/data/local/tmp/buge_install_${System.currentTimeMillis()}.apk"
         try {
+            val staged = stage(settings, apk, staging)
+            val installPath = if (staged) staging else apk.path
             val flags = buildList {
                 add("-r")
                 if (settings.allowDowngrade) add("-d")
@@ -25,11 +28,8 @@ class AppInstaller(private val context: Context) {
                     add(settings.installerPackage.trim())
                 }
             }
-            val command = "pm install ${flags.joinToString(" ")} ${shellQuote(apk.path)}"
-            val result = when (settings.installMethod) {
-                InstallMethod.ROOT -> runAsRoot(settings.rootCommand, command)
-                InstallMethod.SHIZUKU -> ShizukuShell.exec(command)
-            } ?: return@withContext OperationResult(false, "Installation is unavailable", "Installation is unavailable")
+            val command = "pm install ${flags.joinToString(" ")} ${shellQuote(installPath)}"
+            val result = run(settings, command) ?: return@withContext failure("Installation is unavailable")
             val output = result.output.trim()
             val lowered = output.lowercase()
             val success = result.exitCode == 0 && !lowered.contains("failure") && !lowered.contains("error") && !lowered.contains("exception")
@@ -40,8 +40,20 @@ class AppInstaller(private val context: Context) {
                 OperationResult(false, detail.take(220), detail)
             }
         } finally {
+            run(settings, "rm -f ${shellQuote(staging)}")
             apk.delete()
         }
+    }
+
+    private fun stage(settings: AppSettings, apk: File, staging: String): Boolean {
+        val command = "cp ${shellQuote(apk.path)} ${shellQuote(staging)} && chmod 644 ${shellQuote(staging)}"
+        val result = run(settings, command) ?: return false
+        return result.exitCode == 0
+    }
+
+    private fun run(settings: AppSettings, command: String): ShellResult? = when (settings.installMethod) {
+        InstallMethod.ROOT -> runAsRoot(settings.rootCommand, command)
+        InstallMethod.SHIZUKU -> ShizukuShell.exec(command)
     }
 
     private fun prepare(file: FileEntry): File? = runCatching {
@@ -53,7 +65,7 @@ class AppInstaller(private val context: Context) {
             resolver.openInputStream(file.uri)
         } ?: return null
         input.use { source -> target.outputStream().use { output -> source.copyTo(output) } }
-        target
+        if (target.length() > 0L) target else { target.delete(); null }
     }.getOrNull()
 
     private fun runAsRoot(rootCommand: String, command: String): ShellResult? = runCatching {
@@ -62,6 +74,8 @@ class AppInstaller(private val context: Context) {
         val output = process.inputStream.bufferedReader().use { it.readText() }
         ShellResult(process.waitFor(), output)
     }.getOrNull()
+
+    private fun failure(message: String): OperationResult = OperationResult(false, message, message)
 
     private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 }
