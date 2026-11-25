@@ -4,7 +4,10 @@
 package com.buge.files
 
 import android.content.pm.PackageManager
+import android.os.ParcelFileDescriptor
+import moe.shizuku.server.IShizukuService
 import rikka.shizuku.Shizuku
+import rikka.shizuku.ShizukuBinderWrapper
 
 data class ShellResult(val exitCode: Int, val output: String)
 
@@ -34,8 +37,10 @@ object ShizukuShell {
     }
 
     fun exec(command: String): ShellResult? = runCatching {
-        val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
-        val output = process.inputStream.bufferedReader().use { it.readText() }
-        ShellResult(process.waitFor(), output)
+        val binder = Shizuku.getBinder() ?: return null
+        val service = IShizukuService.Stub.asInterface(ShizukuBinderWrapper(binder))
+        val remote = service.newProcess(arrayOf("sh", "-c", command), null, null)
+        val output = ParcelFileDescriptor.AutoCloseInputStream(remote.getInputStream()).bufferedReader().use { it.readText() }
+        ShellResult(remote.waitFor(), output)
     }.getOrNull()
 }
