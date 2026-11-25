@@ -25,7 +25,8 @@ import java.util.Locale
 class FileRepository(
     private val context: Context,
     private val rootAccessEnabled: () -> Boolean = { false },
-    private val rootCommand: () -> String = { "su" }
+    private val rootCommand: () -> String = { "su" },
+    private val shizukuEnabled: () -> Boolean = { false }
 ) {
     private val resolver: ContentResolver = context.contentResolver
 
@@ -34,16 +35,52 @@ class FileRepository(
     private fun documentTree(uri: Uri): DocumentFile? = DocumentFile.fromTreeUri(context, uri)?.takeIf { it.exists() && it.isDirectory }
     private fun document(uri: Uri): DocumentFile? = DocumentFile.fromSingleUri(context, uri)?.takeIf { it.exists() }
 
+    fun canElevate(): Boolean = elevatedEnabled()
+    fun needsElevation(uri: Uri): Boolean = isDirect(uri) && uri.path?.let { needsElevation(File(it)) } == true
+
+    private fun elevatedEnabled(): Boolean =
+        rootAccessEnabled() || (shizukuEnabled() && ShizukuShell.hasPermission())
+
+    private fun needsElevation(file: File): Boolean = requiresRoot(file) || requiresRoot(file.parentFile ?: file)
+
+    private fun elevatedDirect(uri: Uri): File? = uri.path?.let(::File)?.takeIf { isDirect(uri) && (it.exists() || (elevatedEnabled() && needsElevation(it))) }
+
+    private fun runShell(command: String): ShellResult? {
+        if (rootAccessEnabled()) runRootResult("($command) 2>&1")?.let { return it }
+        if (shizukuEnabled() && ShizukuShell.hasPermission()) return ShizukuShell.exec("($command) 2>&1")
+        return null
+    }
+
+    private fun runElevated(command: String): String? =
+        runShell(command)?.takeIf { it.exitCode == 0 }?.output
+
+    private fun runRootResult(command: String): ShellResult? = runCatching {
+        val executable = rootCommand().trim().split(Regex("\\s+")).filter { it.isNotBlank() }.ifEmpty { listOf("su") }
+        val process = ProcessBuilder(executable + listOf("-c", command)).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        ShellResult(process.waitFor(), output)
+    }.getOrNull()
+
+    private fun shellExists(path: String): Boolean =
+        runElevated("if [ -e ${shellQuote(path)} ]; then echo 1; fi")?.trim() == "1"
+
+    suspend fun copyToLocalCopy(uri: Uri, target: File): Boolean = withContext(Dispatchers.IO) {
+        val source = uri.path?.let(::File) ?: return@withContext false
+        target.parentFile?.mkdirs()
+        val result = runElevated("cp -f ${shellQuote(source.path)} ${shellQuote(target.path)}")
+        result != null && target.exists()
+    }
+
     suspend fun list(directoryUri: Uri, sort: SortOption, ascending: Boolean, showHidden: Boolean): List<FileEntry> = withContext(Dispatchers.IO) {
         val items = when {
             isDirect(directoryUri) -> {
-                val directory = directoryUri.path?.let(::File)?.takeIf { it.exists() || rootAccessEnabled() }
+                val directory = directoryUri.path?.let(::File)?.takeIf { it.exists() || elevatedEnabled() }
                 val directItems = directory?.listFiles().orEmpty().asSequence()
                     .filter { showHidden || !it.name.startsWith('.') }
                     .map(::toEntry)
                     .toList()
-                if (directory != null && (requiresRoot(directory) || directItems.isEmpty()) && rootAccessEnabled()) {
-                    listAsRoot(directory, showHidden).ifEmpty { directItems }
+                if (directory != null && (requiresRoot(directory) || directItems.isEmpty()) && elevatedEnabled()) {
+                    listViaShell(directory, showHidden).ifEmpty { directItems }
                 } else {
                     directItems
                 }

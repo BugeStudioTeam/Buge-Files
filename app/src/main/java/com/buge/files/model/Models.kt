@@ -13,6 +13,8 @@ enum class SortOption { NAME, DATE, SIZE, TYPE }
 enum class ClipboardMode { COPY, MOVE }
 enum class ThemePreference { SYSTEM, LIGHT, DARK }
 enum class ColorSource { DYNAMIC, INDIGO, OCEAN, FOREST, SUNSET, ORCHID }
+enum class TaskType { COPY, MOVE, COMPRESS }
+enum class TaskState { PENDING, RUNNING, COMPLETED, FAILED }
 enum class AppLanguage(val code: String, val nativeName: String) {
     SYSTEM("system", "System default"),
     ENGLISH("en", "English"),
@@ -90,7 +92,8 @@ data class AppSettings(
     val showThumbnails: Boolean = false,
     val hapticFeedback: Boolean = true,
     val rootAccess: Boolean = false,
-    val rootCommand: String = "su"
+    val rootCommand: String = "su",
+    val shizukuAccess: Boolean = false
 )
 
 @Immutable
@@ -107,5 +110,16 @@ data class UpdateCheckResult(
 
 @Immutable
 data class ClipboardState(val entries: List<FileEntry>, val mode: ClipboardMode)
+
+@Immutable
+data class FileTask(
+    val id: Long,
+    val type: TaskType,
+    val entries: List<FileEntry>,
+    val archiveName: String? = null,
+    val state: TaskState = TaskState.PENDING,
+    val runs: Int = 0,
+    val detail: String? = null
+)
 
 data class OperationResult(val success: Boolean, val message: String)
