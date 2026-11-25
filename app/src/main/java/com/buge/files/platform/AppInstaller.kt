@@ -13,7 +13,7 @@ class AppInstaller(private val context: Context) {
     private val resolver: ContentResolver = context.contentResolver
 
     suspend fun install(file: FileEntry, settings: AppSettings): OperationResult = withContext(Dispatchers.IO) {
-        val apk = prepare(file) ?: return@withContext OperationResult(false, "APK is not available")
+        val apk = prepare(file) ?: return@withContext OperationResult(false, "APK is not available", "APK is not available")
         try {
             val flags = buildList {
                 add("-r")
@@ -29,11 +29,16 @@ class AppInstaller(private val context: Context) {
             val result = when (settings.installMethod) {
                 InstallMethod.ROOT -> runAsRoot(settings.rootCommand, command)
                 InstallMethod.SHIZUKU -> ShizukuShell.exec(command)
-            } ?: return@withContext OperationResult(false, "Installation is unavailable")
+            } ?: return@withContext OperationResult(false, "Installation is unavailable", "Installation is unavailable")
             val output = result.output.trim()
             val lowered = output.lowercase()
             val success = result.exitCode == 0 && !lowered.contains("failure") && !lowered.contains("error") && !lowered.contains("exception")
-            OperationResult(success, if (success) "Installed" else output.ifBlank { "Installation failed" }.take(220))
+            if (success) {
+                OperationResult(true, "Installed")
+            } else {
+                val detail = output.ifBlank { "Installation failed" }
+                OperationResult(false, detail.take(220), detail)
+            }
         } finally {
             apk.delete()
         }

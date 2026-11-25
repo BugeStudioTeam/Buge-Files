@@ -4,6 +4,8 @@
 package com.buge.files
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentResolver
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -162,7 +164,14 @@ class MainActivity : ComponentActivity() {
             lifecycleScope.launch {
                 Toast.makeText(this@MainActivity, "Installing…", Toast.LENGTH_SHORT).show()
                 val result = appInstaller.install(file, settings)
-                Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_LONG).show()
+                if (!result.success) {
+                    runCatching {
+                        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Buge Files installation error", result.detail ?: result.message))
+                    }
+                }
+                val text = if (result.success) result.message else "${result.message}\nFailure details copied to clipboard"
+                Toast.makeText(this@MainActivity, text, Toast.LENGTH_LONG).show()
             }
             return
         }

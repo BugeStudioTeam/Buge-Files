@@ -129,4 +129,4 @@ data class FileTask(
     val detail: String? = null
 )
 
-data class OperationResult(val success: Boolean, val message: String)
+data class OperationResult(val success: Boolean, val message: String, val detail: String? = null)
