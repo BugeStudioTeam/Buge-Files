@@ -104,7 +104,6 @@ import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VideoFile
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
@@ -1646,67 +1645,137 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, language: AppLanguage, onInstall: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item {
+    var showPermissions by remember { mutableStateOf(false) }
+    var showSignature by remember { mutableStateOf(false) }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 3.dp,
+            modifier = Modifier.widthIn(max = 540.dp).fillMaxWidth()
+        ) {
+            Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FileGlyph(Icons.Outlined.Archive, false, 30.dp, entry = file)
-                    Spacer(Modifier.width(12.dp))
+                    FileGlyph(Icons.Outlined.Archive, false, 44.dp, entry = file)
+                    Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(metadata?.displayName ?: file.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(language.t("apk_details"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, language.t("close")) }
-                }
-            }
-            if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-            metadata?.let { apk ->
-                item {
-                    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = if (apk.isNewerThanInstalled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow)) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(if (apk.isInstalled) language.t("installed") else language.t("not_installed"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.height(4.dp))
-                            Text(if (apk.isInstalled) "${apk.installedVersionName ?: "—"} · ${apk.installedVersionCode ?: "—"}" else language.t("system_installer"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (apk.isInstalled) Text(if (apk.isNewerThanInstalled) language.t("newer_update") else language.t("same_or_older"), style = MaterialTheme.typography.labelMedium, color = if (apk.isNewerThanInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                        Text(metadata?.packageName ?: file.name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        if (metadata != null) {
+                            Text(
+                                "${language.t("version")} ${metadata.versionName} (${metadata.versionCode})",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (metadata.isInstalled) {
+                                Text(
+                                    "${metadata.versionName} (${metadata.versionCode}) ${if (metadata.isNewerThanInstalled) ">" else "≤"} ${metadata.installedVersionName ?: "—"} (${metadata.installedVersionCode ?: "—"})",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (metadata.isNewerThanInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                Text(language.t("not_installed"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DetailLine(language.t("package_name"), apk.packageName)
-                        DetailLine(language.t("version"), "${apk.versionName} · ${apk.versionCode}")
-                        DetailLine(language.t("min_sdk"), "API ${apk.minSdk}")
-                        DetailLine(language.t("target_sdk"), "API ${apk.targetSdk}")
-                        DetailLine(language.t("size"), formatBytes(file.size))
+                if (loading) {
+                    Spacer(Modifier.height(14.dp))
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+                metadata?.let { apk ->
+                    Spacer(Modifier.height(16.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ApkPill("Min: API ${apk.minSdk}")
+                        ApkPill("Target: API ${apk.targetSdk}")
+                        ApkPill("${language.t("size")}: ${formatBytes(file.size)}")
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { showPermissions = true }, shape = CircleShape) { Text(language.t("view_all_permissions")) }
+                        OutlinedButton(onClick = { showSignature = true }, shape = CircleShape) { Text(language.t("view_signature")) }
+                    }
+                } ?: run {
+                    if (!loading) {
+                        Spacer(Modifier.height(16.dp))
+                        Text("APK metadata is unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                item {
-                    Text(language.t("signing_certificate"), style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(6.dp))
-                    if (apk.certificateSha256.isEmpty()) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant) else apk.certificateSha256.forEach { fingerprint ->
-                        SelectionContainer { Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) { Text(fingerprint, fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp)) } }
-                    }
-                }
-                item {
-                    Text("${language.t("requested_permissions")} (${apk.requestedPermissions.size})", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(6.dp))
-                    if (apk.requestedPermissions.isEmpty()) Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant) else FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        apk.requestedPermissions.forEach { permission -> AssistChip(onClick = {}, label = { Text(permission.substringAfterLast('.'), maxLines = 1) }) }
-                    }
-                }
-                item {
-                    FilledTonalButton(onClick = onInstall, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.FileOpen, null); Spacer(Modifier.width(8.dp)); Text(if (apk.isInstalled) language.t("install_update") else language.t("install"))
-                    }
-                    Text(language.t("system_installer"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                Spacer(Modifier.height(18.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FilledTonalButton(
+                        onClick = onInstall,
+                        enabled = metadata != null && !loading,
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.weight(1f)
+                    ) { Text(language.t("install")) }
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.weight(1f)
+                    ) { Text(language.t("cancel")) }
                 }
             }
-            if (!loading && metadata == null) item { Text("APK metadata is unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
+    if (showPermissions) {
+        PermissionListDialog(title = language.t("requested_permissions"), permissions = metadata?.requestedPermissions.orEmpty(), language = language, onDismiss = { showPermissions = false })
+    }
+    if (showSignature) {
+        SignatureDialog(title = language.t("signing_certificate"), signatures = metadata?.certificateSha256.orEmpty(), language = language, onDismiss = { showSignature = false })
+    }
+}
+
+@Composable
+private fun ApkPill(text: String) {
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Text(text, style = MaterialTheme.typography.labelMedium, maxLines = 1, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+    }
+}
+
+@Composable
+private fun PermissionListDialog(title: String, permissions: List<String>, language: AppLanguage, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            if (permissions.isEmpty()) {
+                Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                    items(permissions) { permission ->
+                        Text(permission, fontFamily = FontFamily.Monospace, fontSize = 12.sp, modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
+}
+
+@Composable
+private fun SignatureDialog(title: String, signatures: List<String>, language: AppLanguage, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            if (signatures.isEmpty()) {
+                Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    signatures.forEach { signature ->
+                        SelectionContainer {
+                            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                                Text(signature, fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth().padding(12.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
 }
 
 @Composable

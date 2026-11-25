@@ -210,4 +210,6 @@
     <string name="install_all_users">Installer pour tous les utilisateurs</string>
     <string name="install_all_users_summary">Rendre l\'application disponible pour tous les utilisateurs de l\'appareil</string>
     <string name="installation">Installation</string>
+    <string name="view_all_permissions">Voir toutes les autorisations</string>
+    <string name="view_signature">Voir la signature</string>
 </resources>

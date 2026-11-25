@@ -210,4 +210,6 @@
     <string name="install_all_users">모든 사용자에 설치</string>
     <string name="install_all_users_summary">기기의 모든 사용자가 앱을 사용할 수 있도록 설정</string>
     <string name="installation">설치</string>
+    <string name="view_all_permissions">모든 권한 보기</string>
+    <string name="view_signature">서명 보기</string>
 </resources>

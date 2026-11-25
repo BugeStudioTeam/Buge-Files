@@ -210,4 +210,6 @@
     <string name="install_all_users">التثبيت لجميع المستخدمين</string>
     <string name="install_all_users_summary">جعل التطبيق متاحًا لجميع مستخدمي الجهاز</string>
     <string name="installation">التثبيت</string>
+    <string name="view_all_permissions">عرض كل الأذونات</string>
+    <string name="view_signature">عرض التوقيع</string>
 </resources>
