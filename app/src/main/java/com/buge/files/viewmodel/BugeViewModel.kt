@@ -39,6 +39,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     var shizukuPermission by mutableStateOf(ShizukuShell.hasPermission())
         private set
 
+    private val shizukuBinderListener = Shizuku.OnBinderReceivedListener {
+        refreshShizuku()
+        updateVisibleRoots()
+    }
+
     private val shizukuListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
         if (requestCode == ShizukuShell.REQUEST_CODE) {
             refreshShizuku()
@@ -189,6 +194,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     val recents: List<FileEntry> get() = recentItems
 
     init {
+        ShizukuShell.addBinderListener(shizukuBinderListener)
         ShizukuShell.addPermissionListener(shizukuListener)
         viewModelScope.launch {
             settingsRepository.settings.collect { newSettings ->
@@ -343,7 +349,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun directRoot(): RootLocation? {
         val root = runCatching { File("/sdcard").canonicalFile }.getOrNull() ?: return null
-        return root.takeIf { it.exists() && it.isDirectory }?.let { RootLocation(Uri.fromFile(it), "Internal storage") }
+        val accessible = (root.exists() && root.isDirectory) || _directStorageAvailable.value || shizukuReady()
+        return root.takeIf { accessible }?.let { RootLocation(Uri.fromFile(it), "Internal storage") }
     }
     fun selectRoot(location: RootLocation, reportFailure: Boolean = false) {
         _currentRoot.value = location
@@ -644,7 +651,10 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             taskRunning = true
             updateTask(task.id) { it.copy(state = TaskState.RUNNING) }
             isLoading = true
-            val result = advancedToolsRepository.compressToZip(task.entries, destination, task.archiveName.orEmpty())
+            val prepared = task.entries.map { entry ->
+                if (fileRepository.needsElevation(entry.uri)) materialize(entry) ?: entry else entry
+            }
+            val result = advancedToolsRepository.compressToZip(prepared, destination, task.archiveName.orEmpty())
             isLoading = false
             taskRunning = false
             showMessage(result.message)
@@ -770,7 +780,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         if (fileRepository.needsElevation(entry.uri)) {
             if (!fileRepository.canElevate()) return null
             val directory = app.externalCacheDir ?: app.cacheDir
-            val target = File(directory, safeName)
+            val target = File(directory, "${entry.uri.hashCode()}_$safeName")
             target.delete()
             if (!fileRepository.copyToLocalCopy(entry.uri, target)) return null
             return entry.copy(uri = Uri.fromFile(target))
@@ -836,6 +846,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
                 apkTarget = null
                 return@launch
             }
+            apkTarget = local
             val result = apkRepository.inspect(local)
             apkLoading = false
             apkMetadata = result.metadata
@@ -966,6 +977,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        ShizukuShell.removeBinderListener(shizukuBinderListener)
         ShizukuShell.removePermissionListener(shizukuListener)
         super.onCleared()
     }

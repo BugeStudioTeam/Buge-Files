@@ -28,6 +28,14 @@ object ShizukuShell {
         runCatching { Shizuku.requestPermission(REQUEST_CODE) }
     }
 
+    fun addBinderListener(listener: Shizuku.OnBinderReceivedListener) {
+        runCatching { Shizuku.addBinderReceivedListenerSticky(listener) }
+    }
+
+    fun removeBinderListener(listener: Shizuku.OnBinderReceivedListener) {
+        runCatching { Shizuku.removeBinderReceivedListener(listener) }
+    }
+
     fun addPermissionListener(listener: Shizuku.OnRequestPermissionResultListener) {
         runCatching { Shizuku.addRequestPermissionResultListener(listener) }
     }
@@ -36,11 +44,13 @@ object ShizukuShell {
         runCatching { Shizuku.removeRequestPermissionResultListener(listener) }
     }
 
-    fun exec(command: String): ShellResult? = runCatching {
+    fun exec(command: String): ShellResult? {
         val binder = Shizuku.getBinder() ?: return null
-        val service = IShizukuService.Stub.asInterface(ShizukuBinderWrapper(binder))
-        val remote = service.newProcess(arrayOf("sh", "-c", command), null, null)
-        val output = ParcelFileDescriptor.AutoCloseInputStream(remote.getInputStream()).bufferedReader().use { it.readText() }
-        ShellResult(remote.waitFor(), output)
-    }.getOrNull()
+        return runCatching {
+            val service = IShizukuService.Stub.asInterface(ShizukuBinderWrapper(binder))
+            val remote = service.newProcess(arrayOf("sh", "-c", command), null, null)
+            val output = ParcelFileDescriptor.AutoCloseInputStream(remote.getInputStream()).bufferedReader().use { it.readText() }
+            ShellResult(remote.waitFor(), output)
+        }.getOrNull()
+    }
 }

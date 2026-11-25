@@ -41,12 +41,24 @@ class FileRepository(
     private fun elevatedEnabled(): Boolean =
         rootAccessEnabled() || (shizukuEnabled() && ShizukuShell.hasPermission())
 
-    private fun needsElevation(file: File): Boolean = requiresRoot(file) || requiresRoot(file.parentFile ?: file)
+    private fun isOwnPath(path: String): Boolean {
+        if (path.contains("/Android/data/${context.packageName}")) return true
+        val ownDirs = listOfNotNull(context.filesDir, context.cacheDir, context.externalCacheDir, context.getExternalFilesDir(null))
+        return ownDirs.any { path == it.absolutePath || path.startsWith(it.absolutePath + File.separator) }
+    }
+
+    private fun needsElevation(file: File): Boolean {
+        if (isOwnPath(file.path)) return false
+        return requiresRoot(file) || requiresRoot(file.parentFile ?: file)
+    }
 
     private fun elevatedDirect(uri: Uri): File? = uri.path?.let(::File)?.takeIf { isDirect(uri) && (it.exists() || (elevatedEnabled() && needsElevation(it))) }
 
     private fun runShell(command: String): ShellResult? {
-        if (rootAccessEnabled()) runRootResult("($command) 2>&1")?.let { return it }
+        if (rootAccessEnabled()) {
+            val result = runRootResult("($command) 2>&1")
+            if (result != null && result.exitCode == 0) return result
+        }
         if (shizukuEnabled() && ShizukuShell.hasPermission()) return ShizukuShell.exec("($command) 2>&1")
         return null
     }
@@ -67,7 +79,8 @@ class FileRepository(
     suspend fun copyToLocalCopy(uri: Uri, target: File): Boolean = withContext(Dispatchers.IO) {
         val source = uri.path?.let(::File) ?: return@withContext false
         target.parentFile?.mkdirs()
-        val result = runElevated("cp -a ${shellQuote(source.path)} ${shellQuote(target.path)}")
+        val command = "cp -r ${shellQuote(source.path)} ${shellQuote(target.path)} && chmod -R a+rX ${shellQuote(target.path)}"
+        val result = runElevated(command)
         result != null && target.exists()
     }
 
@@ -172,7 +185,7 @@ class FileRepository(
         if (isDirect(parentUri)) {
             val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
-            val elevated = needsElevation(parent) && elevatedEnabled()
+            val elevated = elevatedEnabled() && (needsElevation(parent) || !parent.canWrite())
             when {
                 target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 target.mkdir() -> OperationResult(true, "Folder created")
@@ -191,7 +204,7 @@ class FileRepository(
         if (isDirect(parentUri)) {
             val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
-            val elevated = needsElevation(parent) && elevatedEnabled()
+            val elevated = elevatedEnabled() && (needsElevation(parent) || !parent.canWrite())
             when {
                 target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 target.createNewFile() -> OperationResult(true, "File created")
@@ -213,7 +226,7 @@ class FileRepository(
         if (isDirect(entry.uri)) {
             val source = elevatedDirect(entry.uri) ?: return@withContext OperationResult(false, "File is not available")
             val target = File(source.parentFile, newName)
-            val elevated = needsElevation(source) && elevatedEnabled()
+            val elevated = elevatedEnabled() && (needsElevation(source) || source.parentFile?.canWrite() == false)
             when {
                 target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 source.renameTo(target) -> OperationResult(true, "Renamed")
@@ -231,7 +244,7 @@ class FileRepository(
         entries.forEach { entry ->
             val deleted = if (isDirect(entry.uri)) {
                 val file = entry.uri.path?.let(::File)
-                if (file != null && needsElevation(file) && elevatedEnabled()) runElevated("rm -rf ${shellQuote(file.path)}") != null
+                if (file != null && elevatedEnabled() && (needsElevation(file) || file.parentFile?.canWrite() == false)) runElevated("rm -rf ${shellQuote(file.path)}") != null
                 else direct(entry.uri)?.deleteRecursively() == true
             } else document(entry.uri)?.delete() == true
             if (!deleted) failed++
@@ -253,7 +266,8 @@ class FileRepository(
             val sourceFile = if (isDirect(entry.uri)) entry.uri.path?.let(::File) else null
             val destinationDirectory = if (isDirect(destinationUri)) destinationUri.path?.let(::File) else null
             val viaShell = sourceFile != null && destinationDirectory != null && elevatedEnabled() &&
-                (needsElevation(sourceFile) || needsElevation(destinationDirectory))
+                (needsElevation(sourceFile) || needsElevation(destinationDirectory) ||
+                    !sourceFile.canRead() || !destinationDirectory.canWrite())
             val copied = if (viaShell) {
                 copyDirectViaShell(sourceFile!!, destinationDirectory!!, clipboard.mode == ClipboardMode.MOVE)
             } else if (isDirect(destinationUri)) {
@@ -465,6 +479,9 @@ class FileRepository(
     }
 
     private fun copyDirectViaShell(source: File, destination: File, move: Boolean): Boolean {
+        val sourcePath = source.path.trimEnd('/')
+        val destinationPath = destination.path.trimEnd('/')
+        if (destinationPath == sourcePath || destinationPath.startsWith("$sourcePath/")) return false
         val requested = source.name
         val stem = requested.substringBeforeLast('.', requested)
         val extension = if (!source.isDirectory && requested.contains('.')) ".${requested.substringAfterLast('.')}" else ""
@@ -476,7 +493,7 @@ class FileRepository(
         }
         val target = File(destination, name)
         val command = if (move) "mv ${shellQuote(source.path)} ${shellQuote(target.path)}"
-        else "cp -a ${shellQuote(source.path)} ${shellQuote(target.path)}"
+        else "cp -r ${shellQuote(source.path)} ${shellQuote(target.path)}"
         return runElevated(command) != null
     }
 

@@ -295,10 +295,10 @@ fun BugeApp(
                             onRefresh = { viewModel.refresh(reportFailure = true) },
                             onCopyPath = {
                                 val path = viewModel.currentLocationPath()
-                                if (path.isBlank()) snackbars.showSnackbar(language.t("read_failed"))
+                                if (path.isBlank()) viewModel.showMessage(language.t("read_failed"))
                                 else {
                                     clipboardManager.setText(AnnotatedString(path))
-                                    snackbars.showSnackbar(language.t("path_copied"))
+                                    viewModel.showMessage(language.t("path_copied"))
                                 }
                             },
                             onChangeView = { viewModel.setViewMode(if (settings.viewMode == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST) },
@@ -710,9 +710,9 @@ private fun BrowseScreen(
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(taskTitle(activeTask, language), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("${activeTask.entries.size} ${language.t("items")} · $taskCount ${language.t("task_list")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                Text("${activeTask.entries.size} ${language.t("items")} · ${language.t("task_list")}: $taskCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                             }
-                            FilledTonalButton(onClick = onPaste) { Text(language.t("paste")) }
+                            FilledTonalButton(onClick = onPaste) { Text(if (activeTask.type == TaskType.COMPRESS) language.t("compress") else language.t("paste")) }
                         }
                     }
                 }
@@ -1347,7 +1347,7 @@ private fun SettingSwitch(label: String, checked: Boolean, index: Int, count: In
                 Text(label, style = MaterialTheme.typography.titleMedium, color = labelColor)
                 if (supportingText != null) Text(supportingText, style = MaterialTheme.typography.bodySmall, color = supportColor)
             }
-            Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+            Switch(checked = checked, onCheckedChange = null, enabled = enabled)
         }
     }
 }
