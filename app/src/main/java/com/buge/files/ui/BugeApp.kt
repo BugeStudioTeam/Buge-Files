@@ -1656,64 +1656,79 @@ private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: 
             tonalElevation = 3.dp,
             modifier = Modifier.widthIn(max = 540.dp).fillMaxWidth()
         ) {
-            Column(Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    FileGlyph(Icons.Outlined.Archive, false, 44.dp, entry = file)
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(metadata?.packageName ?: file.name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        if (metadata != null) {
-                            Text(
-                                "${language.t("version")} ${metadata.versionName} (${metadata.versionCode})",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (metadata.isInstalled) {
-                                Text(
-                                    "${metadata.versionName} (${metadata.versionCode}) ${if (metadata.isNewerThanInstalled) ">" else "≤"} ${metadata.installedVersionName ?: "—"} (${metadata.installedVersionCode ?: "—"})",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (metadata.isNewerThanInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else {
-                                Text(language.t("not_installed"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
+            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                FileGlyph(Icons.Outlined.Archive, false, 52.dp, entry = file)
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    metadata?.displayName ?: file.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (metadata != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        metadata.packageName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "${language.t("version")} ${metadata.versionName} (${metadata.versionCode})",
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    if (metadata.isInstalled) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "${metadata.installedVersionName ?: "—"} (${metadata.installedVersionCode ?: "—"}) → ${metadata.versionName} (${metadata.versionCode})",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (metadata.isNewerThanInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
                     }
+                    Spacer(Modifier.height(16.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+                        ApkPill("Min: API ${metadata.minSdk}")
+                        ApkPill("Target: API ${metadata.targetSdk}")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                        ApkPill("${language.t("size")}: ${formatBytes(file.size)}")
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(onClick = { showPermissions = true }, shape = CircleShape) { Text(language.t("view_all_permissions")) }
+                        OutlinedButton(onClick = { showSignature = true }, shape = CircleShape) { Text(language.t("view_signature")) }
+                    }
+                } else if (!loading) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("APK metadata is unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
                 if (loading) {
                     Spacer(Modifier.height(14.dp))
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
-                metadata?.let { apk ->
-                    Spacer(Modifier.height(16.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ApkPill("Min: API ${apk.minSdk}")
-                        ApkPill("Target: API ${apk.targetSdk}")
-                        ApkPill("${language.t("size")}: ${formatBytes(file.size)}")
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { showPermissions = true }, shape = CircleShape) { Text(language.t("view_all_permissions")) }
-                        OutlinedButton(onClick = { showSignature = true }, shape = CircleShape) { Text(language.t("view_signature")) }
-                    }
-                } ?: run {
-                    if (!loading) {
-                        Spacer(Modifier.height(16.dp))
-                        Text("APK metadata is unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
                 Spacer(Modifier.height(18.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     FilledTonalButton(
                         onClick = onInstall,
                         enabled = metadata != null && !loading,
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.weight(1f)
+                        shape = groupItemShape(0, 2),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
                     ) { Text(language.t("install")) }
                     OutlinedButton(
                         onClick = onDismiss,
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.weight(1f)
+                        shape = groupItemShape(1, 2),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
                     ) { Text(language.t("cancel")) }
                 }
             }
