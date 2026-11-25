@@ -194,4 +194,20 @@
     <string name="compact_summary">목록 행 간격을 좁게 사용</string>
     <string name="thumbnails_summary">파일 행에 이미지와 동영상 미리보기 표시</string>
     <string name="haptics_summary">선택 및 길게 누를 때 진동</string>
+    <string name="use_app_installer">Buge Files로 앱 설치</string>
+    <string name="use_app_installer_summary">Shizuku 또는 root로 APK 파일 설치</string>
+    <string name="install_method">설치 방법</string>
+    <string name="install_method_shizuku">Shizuku</string>
+    <string name="install_method_root">Root</string>
+    <string name="installer_declaration">설치자 선언</string>
+    <string name="installer_declaration_summary">Android에 설치자로 보고할 패키지 이름</string>
+    <string name="installer_package_hint">설치자 패키지 이름</string>
+    <string name="not_set">설정 안 됨</string>
+    <string name="allow_downgrade">다운그레이드 허용</string>
+    <string name="allow_downgrade_summary">최신 버전 위에 이전 버전 설치</string>
+    <string name="allow_test_packages">테스트 패키지 허용</string>
+    <string name="allow_test_packages_summary">테스트 전용으로 표시된 APK 설치</string>
+    <string name="install_all_users">모든 사용자에 설치</string>
+    <string name="install_all_users_summary">기기의 모든 사용자가 앱을 사용할 수 있도록 설정</string>
+    <string name="installation">설치</string>
 </resources>

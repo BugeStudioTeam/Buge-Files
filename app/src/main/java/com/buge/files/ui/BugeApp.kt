@@ -245,6 +245,7 @@ fun BugeApp(
             viewModel.selection.isNotEmpty() -> viewModel.clearSelection()
             viewModel.isSearching -> viewModel.setSearchActive(false)
             viewModel.destination != AppDestination.BROWSE -> viewModel.selectDestination(AppDestination.BROWSE)
+            viewModel.isInsideArchive() -> viewModel.leaveArchive()
             viewModel.navigationPath.size > 1 -> viewModel.navigateUp()
             else -> {
                 val now = SystemClock.elapsedRealtime()
@@ -459,9 +460,6 @@ fun BugeApp(
         }
         viewModel.editorTarget?.let { file ->
             CodeEditorScreen(file = file, content = viewModel.editorText, loading = viewModel.editorLoading, language = language, onContentChange = viewModel::updateEditorText, onSave = viewModel::saveEditor, onDismiss = viewModel::dismissEditor)
-        }
-        viewModel.archiveTarget?.let { file ->
-            ArchiveBrowserSheet(file = file, items = viewModel.archiveItems, loading = viewModel.archiveLoading, language = language, onExtract = viewModel::extractArchiveToCurrentLocation, onDismiss = viewModel::dismissArchive)
         }
         viewModel.imagePreview?.let { file ->
             ImageViewerScreen(file = file, language = language, onShare = { onShareFiles(listOf(file)) }, onDismiss = viewModel::dismissImage)
@@ -1021,6 +1019,8 @@ private fun UpdateCheckDialog(
 private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, shizukuAvailable: Boolean, shizukuPermission: Boolean, onSettingsChange: (AppSettings) -> Unit, onCheckForUpdates: () -> Unit, onRequestShizuku: () -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
     var rootCommandDialog by remember { mutableStateOf(false) }
+    var installMethodDialog by remember { mutableStateOf(false) }
+    var installerDeclarationDialog by remember { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1106,6 +1106,41 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3, icon = Icons.Outlined.Vibration, supportingText = language.t("haptics_summary")) { onSettingsChange(settings.copy(hapticFeedback = it)) }
                 }
             }
+            item { SettingsSection(language.t("installation")) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SettingSwitch(
+                        label = language.t("use_app_installer"),
+                        checked = settings.installEnabled,
+                        index = 0,
+                        count = 6,
+                        icon = Icons.Outlined.Settings,
+                        supportingText = language.t("use_app_installer_summary")
+                    ) { onSettingsChange(settings.copy(installEnabled = it)) }
+                    SettingsActionCard(
+                        title = language.t("install_method"),
+                        summary = installMethodLabel(language, settings.installMethod),
+                        icon = Icons.Outlined.Terminal,
+                        index = 1,
+                        count = 6,
+                        enabled = settings.installEnabled,
+                        onClick = { installMethodDialog = true }
+                    )
+                    SettingsActionCard(
+                        title = language.t("installer_declaration"),
+                        summary = language.t("installer_declaration_summary"),
+                        icon = Icons.Outlined.Info,
+                        index = 2,
+                        count = 6,
+                        trailingText = settings.installerPackage.ifBlank { language.t("not_set") },
+                        enabled = settings.installEnabled,
+                        onClick = { installerDeclarationDialog = true }
+                    )
+                    SettingSwitch(language.t("allow_downgrade"), settings.allowDowngrade, 3, 6, icon = Icons.Outlined.Refresh, supportingText = language.t("allow_downgrade_summary")) { onSettingsChange(settings.copy(allowDowngrade = it)) }
+                    SettingSwitch(language.t("allow_test_packages"), settings.allowTestPackages, 4, 6, icon = Icons.Outlined.Code, supportingText = language.t("allow_test_packages_summary")) { onSettingsChange(settings.copy(allowTestPackages = it)) }
+                    SettingSwitch(language.t("install_all_users"), settings.installAllUsers, 5, 6, icon = Icons.Outlined.Share, supportingText = language.t("install_all_users_summary")) { onSettingsChange(settings.copy(installAllUsers = it)) }
+                }
+            }
             item { SettingsSection(language.t("about")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1166,6 +1201,29 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                 rootCommandDialog = false
             }
         }
+
+        if (installMethodDialog) {
+            InstallMethodDialog(
+                language = language,
+                selected = settings.installMethod,
+                onSelect = { method -> onSettingsChange(settings.copy(installMethod = method)) },
+                onDismiss = { installMethodDialog = false }
+            )
+        }
+
+        if (installerDeclarationDialog) {
+            NameDialog(
+                title = language.t("installer_declaration"),
+                hint = language.t("installer_package_hint"),
+                language = language,
+                initialValue = "",
+                confirmLabel = language.t("save"),
+                onDismiss = { installerDeclarationDialog = false }
+            ) { value ->
+                onSettingsChange(settings.copy(installerPackage = value.trim()))
+                installerDeclarationDialog = false
+            }
+        }
     }
 }
 
@@ -1204,27 +1262,55 @@ private fun pressedGroupShape(index: Int, count: Int, interactionSource: Mutable
 }
 
 @Composable
-private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, index: Int, count: Int, trailingText: String? = null, onClick: () -> Unit) {
+private fun SettingsActionCard(title: String, summary: String, icon: ImageVector, index: Int, count: Int, trailingText: String? = null, enabled: Boolean = true, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val shape = pressedGroupShape(index, count, interactionSource)
+    val iconColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+    val titleColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    val summaryColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
     Surface(
         shape = shape,
         color = CardDefaults.elevatedCardColors().containerColor,
-        modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, role = Role.Button, onClick = onClick)
+        modifier = Modifier.fillMaxWidth().clip(shape).clickable(interactionSource = interactionSource, indication = LocalIndication.current, enabled = enabled, role = Role.Button, onClick = onClick)
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(title, style = MaterialTheme.typography.titleMedium, color = titleColor)
+                Text(summary, style = MaterialTheme.typography.bodyMedium, color = summaryColor, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
             if (trailingText != null) {
                 Spacer(Modifier.width(12.dp))
-                Text(trailingText, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(trailingText, style = MaterialTheme.typography.labelLarge, color = summaryColor)
             }
         }
     }
+}
+
+private fun installMethodLabel(language: AppLanguage, method: InstallMethod): String = when (method) {
+    InstallMethod.SHIZUKU -> language.t("install_method_shizuku")
+    InstallMethod.ROOT -> language.t("install_method_root")
+}
+
+@Composable
+private fun InstallMethodDialog(language: AppLanguage, selected: InstallMethod, onSelect: (InstallMethod) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(language.t("install_method")) },
+        text = {
+            Column {
+                InstallMethod.entries.forEach { method ->
+                    AppearanceOptionRow(
+                        label = installMethodLabel(language, method),
+                        selected = selected == method,
+                        onSelect = { onSelect(method) }
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
 }
 
 @Composable
@@ -1646,33 +1732,6 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
                                     }
                                 }
                             )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ArchiveBrowserSheet(file: FileEntry, items: List<ArchiveItem>, loading: Boolean, language: AppLanguage, onExtract: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 700.dp).padding(horizontal = 24.dp).padding(bottom = 20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FileGlyph(Icons.Outlined.Archive, false, 28.dp)
-                Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(file.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis); Text("${items.count { !it.isDirectory }} ${language.t("files")}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                FilledTonalButton(onClick = onExtract, enabled = !loading) { Text(language.t("extract_here")) }
-            }
-            Spacer(Modifier.height(16.dp))
-            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (!loading && items.isEmpty()) Text(language.t("empty"), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 24.dp))
-            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
-                items(items, key = { it.name }) { item ->
-                    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if (item.isDirectory) Icons.Outlined.Folder else Icons.Outlined.Description, null, tint = if (item.isDirectory) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary)
-                            Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(item.name.trimEnd('/'), maxLines = 1, overflow = TextOverflow.Ellipsis); if (!item.isDirectory) Text("${formatBytes(item.size)} · ${formatBytes(item.compressedSize)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         }
                     }
                 }

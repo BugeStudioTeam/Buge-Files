@@ -30,6 +30,8 @@ import rikka.shizuku.Shizuku
 
 data class BrowseScrollPosition(val index: Int, val offset: Int)
 
+private data class ArchiveReturn(val root: RootLocation?, val path: List<RootLocation>)
+
 class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -68,6 +70,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     private var loadingJob: Job? = null
     private var lastRootCommand: String? = "su"
     private val browseScrollPositions = mutableMapOf<String, BrowseScrollPosition>()
+    private val archiveStack = ArrayDeque<ArchiveReturn>()
 
     private val _roots = MutableStateFlow<List<RootLocation>>(emptyList())
     val roots: StateFlow<List<RootLocation>> = _roots.asStateFlow()
@@ -340,6 +343,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
             preferDirect && direct != null -> selectRoot(direct)
             current == null && locations.isNotEmpty() -> selectRoot(locations.first())
             current != null && locations.none { it.uri == current.uri } -> {
+                archiveStack.clear()
                 _currentRoot.value = locations.firstOrNull()
                 navigationPath = locations.firstOrNull()?.let { listOf(it) }.orEmpty()
                 refresh()
@@ -353,6 +357,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         return root.takeIf { accessible }?.let { RootLocation(Uri.fromFile(it), "Internal storage") }
     }
     fun selectRoot(location: RootLocation, reportFailure: Boolean = false) {
+        archiveStack.clear()
         _currentRoot.value = location
         navigationPath = listOf(location)
         selection = emptySet()
@@ -362,6 +367,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openBookmark(location: RootLocation) {
+        archiveStack.clear()
         destination = AppDestination.BROWSE
         val owner = owningRoot(location.uri)
         val rootUri = owner?.uri ?: location.uri
@@ -611,6 +617,50 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         _tasks.value = _tasks.value.map { if (it.id == id) transform(it) else it }
     }
 
+    fun openArchive(entry: FileEntry) {
+        viewModelScope.launch {
+            isLoading = true
+            val source = materialize(entry)
+            if (source == null) {
+                isLoading = false
+                showMessage("Archive is not available")
+                return@launch
+            }
+            val directory = File(getApplication<Application>().cacheDir, "archives/${entry.uri.hashCode()}")
+            directory.deleteRecursively()
+            directory.mkdirs()
+            val result = advancedToolsRepository.extractZip(source.uri, Uri.fromFile(directory))
+            isLoading = false
+            if (!result.success) {
+                showMessage(result.message)
+                return@launch
+            }
+            archiveStack.addLast(ArchiveReturn(_currentRoot.value, navigationPath))
+            val location = RootLocation(Uri.fromFile(directory), entry.name)
+            _currentRoot.value = location
+            navigationPath = listOf(location)
+            selection = emptySet()
+            searchQuery = ""
+            isSearching = false
+            destination = AppDestination.BROWSE
+            refresh()
+        }
+    }
+
+    fun isInsideArchive(): Boolean = archiveStack.isNotEmpty() && navigationPath.size == 1
+
+    fun leaveArchive(): Boolean {
+        if (archiveStack.isEmpty()) return false
+        val state = archiveStack.removeLast()
+        _currentRoot.value = state.root
+        navigationPath = state.path
+        selection = emptySet()
+        searchQuery = ""
+        isSearching = false
+        refresh()
+        return true
+    }
+
     fun deleteSelected() = delete(selectedEntries())
     fun delete(entries: List<FileEntry>) = viewModelScope.launch {
         val smbEntries = entries.filter { SmbUri.isSmb(it.uri) }
@@ -752,7 +802,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun openBuiltInTool(entry: FileEntry): Boolean = when {
         entry.isApkPackage() -> { inspectApk(entry); recordOpened(entry); true }
         entry.isImageFile() -> { showImage(entry); true }
-        entry.isZipContainer() -> { inspectArchive(entry); recordOpened(entry); true }
+        entry.isZipContainer() -> { openArchive(entry); recordOpened(entry); true }
         entry.isEditableText() -> { openTextEditor(entry); recordOpened(entry); true }
         else -> false
     }

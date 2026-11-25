@@ -194,4 +194,20 @@
     <string name="compact_summary">استخدام تباعد أضيق لصفوف القائمة</string>
     <string name="thumbnails_summary">عرض معاينات الصور والفيديوهات في صفوف الملفات</string>
     <string name="haptics_summary">الاهتزاز عند التحديد والضغط المطوّل</string>
+    <string name="use_app_installer">تثبيت التطبيقات باستخدام Buge Files</string>
+    <string name="use_app_installer_summary">تثبيت ملفات APK باستخدام Shizuku أو root</string>
+    <string name="install_method">طريقة التثبيت</string>
+    <string name="install_method_shizuku">Shizuku</string>
+    <string name="install_method_root">Root</string>
+    <string name="installer_declaration">إقرار المثبّت</string>
+    <string name="installer_declaration_summary">اسم الحزمة الذي يُبلَّغ إلى Android كمثبّت</string>
+    <string name="installer_package_hint">اسم حزمة المثبّت</string>
+    <string name="not_set">غير محدد</string>
+    <string name="allow_downgrade">السماح بتخفيض الإصدار</string>
+    <string name="allow_downgrade_summary">تثبيت إصدار أقدم فوق إصدار أحدث</string>
+    <string name="allow_test_packages">السماح بحزم الاختبار</string>
+    <string name="allow_test_packages_summary">تثبيت ملفات APK المحددة للاختبار فقط</string>
+    <string name="install_all_users">التثبيت لجميع المستخدمين</string>
+    <string name="install_all_users_summary">جعل التطبيق متاحًا لجميع مستخدمي الجهاز</string>
+    <string name="installation">التثبيت</string>
 </resources>

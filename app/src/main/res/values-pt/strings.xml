@@ -194,4 +194,20 @@
     <string name="compact_summary">Usar espaçamento mais reduzido nas linhas da lista</string>
     <string name="thumbnails_summary">Mostrar pré-visualizações de imagens e vídeos nas linhas</string>
     <string name="haptics_summary">Vibrar ao selecionar e ao premir sem soltar</string>
+    <string name="use_app_installer">Instalar aplicações com o Buge Files</string>
+    <string name="use_app_installer_summary">Instalar ficheiros APK com Shizuku ou root</string>
+    <string name="install_method">Método de instalação</string>
+    <string name="install_method_shizuku">Shizuku</string>
+    <string name="install_method_root">Root</string>
+    <string name="installer_declaration">Declaração do instalador</string>
+    <string name="installer_declaration_summary">Nome do pacote comunicado ao Android como instalador</string>
+    <string name="installer_package_hint">Nome do pacote do instalador</string>
+    <string name="not_set">Não definido</string>
+    <string name="allow_downgrade">Permitir desatualização</string>
+    <string name="allow_downgrade_summary">Instalar uma versão mais antiga sobre uma mais recente</string>
+    <string name="allow_test_packages">Permitir pacotes de teste</string>
+    <string name="allow_test_packages_summary">Instalar APK marcados apenas para testes</string>
+    <string name="install_all_users">Instalar para todos os utilizadores</string>
+    <string name="install_all_users_summary">Tornar a aplicação disponível para todos os utilizadores do dispositivo</string>
+    <string name="installation">Instalação</string>
 </resources>

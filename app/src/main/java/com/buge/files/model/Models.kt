@@ -15,6 +15,7 @@ enum class ThemePreference { SYSTEM, LIGHT, DARK }
 enum class ColorSource { DYNAMIC, INDIGO, OCEAN, FOREST, SUNSET, ORCHID }
 enum class TaskType { COPY, MOVE, COMPRESS }
 enum class TaskState { PENDING, RUNNING, COMPLETED, FAILED }
+enum class InstallMethod { SHIZUKU, ROOT }
 enum class AppLanguage(val code: String, val nativeName: String) {
     SYSTEM("system", "System default"),
     ENGLISH("en", "English"),
@@ -93,7 +94,13 @@ data class AppSettings(
     val hapticFeedback: Boolean = true,
     val rootAccess: Boolean = false,
     val rootCommand: String = "su",
-    val shizukuAccess: Boolean = false
+    val shizukuAccess: Boolean = false,
+    val installEnabled: Boolean = false,
+    val installMethod: InstallMethod = InstallMethod.SHIZUKU,
+    val installerPackage: String = "",
+    val allowDowngrade: Boolean = true,
+    val allowTestPackages: Boolean = false,
+    val installAllUsers: Boolean = false
 )
 
 @Immutable

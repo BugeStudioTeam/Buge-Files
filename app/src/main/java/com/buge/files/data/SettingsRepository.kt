@@ -29,6 +29,12 @@ class SettingsRepository(private val context: Context) {
         val rootAccess = booleanPreferencesKey("root_access")
         val rootCommand = stringPreferencesKey("root_command")
         val shizukuAccess = booleanPreferencesKey("shizuku_access")
+        val installEnabled = booleanPreferencesKey("install_enabled")
+        val installMethod = stringPreferencesKey("install_method")
+        val installerPackage = stringPreferencesKey("installer_package")
+        val allowDowngrade = booleanPreferencesKey("allow_downgrade")
+        val allowTestPackages = booleanPreferencesKey("allow_test_packages")
+        val installAllUsers = booleanPreferencesKey("install_all_users")
         val roots = stringSetPreferencesKey("roots")
         val bookmarks = stringSetPreferencesKey("bookmarks")
     }
@@ -45,7 +51,13 @@ class SettingsRepository(private val context: Context) {
             hapticFeedback = prefs[Keys.haptics]?.toBoolean() ?: true,
             rootAccess = prefs[Keys.rootAccess] ?: false,
             rootCommand = prefs[Keys.rootCommand]?.takeIf { it.isNotBlank() } ?: "su",
-            shizukuAccess = prefs[Keys.shizukuAccess] ?: false
+            shizukuAccess = prefs[Keys.shizukuAccess] ?: false,
+            installEnabled = prefs[Keys.installEnabled] ?: false,
+            installMethod = enumValue(prefs[Keys.installMethod], InstallMethod.SHIZUKU),
+            installerPackage = prefs[Keys.installerPackage].orEmpty(),
+            allowDowngrade = prefs[Keys.allowDowngrade] ?: true,
+            allowTestPackages = prefs[Keys.allowTestPackages] ?: false,
+            installAllUsers = prefs[Keys.installAllUsers] ?: false
         )
     }
 
@@ -69,6 +81,12 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.rootAccess] = settings.rootAccess
         prefs[Keys.rootCommand] = settings.rootCommand.ifBlank { "su" }
         prefs[Keys.shizukuAccess] = settings.shizukuAccess
+        prefs[Keys.installEnabled] = settings.installEnabled
+        prefs[Keys.installMethod] = settings.installMethod.name
+        prefs[Keys.installerPackage] = settings.installerPackage
+        prefs[Keys.allowDowngrade] = settings.allowDowngrade
+        prefs[Keys.allowTestPackages] = settings.allowTestPackages
+        prefs[Keys.installAllUsers] = settings.installAllUsers
     }
 
     suspend fun addRoot(location: RootLocation) = context.dataStore.edit { prefs ->

@@ -194,4 +194,20 @@
     <string name="compact_summary">Utiliser un espacement plus serré pour les lignes de liste</string>
     <string name="thumbnails_summary">Afficher un aperçu des images et vidéos dans les lignes de fichiers</string>
     <string name="haptics_summary">Vibre lors des sélections et des appuis longs</string>
+    <string name="use_app_installer">Installer des applications avec Buge Files</string>
+    <string name="use_app_installer_summary">Installer des fichiers APK avec Shizuku ou root</string>
+    <string name="install_method">Méthode d\'installation</string>
+    <string name="install_method_shizuku">Shizuku</string>
+    <string name="install_method_root">Root</string>
+    <string name="installer_declaration">Déclaration de l\'installateur</string>
+    <string name="installer_declaration_summary">Nom du paquet signalé à Android comme installateur</string>
+    <string name="installer_package_hint">Nom du paquet de l\'installateur</string>
+    <string name="not_set">Non défini</string>
+    <string name="allow_downgrade">Autoriser la rétrogradation</string>
+    <string name="allow_downgrade_summary">Installer une version plus ancienne par-dessus une plus récente</string>
+    <string name="allow_test_packages">Autoriser les paquets de test</string>
+    <string name="allow_test_packages_summary">Installer des APK marqués comme réservés aux tests</string>
+    <string name="install_all_users">Installer pour tous les utilisateurs</string>
+    <string name="install_all_users_summary">Rendre l\'application disponible pour tous les utilisateurs de l\'appareil</string>
+    <string name="installation">Installation</string>
 </resources>

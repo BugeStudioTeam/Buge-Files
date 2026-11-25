@@ -18,10 +18,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MainActivity : ComponentActivity() {
     private val viewModel: BugeViewModel by viewModels()
+    private val appInstaller by lazy { AppInstaller(applicationContext) }
     private var awaitingAllFilesAccess = false
     private var selectMode = false
     private var saveMode = false
@@ -154,6 +157,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun installApk(file: FileEntry) {
+        val settings = viewModel.settings.value
+        if (settings.installEnabled) {
+            lifecycleScope.launch {
+                Toast.makeText(this@MainActivity, "Installing…", Toast.LENGTH_SHORT).show()
+                val result = appInstaller.install(file, settings)
+                Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         val uri = safeUri(file) ?: run {
             Toast.makeText(this, "The APK is no longer available", Toast.LENGTH_SHORT).show()
             return

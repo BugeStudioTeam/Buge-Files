@@ -194,4 +194,20 @@
     <string name="compact_summary">使用更緊湊的清單列間距</string>
     <string name="thumbnails_summary">在檔案列中預覽圖片與影片</string>
     <string name="haptics_summary">在選取和長按時振動</string>
+    <string name="use_app_installer">使用 Buge Files 安裝應用程式</string>
+    <string name="use_app_installer_summary">使用 Shizuku 或 Root 安裝 APK 檔案</string>
+    <string name="install_method">安裝方式</string>
+    <string name="install_method_shizuku">Shizuku</string>
+    <string name="install_method_root">Root</string>
+    <string name="installer_declaration">安裝者宣告</string>
+    <string name="installer_declaration_summary">向 Android 回報的安裝者套件名稱</string>
+    <string name="installer_package_hint">安裝者套件名稱</string>
+    <string name="not_set">未設定</string>
+    <string name="allow_downgrade">允許降級</string>
+    <string name="allow_downgrade_summary">在較新版本上安裝較舊版本</string>
+    <string name="allow_test_packages">允許測試套件</string>
+    <string name="allow_test_packages_summary">安裝標記為僅供測試的 APK</string>
+    <string name="install_all_users">為所有使用者安裝</string>
+    <string name="install_all_users_summary">讓裝置上的所有使用者都能使用此應用程式</string>
+    <string name="installation">安裝</string>
 </resources>
