@@ -96,6 +96,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.VideoFile
 import androidx.compose.material.icons.outlined.Visibility
@@ -615,7 +616,7 @@ private fun navigationItems(language: AppLanguage): List<Triple<AppDestination, 
 @Composable
 private fun BrowseScreen(
     viewModel: BugeViewModel, modifier: Modifier, language: AppLanguage, root: RootLocation?, directStorageAvailable: Boolean, path: List<RootLocation>, entries: List<FileEntry>,
-    searchActive: Boolean, isLoading: Boolean, viewMode: ViewMode, compact: Boolean, showThumbnails: Boolean, clipboard: ClipboardState?, isBookmarked: Boolean,
+    searchActive: Boolean, isLoading: Boolean, viewMode: ViewMode, compact: Boolean, showThumbnails: Boolean, activeTask: FileTask?, taskCount: Int, isBookmarked: Boolean,
     onRequestFolder: () -> Unit, onRequestDirectStorage: () -> Unit, selectionActive: Boolean, onOpenDirectory: (FileEntry) -> Unit, onOpenFile: (FileEntry) -> Unit,
     onToggleSelection: (FileEntry) -> Unit, isSelected: (FileEntry) -> Boolean, onInfo: (FileEntry) -> Unit,
     onToggleBookmark: () -> Unit, onPaste: () -> Unit, onNavigate: (Int) -> Unit,
@@ -699,13 +700,16 @@ private fun BrowseScreen(
                     }
                 }
             }
-            if (clipboard != null) {
+            if (activeTask != null) {
                 item {
                     ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if (clipboard.mode == ClipboardMode.COPY) Icons.Outlined.ContentCopy else Icons.AutoMirrored.Outlined.DriveFileMove, null)
+                            Icon(taskIcon(activeTask.type), null)
                             Spacer(Modifier.width(12.dp))
-                            Text(if (clipboard.mode == ClipboardMode.COPY) "${clipboard.entries.size} ${language.t("items")} ${language.t("copy").lowercase()}" else "${clipboard.entries.size} ${language.t("items")} ${language.t("move").lowercase()}", modifier = Modifier.weight(1f))
+                            Column(Modifier.weight(1f)) {
+                                Text(taskTitle(activeTask, language), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${activeTask.entries.size} ${language.t("items")} · $taskCount ${language.t("task_list")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                            }
                             FilledTonalButton(onClick = onPaste) { Text(language.t("paste")) }
                         }
                     }
@@ -1016,7 +1020,7 @@ private fun UpdateCheckDialog(
 }
 
 @Composable
-private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, onSettingsChange: (AppSettings) -> Unit, onCheckForUpdates: () -> Unit) {
+private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, shizukuAvailable: Boolean, shizukuPermission: Boolean, onSettingsChange: (AppSettings) -> Unit, onCheckForUpdates: () -> Unit, onRequestShizuku: () -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
     var rootCommandDialog by remember { mutableStateOf(false) }
 
@@ -1059,20 +1063,40 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         label = language.t("root_access"),
                         checked = settings.rootAccess && rootAvailable,
                         index = 0,
-                        count = 3,
+                        count = 4,
                         enabled = rootAvailable,
                         icon = Icons.Outlined.Security,
                         supportingText = if (rootAvailable) language.t("root_access_summary") else language.t("root_unavailable")
                     ) { onSettingsChange(settings.copy(rootAccess = it)) }
+                    SettingSwitch(
+                        label = language.t("shizuku_access"),
+                        checked = settings.shizukuAccess && shizukuPermission,
+                        index = 1,
+                        count = 4,
+                        enabled = shizukuAvailable,
+                        icon = Icons.Outlined.Terminal,
+                        supportingText = when {
+                            !shizukuAvailable -> language.t("shizuku_unavailable")
+                            !shizukuPermission -> language.t("shizuku_permission_required")
+                            else -> language.t("shizuku_access_summary")
+                        }
+                    ) { enabled ->
+                        if (enabled && !shizukuPermission) {
+                            onRequestShizuku()
+                            onSettingsChange(settings.copy(shizukuAccess = true))
+                        } else {
+                            onSettingsChange(settings.copy(shizukuAccess = enabled))
+                        }
+                    }
                     SettingsActionCard(
                         title = language.t("root_command"),
                         summary = settings.rootCommand,
                         icon = Icons.Outlined.Code,
-                        index = 1,
-                        count = 3,
+                        index = 2,
+                        count = 4,
                         onClick = { rootCommandDialog = true }
                     )
-                    SettingSwitch(language.t("hidden"), settings.showHidden, 2, 3, icon = Icons.Outlined.Visibility) { onSettingsChange(settings.copy(showHidden = it)) }
+                    SettingSwitch(language.t("hidden"), settings.showHidden, 3, 4, icon = Icons.Outlined.Visibility) { onSettingsChange(settings.copy(showHidden = it)) }
                 }
             }
             item { SettingsSection(language.t("behavior")) }
@@ -1212,7 +1236,6 @@ private fun ColorSettingsDialog(language: AppLanguage, settings: AppSettings, on
                     AppearanceOptionRow(
                         label = colorSourceLabel(language, source),
                         selected = settings.colorSource == source,
-                        icon = Icons.Outlined.Palette,
                         onSelect = { onSettingsChange(settings.copy(colorSource = source)) }
                     )
                 }
@@ -1234,7 +1257,6 @@ private fun LanguageSettingsDialog(language: AppLanguage, settings: AppSettings,
                         label = appLanguage.nativeName,
                         supportingText = appLanguage.code,
                         selected = settings.language == appLanguage,
-                        icon = Icons.Outlined.Language,
                         onSelect = { onSettingsChange(settings.copy(language = appLanguage)) }
                     )
                 }
