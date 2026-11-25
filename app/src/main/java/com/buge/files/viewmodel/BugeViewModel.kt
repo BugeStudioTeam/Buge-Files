@@ -281,6 +281,22 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         updateVisibleRoots(preferDirect)
     }
 
+    fun refreshShizuku() {
+        shizukuAvailable = ShizukuShell.isAvailable()
+        shizukuPermission = ShizukuShell.hasPermission()
+    }
+
+    fun shizukuReady(): Boolean = shizukuAvailable && shizukuPermission && _settings.value.shizukuAccess
+
+    fun requestShizukuPermission() {
+        refreshShizuku()
+        if (!shizukuAvailable) {
+            showMessage(_settings.value.language.resolved().t("shizuku_unavailable"))
+            return
+        }
+        ShizukuShell.requestPermission()
+    }
+
     private fun detectRootAccess() {
         viewModelScope.launch {
             val available = withContext(Dispatchers.IO) { hasRootAccess() }
@@ -310,7 +326,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         if (_rootAvailable.value && _settings.value.rootAccess) RootLocation(Uri.fromFile(File("/")), "Root directory") else null
 
     private fun updateVisibleRoots(preferDirect: Boolean = false) {
-        val direct = directRoot().takeIf { _directStorageAvailable.value }
+        val direct = directRoot().takeIf { _directStorageAvailable.value || shizukuReady() }
         val locations = listOfNotNull(direct, rootDirectoryRoot()) + safRoots
         _roots.value = locations
         val current = _currentRoot.value
@@ -560,15 +576,32 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun compressSelected(archiveName: String) {
         val items = selectedEntries()
-        val destination = navigationPath.lastOrNull() ?: return
         if (items.isEmpty()) return
-        viewModelScope.launch {
-            isLoading = true
-            val result = advancedToolsRepository.compressToZip(items, destination.uri, archiveName)
-            isLoading = false
-            showMessage(result.message)
-            if (result.success) { clearSelection(); refresh() }
-        }
+        enqueueTask(TaskType.COMPRESS, items, archiveName)
+    }
+
+    private fun enqueueTask(type: TaskType, items: List<FileEntry>, archiveName: String? = null) {
+        val task = FileTask(id = nextTaskId++, type = type, entries = items, archiveName = archiveName)
+        _tasks.value = _tasks.value + task
+        activeTaskId = task.id
+        clearSelection()
+        showMessage(_settings.value.language.resolved().t("tasks_added"))
+    }
+
+    fun setActiveTask(id: Long) { activeTaskId = id }
+
+    fun removeTask(id: Long) {
+        _tasks.value = _tasks.value.filterNot { it.id == id }
+        if (activeTaskId == id) activeTaskId = _tasks.value.lastOrNull()?.id
+    }
+
+    fun clearTasks() {
+        _tasks.value = emptyList()
+        activeTaskId = null
+    }
+
+    private fun updateTask(id: Long, transform: (FileTask) -> FileTask) {
+        _tasks.value = _tasks.value.map { if (it.id == id) transform(it) else it }
     }
 
     fun deleteSelected() = delete(selectedEntries())
