@@ -149,6 +149,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarState
+import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.ToggleFloatingActionButton
@@ -718,6 +719,12 @@ private fun BugeSearchBar(
     LaunchedEffect(textFieldState) {
         snapshotFlow { textFieldState.text.toString() }.collectLatest { onQueryChange(it) }
     }
+    LaunchedEffect(searchBarState.currentValue) {
+        if (searchBarState.currentValue == SearchBarValue.Collapsed && textFieldState.text.isNotEmpty()) {
+            textFieldState.setTextAndPlaceCursorAtEnd("")
+            onQueryChange("")
+        }
+    }
     SearchBar(state = searchBarState, inputField = inputField, modifier = modifier)
     ExpandedFullScreenContainedSearchBar(
         state = searchBarState,
@@ -1206,6 +1213,34 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
     val showBehavior = groupMatches("behavior", "compact", "thumbnails", "haptics", "show_recents", "create_button_style", "fab_style_extended", "fab_style_icon", "fab_style_menu")
     val showInstallation = groupMatches("installation", "use_app_installer", "install_method", "installer_declaration", "allow_downgrade", "allow_test_packages", "install_all_users")
     val showAbout = groupMatches("about", "check_updates", "file_manager", "version", "website", "github", "fdroid", "telegram")
+    val settingsSearchEntries = listOf(
+        "appearance" to "theme",
+        "appearance" to "color",
+        "appearance" to "language",
+        "appearance" to "pure_black",
+        "appearance" to "system_font",
+        "advanced" to "root_access",
+        "advanced" to "shizuku_access",
+        "advanced" to "root_command",
+        "advanced" to "hidden",
+        "advanced" to "auto_remount",
+        "behavior" to "compact",
+        "behavior" to "thumbnails",
+        "behavior" to "haptics",
+        "behavior" to "show_recents",
+        "behavior" to "create_button_style",
+        "installation" to "use_app_installer",
+        "installation" to "install_method",
+        "installation" to "installer_declaration",
+        "installation" to "allow_downgrade",
+        "installation" to "allow_test_packages",
+        "installation" to "install_all_users",
+        "about" to "check_updates",
+        "about" to "file_manager"
+    )
+    val filteredSettingsEntries = settingsSearchEntries.filter { (section, title) ->
+        searchQuery.isEmpty() || language.t(section).lowercase().contains(searchQuery) || language.t(title).lowercase().contains(searchQuery)
+    }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1218,19 +1253,22 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     onQueryChange = {},
                     modifier = Modifier.fillMaxWidth(),
                     content = {
-                        val groups = buildList {
-                            if (showAppearance) add(language.t("appearance"))
-                            if (showAdvanced) add(language.t("advanced"))
-                            if (showBehavior) add(language.t("behavior"))
-                            if (showInstallation) add(language.t("installation"))
-                            if (showAbout) add(language.t("about"))
-                        }
-                        if (groups.isEmpty()) {
+                        val searchContentScope = rememberCoroutineScope()
+                        if (filteredSettingsEntries.isEmpty()) {
                             Text("No results", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(24.dp), textAlign = TextAlign.Center)
                         } else {
                             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-                                items(groups) { group ->
-                                    Text(group, style = MaterialTheme.typography.titleMedium, modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp))
+                                items(filteredSettingsEntries) { (section, title) ->
+                                    val resultShape = RoundedCornerShape(14.dp)
+                                    Surface(shape = resultShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(resultShape).clickable {
+                                        settingsSearchText.setTextAndPlaceCursorAtEnd("")
+                                        searchContentScope.launch { settingsSearchState.animateToCollapsed() }
+                                    }) {
+                                        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                            Text(language.t(section), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                            Text(language.t(title), style = MaterialTheme.typography.titleMedium)
+                                        }
+                                    }
                                 }
                             }
                         }
