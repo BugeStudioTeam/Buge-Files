@@ -700,6 +700,7 @@ private fun BugeSearchBar(
     placeholder: String,
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    clearOnCollapse: Boolean = true,
     content: @Composable ColumnScope.() -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
@@ -720,7 +721,7 @@ private fun BugeSearchBar(
         snapshotFlow { textFieldState.text.toString() }.collectLatest { onQueryChange(it) }
     }
     LaunchedEffect(searchBarState.currentValue) {
-        if (searchBarState.currentValue == SearchBarValue.Collapsed && textFieldState.text.isNotEmpty()) {
+        if (clearOnCollapse && searchBarState.currentValue == SearchBarValue.Collapsed && textFieldState.text.isNotEmpty()) {
             textFieldState.setTextAndPlaceCursorAtEnd("")
             onQueryChange("")
         }
@@ -1252,9 +1253,12 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     placeholder = language.t("search_settings"),
                     onQueryChange = {},
                     modifier = Modifier.fillMaxWidth(),
+                    clearOnCollapse = false,
                     content = {
                         val searchContentScope = rememberCoroutineScope()
-                        if (filteredSettingsEntries.isEmpty()) {
+                        if (searchQuery.isEmpty()) {
+                            Unit
+                        } else if (filteredSettingsEntries.isEmpty()) {
                             Text("No results", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(24.dp), textAlign = TextAlign.Center)
                         } else {
                             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
