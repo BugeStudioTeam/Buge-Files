@@ -189,7 +189,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -1597,17 +1596,17 @@ private fun SettingsActionCard(title: String, summary: String, icon: ImageVector
 private fun AboutDialog(language: AppLanguage, onDismiss: () -> Unit) {
     val uriHandler = LocalUriHandler.current
     val links = listOf(
-        Triple("Website", R.drawable.ic_web, "https://bugestudio.website/files/"),
-        Triple("GitHub", R.drawable.ic_github, "https://github.com/BugeStudioTeam/Buge-Files"),
-        Triple("F-Droid", R.drawable.ic_fdroid, "https://f-droid.org/packages/com.buge.files"),
-        Triple("Telegram", R.drawable.ic_telegram, "https://t.me/bugestudio")
+        "Website" to "https://bugestudio.website/files/",
+        "GitHub" to "https://github.com/BugeStudioTeam/Buge-Files",
+        "F-Droid" to "https://f-droid.org/packages/com.buge.files",
+        "Telegram" to "https://t.me/bugestudio"
     )
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(language.t("about")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                links.forEach { (label, iconRes, url) ->
+                links.forEach { (label, url) ->
                     Row(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
                             runCatching { uriHandler.openUri(url) }
@@ -1615,8 +1614,6 @@ private fun AboutDialog(language: AppLanguage, onDismiss: () -> Unit) {
                         }.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(painterResource(iconRes), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(12.dp))
                         Text(label, style = MaterialTheme.typography.titleMedium)
                     }
                 }
