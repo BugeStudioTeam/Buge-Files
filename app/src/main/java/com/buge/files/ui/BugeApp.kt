@@ -186,6 +186,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -719,6 +721,13 @@ private fun BugeSearchBar(
     LaunchedEffect(searchBarState.currentValue) {
         if (searchBarState.currentValue != SearchBarValue.Collapsed) {
             runCatching { focusRequester.requestFocus() }
+            delay(80)
+            keyboard?.show()
+        }
+    }
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            delay(80)
             keyboard?.show()
         }
     }
@@ -750,7 +759,20 @@ private fun BugeSearchBar(
                     }
             )
         },
-        modifier = modifier
+        modifier = modifier.pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.type == PointerEventType.Press) {
+                        runCatching { focusRequester.requestFocus() }
+                        scope.launch {
+                            delay(80)
+                            keyboard?.show()
+                        }
+                    }
+                }
+            }
+        }
     )
 }
 
