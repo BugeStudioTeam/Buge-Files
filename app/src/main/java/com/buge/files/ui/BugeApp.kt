@@ -1207,7 +1207,17 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
     var showAboutDialog by remember { mutableStateOf(false) }
     val settingsSearchText = rememberTextFieldState()
     val settingsSearchState = rememberContainedSearchBarState()
+    var keepSearchOnSelection by remember { mutableStateOf(false) }
     val searchQuery = settingsSearchText.text.toString().trim().lowercase()
+    LaunchedEffect(settingsSearchState.currentValue) {
+        if (settingsSearchState.currentValue == SearchBarValue.Collapsed) {
+            if (keepSearchOnSelection) {
+                keepSearchOnSelection = false
+            } else if (settingsSearchText.text.isNotEmpty()) {
+                settingsSearchText.setTextAndPlaceCursorAtEnd("")
+            }
+        }
+    }
     fun groupMatches(vararg keys: String) = searchQuery.isEmpty() || keys.any { language.t(it).lowercase().contains(searchQuery) }
     val showAppearance = groupMatches("appearance", "theme", "color", "language", "pure_black", "pure_black_summary", "system_font", "system_font_summary")
     val showAdvanced = groupMatches("advanced", "root_access", "root_access_summary", "shizuku_access", "shizuku_access_summary", "root_command", "hidden", "auto_remount", "auto_remount_summary")
@@ -1265,7 +1275,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                                 items(filteredSettingsEntries) { (section, title) ->
                                     val resultShape = RoundedCornerShape(14.dp)
                                     Surface(shape = resultShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(resultShape).clickable {
-                                        settingsSearchText.setTextAndPlaceCursorAtEnd("")
+                                        keepSearchOnSelection = true
                                         searchContentScope.launch { settingsSearchState.animateToCollapsed() }
                                     }) {
                                         Column(Modifier.fillMaxWidth().padding(12.dp)) {
