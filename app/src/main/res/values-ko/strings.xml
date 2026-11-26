@@ -69,7 +69,7 @@
     <string name="theme_system">시스템 기본값</string>
     <string name="theme_light">라이트</string>
     <string name="theme_dark">다크</string>
-    <string name="dynamic">동적 배경 색상</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">인디고</string>
     <string name="ocean">오션</string>
     <string name="forest">포레스트</string>
@@ -224,4 +224,5 @@
     <string name="system_font_summary">Google Sans Flex 대신 기기 글꼴 사용</string>
     <string name="auto_remount">읽기-쓰기로 자동 재마운트</string>
     <string name="auto_remount_summary">변경 전에 시스템 파티션을 읽기-쓰기로 재마운트(root)</string>
+    <string name="search_settings">설정 검색</string>
 </resources>

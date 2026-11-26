@@ -69,7 +69,7 @@
     <string name="theme_system">システム既定</string>
     <string name="theme_light">ライト</string>
     <string name="theme_dark">ダーク</string>
-    <string name="dynamic">動的壁紙カラー</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">インディゴ</string>
     <string name="ocean">オーシャン</string>
     <string name="forest">フォレスト</string>
@@ -224,4 +224,5 @@
     <string name="system_font_summary">Google Sans Flex の代わりに端末のフォントを使用</string>
     <string name="auto_remount">自動で読み書き可能に再マウント</string>
     <string name="auto_remount_summary">変更前にシステムパーティションを読み書き可能に再マウント（root）</string>
+    <string name="search_settings">設定を検索</string>
 </resources>

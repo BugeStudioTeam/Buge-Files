@@ -69,7 +69,7 @@
     <string name="theme_system">系統預設</string>
     <string name="theme_light">淺色</string>
     <string name="theme_dark">深色</string>
-    <string name="dynamic">依桌布動態色彩</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">靛青</string>
     <string name="ocean">海洋</string>
     <string name="forest">森林</string>
@@ -224,4 +224,5 @@
     <string name="system_font_summary">使用裝置字型取代 Google Sans Flex</string>
     <string name="auto_remount">自動重新掛載為讀寫</string>
     <string name="auto_remount_summary">修改前將系統分割區重新掛載為讀寫（root）</string>
+    <string name="search_settings">搜尋設定</string>
 </resources>

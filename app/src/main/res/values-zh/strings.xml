@@ -80,7 +80,7 @@
     <string name="theme_system">跟随系统</string>
     <string name="theme_light">浅色</string>
     <string name="theme_dark">深色</string>
-    <string name="dynamic">取自壁纸的动态色彩</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">靛蓝</string>
     <string name="ocean">海洋</string>
     <string name="forest">森林</string>
@@ -224,4 +224,5 @@
     <string name="system_font_summary">使用设备字体代替 Google Sans Flex</string>
     <string name="auto_remount">自动重新挂载为读写</string>
     <string name="auto_remount_summary">修改前将系统分区重新挂载为读写（root）</string>
+    <string name="search_settings">搜索设置</string>
 </resources>

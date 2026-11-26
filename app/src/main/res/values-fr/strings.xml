@@ -69,7 +69,7 @@
     <string name="theme_system">Par défaut du système</string>
     <string name="theme_light">Clair</string>
     <string name="theme_dark">Sombre</string>
-    <string name="dynamic">Couleur dynamique du fond d\'écran</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">Indigo</string>
     <string name="ocean">Océan</string>
     <string name="forest">Forêt</string>
@@ -224,4 +224,5 @@
     <string name="system_font_summary">Utiliser la police de l\'appareil au lieu de Google Sans Flex</string>
     <string name="auto_remount">Remontage automatique en lecture-écriture</string>
     <string name="auto_remount_summary">Remonter les partitions système en lecture-écriture avant modification (root)</string>
+    <string name="search_settings">Rechercher dans les paramètres</string>
 </resources>

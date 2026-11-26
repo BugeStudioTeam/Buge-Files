@@ -109,7 +109,7 @@
     <string name="theme_system">System default</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
-    <string name="dynamic">Dynamic wallpaper color</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">Indigo</string>
     <string name="ocean">Ocean</string>
     <string name="forest">Forest</string>
@@ -224,4 +224,5 @@
     <string name="system_font_summary">Use the device font instead of Google Sans Flex</string>
     <string name="auto_remount">Auto remount read-write</string>
     <string name="auto_remount_summary">Remount system partitions as read-write before changes (root)</string>
+    <string name="search_settings">Search settings</string>
 </resources>

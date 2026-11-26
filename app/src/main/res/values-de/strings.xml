@@ -69,7 +69,7 @@
     <string name="theme_system">Systemstandard</string>
     <string name="theme_light">Hell</string>
     <string name="theme_dark">Dunkel</string>
-    <string name="dynamic">Dynamische Wallpaper-Farbe</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">Indigo</string>
     <string name="ocean">Ozean</string>
     <string name="forest">Wald</string>
@@ -224,4 +224,5 @@
     <string name="system_font_summary">Geräteschriftart statt Google Sans Flex verwenden</string>
     <string name="auto_remount">Automatisch neu einhängen (rw)</string>
     <string name="auto_remount_summary">Systempartitionen vor Änderungen als beschreibbar neu einhängen (Root)</string>
+    <string name="search_settings">Einstellungen durchsuchen</string>
 </resources>

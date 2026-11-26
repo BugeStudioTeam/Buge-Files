@@ -69,6 +69,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.AudioFile
@@ -99,6 +100,7 @@ import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
@@ -303,7 +305,14 @@ fun BugeApp(
                             selectionCount = viewModel.selection.size,
                             isSearching = viewModel.isSearching,
                             query = viewModel.searchQuery,
-                            titleText = if (viewModel.destination == AppDestination.BROWSE) viewModel.navigationPath.lastOrNull()?.label.orEmpty() else "",
+                            titleText = when (viewModel.destination) {
+                                AppDestination.BROWSE -> viewModel.navigationPath.lastOrNull()?.label.orEmpty()
+                                AppDestination.RECENTS -> language.t("recents")
+                                AppDestination.FAVORITES -> language.t("favorites")
+                                AppDestination.STORAGE -> language.t("storage")
+                                AppDestination.SETTINGS -> language.t("settings")
+                            },
+                            showBrowseControls = viewModel.destination == AppDestination.BROWSE,
                             viewMode = settings.viewMode,
                             taskCount = tasks.size,
                             onSearch = { viewModel.setSearchActive(true) },
@@ -482,7 +491,7 @@ fun BugeApp(
             )
         }
         viewModel.apkTarget?.let { file ->
-            ApkInspectorSheet(file = file, metadata = viewModel.apkMetadata, loading = viewModel.apkLoading, language = language, onInstall = { onInstallApk(file) }, onDismiss = viewModel::dismissApk)
+            ApkInspectorSheet(file = file, metadata = viewModel.apkMetadata, loading = viewModel.apkLoading, installing = viewModel.installInProgress, language = language, onInstall = { onInstallApk(file) }, onDismiss = viewModel::dismissApk)
         }
         if (viewModel.smbDialogVisible) {
             SmbConnectionDialog(
@@ -535,7 +544,7 @@ fun BugeApp(
 @Composable
 private fun BugeTopBar(
     language: AppLanguage, root: RootLocation?, roots: List<RootLocation>, selectionCount: Int,
-    isSearching: Boolean, query: String, titleText: String, viewMode: ViewMode, taskCount: Int,
+    isSearching: Boolean, query: String, titleText: String, showBrowseControls: Boolean, viewMode: ViewMode, taskCount: Int,
     onSearch: () -> Unit, onQueryChange: (String) -> Unit, onCloseSearch: () -> Unit,
     onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowTasks: () -> Unit, onShowActions: () -> Unit,
     onRefresh: () -> Unit, onCopyPath: () -> Unit,
@@ -557,7 +566,7 @@ private fun BugeTopBar(
             } else Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
         navigationIcon = {
-            when {
+            if (showBrowseControls) when {
                 selectionCount > 0 -> IconButton(onClick = onClearSelection) { Icon(Icons.Outlined.Close, language.t("done")) }
                 else -> Box {
                     FilledIconButton(onClick = onToggleRootMenu) { Icon(Icons.Outlined.FolderOpen, language.t("locations")) }
@@ -579,7 +588,7 @@ private fun BugeTopBar(
             }
         },
         actions = {
-            when {
+            if (showBrowseControls) when {
                 selectionCount > 0 -> {
                     IconButton(onClick = onSelectAll) { Icon(Icons.Outlined.SelectAll, language.t("select_all")) }
                     IconButton(onClick = onCopy) { Icon(Icons.Outlined.ContentCopy, language.t("copy")) }
@@ -1112,11 +1121,35 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
     var installMethodDialog by remember { mutableStateOf(false) }
     var installerDeclarationDialog by remember { mutableStateOf(false) }
     var fabStyleDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var settingsQuery by remember { mutableStateOf("") }
+    val query = settingsQuery.trim().lowercase()
+    fun groupMatches(vararg keys: String) = query.isEmpty() || keys.any { language.t(it).lowercase().contains(query) }
+    val showAppearance = groupMatches("appearance", "theme", "color", "language", "pure_black", "pure_black_summary", "system_font", "system_font_summary")
+    val showAdvanced = groupMatches("advanced", "root_access", "root_access_summary", "shizuku_access", "shizuku_access_summary", "root_command", "hidden", "auto_remount", "auto_remount_summary")
+    val showBehavior = groupMatches("behavior", "compact", "thumbnails", "haptics", "show_recents", "create_button_style", "fab_style_extended", "fab_style_icon", "fab_style_menu")
+    val showInstallation = groupMatches("installation", "use_app_installer", "install_method", "installer_declaration", "allow_downgrade", "allow_test_packages", "install_all_users")
+    val showAbout = groupMatches("about", "check_updates", "file_manager", "version", "website", "github", "fdroid", "telegram")
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item { Text(language.t("settings"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 4.dp)) }
-            item { SettingsSection(language.t("appearance")) }
+            item {
+                OutlinedTextField(
+                    value = settingsQuery,
+                    onValueChange = { settingsQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(28.dp),
+                    placeholder = { Text(language.t("search_settings")) },
+                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                    trailingIcon = {
+                        if (settingsQuery.isNotEmpty()) IconButton(onClick = { settingsQuery = "" }) { Icon(Icons.Outlined.Close, null) }
+                    }
+                )
+            }
+            if (showAppearance) {
+                item { SettingsSection(language.t("appearance")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingsActionCard(
@@ -1147,7 +1180,9 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     SettingSwitch(language.t("system_font"), settings.useSystemFont, 4, 5, icon = Icons.Outlined.Description, supportingText = language.t("system_font_summary")) { onSettingsChange(settings.copy(useSystemFont = it)) }
                 }
             }
-            item { SettingsSection(language.t("advanced")) }
+            }
+            if (showAdvanced) {
+                item { SettingsSection(language.t("advanced")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingSwitch(
@@ -1192,7 +1227,9 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     SettingSwitch(language.t("auto_remount"), settings.autoRemount, 4, 5, enabled = rootAvailable, icon = Icons.Outlined.Terminal, supportingText = language.t("auto_remount_summary")) { onSettingsChange(settings.copy(autoRemount = it)) }
                 }
             }
-            item { SettingsSection(language.t("behavior")) }
+            }
+            if (showBehavior) {
+                item { SettingsSection(language.t("behavior")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingSwitch(language.t("compact"), settings.compactMode, 0, 5, icon = Icons.AutoMirrored.Outlined.List, supportingText = language.t("compact_summary")) { onSettingsChange(settings.copy(compactMode = it)) }
@@ -1209,7 +1246,9 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     )
                 }
             }
-            item { SettingsSection(language.t("installation")) }
+            }
+            if (showInstallation) {
+                item { SettingsSection(language.t("installation")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingSwitch(
@@ -1244,7 +1283,9 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     SettingSwitch(language.t("install_all_users"), settings.installAllUsers, 5, 6, icon = Icons.Outlined.People, supportingText = language.t("install_all_users_summary")) { onSettingsChange(settings.copy(installAllUsers = it)) }
                 }
             }
-            item { SettingsSection(language.t("about")) }
+            }
+            if (showAbout) {
+                item { SettingsSection(language.t("about")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingsActionCard(
@@ -1255,7 +1296,8 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         count = 2,
                         onClick = onCheckForUpdates
                     )
-                    Surface(shape = groupItemShape(1, 2), color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth()) {
+                    val aboutShape = groupItemShape(1, 2)
+                    Surface(shape = aboutShape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(aboutShape).clickable { showAboutDialog = true }) {
                         Column(Modifier.padding(18.dp)) {
                             Text("Buge Files", style = MaterialTheme.typography.titleLarge)
                             Spacer(Modifier.height(4.dp))
@@ -1264,6 +1306,12 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                             Text("${language.t("version")} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge)
                         }
                     }
+                }
+            }
+            }
+            if (query.isNotEmpty() && !showAppearance && !showAdvanced && !showBehavior && !showInstallation && !showAbout) {
+                item {
+                    Text("No settings found", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(24.dp))
                 }
             }
         }
@@ -1336,6 +1384,10 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                 onDismiss = { fabStyleDialog = false }
             )
         }
+
+        if (showAboutDialog) {
+            AboutDialog(language = language, onDismiss = { showAboutDialog = false })
+        }
     }
 }
 
@@ -1398,6 +1450,42 @@ private fun SettingsActionCard(title: String, summary: String, icon: ImageVector
             }
         }
     }
+}
+
+@Composable
+private fun AboutDialog(language: AppLanguage, onDismiss: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    val links = listOf(
+        Triple("Website", Icons.Outlined.Language, "https://bugestudio.website/files/"),
+        Triple("GitHub", Icons.Outlined.Code, "https://github.com/BugeStudioTeam/Buge-Files"),
+        Triple("F-Droid", Icons.Outlined.Android, "https://f-droid.org/packages/com.buge.files"),
+        Triple("Telegram", Icons.Outlined.Send, "https://t.me/bugestudio")
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(language.t("about")) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                links.forEach { (label, icon, url) ->
+                    val shape = RoundedCornerShape(14.dp)
+                    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().clip(shape).clickable {
+                        runCatching { uriHandler.openUri(url) }
+                        onDismiss()
+                    }) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(label, style = MaterialTheme.typography.titleMedium)
+                                Text(url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
 }
 
 private fun fabStyleLabel(language: AppLanguage, style: FabStyle): String = when (style) {
@@ -1773,7 +1861,7 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
 }
 
 @Composable
-private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, language: AppLanguage, onInstall: () -> Unit, onDismiss: () -> Unit) {
+private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, installing: Boolean, language: AppLanguage, onInstall: () -> Unit, onDismiss: () -> Unit) {
     var showPermissions by remember { mutableStateOf(false) }
     var showSignature by remember { mutableStateOf(false) }
     Dialog(onDismissRequest = onDismiss) {
@@ -1844,19 +1932,24 @@ private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: 
                     Spacer(Modifier.height(14.dp))
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
-                Spacer(Modifier.height(18.dp))
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FilledTonalButton(
-                        onClick = onInstall,
-                        enabled = metadata != null && !loading,
-                        shape = groupItemShape(0, 2),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                    ) { Text(language.t("install"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
-                    FilledTonalButton(
-                        onClick = onDismiss,
-                        shape = groupItemShape(1, 2),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                    ) { Text(language.t("cancel"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+                if (installing) {
+                    Spacer(Modifier.height(18.dp))
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                } else {
+                    Spacer(Modifier.height(18.dp))
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        FilledTonalButton(
+                            onClick = onInstall,
+                            enabled = metadata != null && !loading,
+                            shape = groupItemShape(0, 2),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                        ) { Text(language.t("install"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+                        FilledTonalButton(
+                            onClick = onDismiss,
+                            shape = groupItemShape(1, 2),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                        ) { Text(language.t("cancel"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+                    }
                 }
             }
         }

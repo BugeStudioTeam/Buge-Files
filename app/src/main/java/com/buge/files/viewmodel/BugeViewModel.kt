@@ -127,6 +127,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var taskRunning by mutableStateOf(false)
         private set
+    var installInProgress by mutableStateOf(false)
+        private set
     private var nextTaskId = 1L
     var message by mutableStateOf<String?>(null)
         private set
@@ -837,6 +839,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleBookmark(location: RootLocation) = viewModelScope.launch { settingsRepository.toggleBookmark(location) }
     fun isBookmarked(location: RootLocation) = _bookmarks.value.any { it.uri == location.uri }
 
+    fun setInstalling(value: Boolean) { installInProgress = value }
     fun showInfo(entry: FileEntry) { pendingInfo = entry }
     fun dismissInfo() { pendingInfo = null }
     fun showMessage(value: String) { message = value }

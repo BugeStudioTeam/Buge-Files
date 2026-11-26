@@ -69,7 +69,7 @@
     <string name="theme_system">افتراضي النظام</string>
     <string name="theme_light">فاتح</string>
     <string name="theme_dark">داكن</string>
-    <string name="dynamic">لون ديناميكي من الخلفية</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">نيلي</string>
     <string name="ocean">المحيط</string>
     <string name="forest">الغابة</string>
@@ -224,4 +224,5 @@
     <string name="system_font_summary">استخدام خط الجهاز بدلاً من Google Sans Flex</string>
     <string name="auto_remount">إعادة التحميل التلقائي للقراءة والكتابة</string>
     <string name="auto_remount_summary">إعادة تحميل أقسام النظام للقراءة والكتابة قبل التعديل (root)</string>
+    <string name="search_settings">البحث في الإعدادات</string>
 </resources>
