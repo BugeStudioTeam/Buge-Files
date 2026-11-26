@@ -11,6 +11,8 @@ import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -619,23 +621,39 @@ private fun BugeTopBar(
 
 @Composable
 private fun CreateFabMenu(expanded: Boolean, language: AppLanguage, onToggle: () -> Unit, onNewFile: () -> Unit, onNewFolder: () -> Unit) {
-    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        AnimatedVisibility(visible = expanded) {
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ExtendedFloatingActionButton(
-                    text = { Text(language.t("new_file")) },
-                    icon = { Icon(Icons.Outlined.Description, null) },
-                    onClick = onNewFile
-                )
-                ExtendedFloatingActionButton(
-                    text = { Text(language.t("new_folder")) },
-                    icon = { Icon(Icons.Outlined.CreateNewFolder, null) },
-                    onClick = onNewFolder
-                )
+    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+        ) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FabMenuItem(label = language.t("new_file"), icon = Icons.Outlined.Description, onClick = onNewFile)
+                FabMenuItem(label = language.t("new_folder"), icon = Icons.Outlined.CreateNewFolder, onClick = onNewFolder)
             }
         }
         FloatingActionButton(onClick = onToggle) {
-            Icon(if (expanded) Icons.Outlined.Close else Icons.Outlined.Add, language.t("new_file"))
+            AnimatedContent(targetState = expanded, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "fabIcon") { open ->
+                Icon(if (open) Icons.Outlined.Close else Icons.Outlined.Add, language.t("more"))
+            }
+        }
+    }
+}
+
+@Composable
+private fun FabMenuItem(label: String, icon: ImageVector, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 3.dp,
+        shadowElevation = 3.dp,
+        modifier = Modifier.clip(shape).clickable(onClick = onClick)
+    ) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(12.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
         }
     }
 }
