@@ -1615,7 +1615,7 @@ private fun AboutDialog(language: AppLanguage, onDismiss: () -> Unit) {
                         }.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(painterResource(iconRes), null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(painterResource(iconRes), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                         Spacer(Modifier.width(12.dp))
                         Text(label, style = MaterialTheme.typography.titleMedium)
                     }
