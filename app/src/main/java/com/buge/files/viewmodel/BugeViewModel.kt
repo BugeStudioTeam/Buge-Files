@@ -129,6 +129,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var installInProgress by mutableStateOf(false)
         private set
+    var installCompleted by mutableStateOf(false)
+        private set
     private var nextTaskId = 1L
     var message by mutableStateOf<String?>(null)
         private set
@@ -840,6 +842,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun isBookmarked(location: RootLocation) = _bookmarks.value.any { it.uri == location.uri }
 
     fun setInstalling(value: Boolean) { installInProgress = value }
+    fun setInstallCompleted(value: Boolean) { installCompleted = value }
     fun showInfo(entry: FileEntry) { pendingInfo = entry }
     fun dismissInfo() { pendingInfo = null }
     fun showMessage(value: String) { message = value }
@@ -948,6 +951,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         apkTarget = entry
         apkMetadata = null
         apkLoading = true
+        installCompleted = false
         viewModelScope.launch {
             val local = if (needsMaterialize(entry)) materialize(entry) else entry
             if (local == null) {
@@ -964,7 +968,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun dismissApk() { apkTarget = null; apkMetadata = null; apkLoading = false }
+    fun dismissApk() { apkTarget = null; apkMetadata = null; apkLoading = false; installCompleted = false }
 
     fun openTextEditor(entry: FileEntry) {
         editorTarget = entry

@@ -11,9 +11,6 @@ import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -30,6 +27,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
@@ -66,6 +65,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Add
@@ -120,11 +120,13 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -141,9 +143,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.rememberContainedSearchBarState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -491,7 +497,23 @@ fun BugeApp(
             )
         }
         viewModel.apkTarget?.let { file ->
-            ApkInspectorSheet(file = file, metadata = viewModel.apkMetadata, loading = viewModel.apkLoading, installing = viewModel.installInProgress, language = language, onInstall = { onInstallApk(file) }, onDismiss = viewModel::dismissApk)
+            ApkInspectorSheet(
+                file = file,
+                metadata = viewModel.apkMetadata,
+                loading = viewModel.apkLoading,
+                installing = viewModel.installInProgress,
+                installed = viewModel.installCompleted,
+                language = language,
+                onInstall = { onInstallApk(file) },
+                onOpen = {
+                    val packageName = viewModel.apkMetadata?.packageName
+                    if (packageName != null) {
+                        val intent = context.packageManager.getLaunchIntentForPackage(packageName)
+                        if (intent != null) runCatching { context.startActivity(intent) }
+                    }
+                },
+                onDismiss = viewModel::dismissApk
+            )
         }
         if (viewModel.smbDialogVisible) {
             SmbConnectionDialog(
@@ -628,42 +650,30 @@ private fun BugeTopBar(
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun CreateFabMenu(expanded: Boolean, language: AppLanguage, onToggle: () -> Unit, onNewFile: () -> Unit, onNewFolder: () -> Unit) {
-    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
-        ) {
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FabMenuItem(label = language.t("new_file"), icon = Icons.Outlined.Description, onClick = onNewFile)
-                FabMenuItem(label = language.t("new_folder"), icon = Icons.Outlined.CreateNewFolder, onClick = onNewFolder)
+    FloatingActionButtonMenu(
+        expanded = expanded,
+        button = {
+            ToggleFloatingActionButton(
+                checked = expanded,
+                onCheckedChange = { onToggle() }
+            ) {
+                Icon(if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.Add, language.t("more"))
             }
         }
-        FloatingActionButton(onClick = onToggle) {
-            AnimatedContent(targetState = expanded, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "fabIcon") { open ->
-                Icon(if (open) Icons.Outlined.Close else Icons.Outlined.Add, language.t("more"))
-            }
-        }
-    }
-}
-
-@Composable
-private fun FabMenuItem(label: String, icon: ImageVector, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
-    Surface(
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 3.dp,
-        shadowElevation = 3.dp,
-        modifier = Modifier.clip(shape).clickable(onClick = onClick)
     ) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(12.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-        }
+        FloatingActionButtonMenuItem(
+            onClick = { onToggle(); onNewFile() },
+            icon = { Icon(Icons.Outlined.Description, null) },
+            text = { Text(language.t("new_file"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+        )
+        FloatingActionButtonMenuItem(
+            onClick = { onToggle(); onNewFolder() },
+            icon = { Icon(Icons.Outlined.CreateNewFolder, null) },
+            text = { Text(language.t("new_folder"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+        )
     }
 }
 
@@ -1114,6 +1124,7 @@ private fun UpdateCheckDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, shizukuAvailable: Boolean, shizukuPermission: Boolean, onSettingsChange: (AppSettings) -> Unit, onCheckForUpdates: () -> Unit, onRequestShizuku: () -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
@@ -1122,9 +1133,11 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
     var installerDeclarationDialog by remember { mutableStateOf(false) }
     var fabStyleDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
-    var settingsQuery by remember { mutableStateOf("") }
-    val query = settingsQuery.trim().lowercase()
-    fun groupMatches(vararg keys: String) = query.isEmpty() || keys.any { language.t(it).lowercase().contains(query) }
+    val settingsSearchText = rememberTextFieldState()
+    val settingsSearchState = rememberContainedSearchBarState()
+    val searchScope = rememberCoroutineScope()
+    val searchQuery = settingsSearchText.text.toString().trim().lowercase()
+    fun groupMatches(vararg keys: String) = searchQuery.isEmpty() || keys.any { language.t(it).lowercase().contains(searchQuery) }
     val showAppearance = groupMatches("appearance", "theme", "color", "language", "pure_black", "pure_black_summary", "system_font", "system_font_summary")
     val showAdvanced = groupMatches("advanced", "root_access", "root_access_summary", "shizuku_access", "shizuku_access_summary", "root_command", "hidden", "auto_remount", "auto_remount_summary")
     val showBehavior = groupMatches("behavior", "compact", "thumbnails", "haptics", "show_recents", "create_button_style", "fab_style_extended", "fab_style_icon", "fab_style_menu")
@@ -1135,17 +1148,22 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item { Text(language.t("settings"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 4.dp)) }
             item {
-                OutlinedTextField(
-                    value = settingsQuery,
-                    onValueChange = { settingsQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(28.dp),
-                    placeholder = { Text(language.t("search_settings")) },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                    trailingIcon = {
-                        if (settingsQuery.isNotEmpty()) IconButton(onClick = { settingsQuery = "" }) { Icon(Icons.Outlined.Close, null) }
-                    }
+                SearchBar(
+                    state = settingsSearchState,
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            textFieldState = settingsSearchText,
+                            searchBarState = settingsSearchState,
+                            colors = SearchBarDefaults.containedColors(state = settingsSearchState).inputFieldColors,
+                            onSearch = { searchScope.launch { settingsSearchState.animateToCollapsed() } },
+                            placeholder = { Text(language.t("search_settings")) },
+                            leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                            trailingIcon = {
+                                if (settingsSearchText.text.isNotEmpty()) IconButton(onClick = { settingsSearchText.setTextAndPlaceCursorAtEnd("") }) { Icon(Icons.Outlined.Close, null) }
+                            }
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
             if (showAppearance) {
@@ -1309,7 +1327,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                 }
             }
             }
-            if (query.isNotEmpty() && !showAppearance && !showAdvanced && !showBehavior && !showInstallation && !showAbout) {
+            if (searchQuery.isNotEmpty() && !showAppearance && !showAdvanced && !showBehavior && !showInstallation && !showAbout) {
                 item {
                     Text("No settings found", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(24.dp))
                 }
@@ -1861,7 +1879,7 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
 }
 
 @Composable
-private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, installing: Boolean, language: AppLanguage, onInstall: () -> Unit, onDismiss: () -> Unit) {
+private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, installing: Boolean, installed: Boolean, language: AppLanguage, onInstall: () -> Unit, onOpen: () -> Unit, onDismiss: () -> Unit) {
     var showPermissions by remember { mutableStateOf(false) }
     var showSignature by remember { mutableStateOf(false) }
     Dialog(onDismissRequest = onDismiss) {
@@ -1939,11 +1957,11 @@ private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: 
                     Spacer(Modifier.height(18.dp))
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         FilledTonalButton(
-                            onClick = onInstall,
+                            onClick = { if (installed) onOpen() else onInstall() },
                             enabled = metadata != null && !loading,
                             shape = groupItemShape(0, 2),
                             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                        ) { Text(language.t("install"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+                        ) { Text(if (installed) language.t("open") else language.t("install"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
                         FilledTonalButton(
                             onClick = onDismiss,
                             shape = groupItemShape(1, 2),
