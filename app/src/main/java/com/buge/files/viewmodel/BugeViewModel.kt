@@ -842,7 +842,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun isBookmarked(location: RootLocation) = _bookmarks.value.any { it.uri == location.uri }
 
     fun setInstalling(value: Boolean) { installInProgress = value }
-    fun setInstallCompleted(value: Boolean) { installCompleted = value }
+    fun markInstallCompleted(value: Boolean) { installCompleted = value }
     fun showInfo(entry: FileEntry) { pendingInfo = entry }
     fun dismissInfo() { pendingInfo = null }
     fun showMessage(value: String) { message = value }

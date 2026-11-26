@@ -188,7 +188,7 @@ class MainActivity : ComponentActivity() {
                 try {
                     Toast.makeText(this@MainActivity, "Installing…", Toast.LENGTH_SHORT).show()
                     val result = appInstaller.install(file, settings)
-                    if (result.success) viewModel.setInstallCompleted(true)
+                    if (result.success) viewModel.markInstallCompleted(true)
                     if (!result.success) {
                         runCatching {
                             val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
