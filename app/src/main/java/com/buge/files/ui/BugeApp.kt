@@ -27,6 +27,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -145,6 +146,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarState
+import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.ToggleFloatingActionButton
@@ -169,9 +172,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -185,6 +192,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -687,6 +696,64 @@ private fun navigationItems(language: AppLanguage, showRecents: Boolean): List<T
     add(Triple(AppDestination.SETTINGS, Icons.Outlined.Settings, language.t("settings")))
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
+@Composable
+private fun BugeSearchBar(
+    textFieldState: TextFieldState,
+    searchBarState: SearchBarState,
+    placeholder: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scope = rememberCoroutineScope()
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
+    var isFocused by remember { mutableStateOf(false) }
+    val expanded = searchBarState.currentValue != SearchBarValue.Collapsed
+    BackHandler(enabled = expanded || isFocused) {
+        scope.launch { searchBarState.animateToCollapsed() }
+        keyboard?.hide()
+        focusManager.clearFocus()
+    }
+    LaunchedEffect(searchBarState.currentValue) {
+        if (searchBarState.currentValue != SearchBarValue.Collapsed) {
+            runCatching { focusRequester.requestFocus() }
+            keyboard?.show()
+        }
+    }
+    LaunchedEffect(textFieldState) {
+        snapshotFlow { textFieldState.text.toString() }.collectLatest { onQueryChange(it) }
+    }
+    SearchBar(
+        state = searchBarState,
+        inputField = {
+            SearchBarDefaults.InputField(
+                textFieldState = textFieldState,
+                searchBarState = searchBarState,
+                colors = SearchBarDefaults.containedColors(state = searchBarState).inputFieldColors,
+                onSearch = {
+                    scope.launch { searchBarState.animateToCollapsed() }
+                    keyboard?.hide()
+                    focusManager.clearFocus()
+                },
+                placeholder = { Text(placeholder) },
+                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                trailingIcon = {
+                    if (textFieldState.text.isNotEmpty()) IconButton(onClick = { textFieldState.setTextAndPlaceCursorAtEnd("") }) { Icon(Icons.Outlined.Close, null) }
+                },
+                modifier = Modifier
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { focusState ->
+                        isFocused = focusState.isFocused
+                        if (focusState.isFocused) keyboard?.show()
+                    }
+            )
+        },
+        modifier = modifier
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun BrowseScreen(
@@ -705,13 +772,6 @@ private fun BrowseScreen(
     val pathKey = path.joinToString("/") { it.uri.toString() }
     val browseSearchText = rememberTextFieldState()
     val browseSearchState = rememberContainedSearchBarState()
-    val browseSearchScope = rememberCoroutineScope()
-    LaunchedEffect(Unit) {
-        snapshotFlow { browseSearchText.text.toString() }.collectLatest { text ->
-            if (text != viewModel.searchQuery) viewModel.updateSearch(text)
-            viewModel.setSearchActive(text.isNotBlank())
-        }
-    }
     LaunchedEffect(viewModel.searchQuery) {
         if (viewModel.searchQuery != browseSearchText.text.toString()) browseSearchText.setTextAndPlaceCursorAtEnd(viewModel.searchQuery)
     }
@@ -767,20 +827,13 @@ private fun BrowseScreen(
         translationX = slideOffset.value
         alpha = 1f - (kotlin.math.abs(slideOffset.value) / slideDistance.coerceAtLeast(1f)) * 0.25f
     }) {
-            SearchBar(
-                state = browseSearchState,
-                inputField = {
-                    SearchBarDefaults.InputField(
-                        textFieldState = browseSearchText,
-                        searchBarState = browseSearchState,
-                        colors = SearchBarDefaults.containedColors(state = browseSearchState).inputFieldColors,
-                        onSearch = { browseSearchScope.launch { browseSearchState.animateToCollapsed() } },
-                        placeholder = { Text(language.t("search")) },
-                        leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                        trailingIcon = {
-                            if (browseSearchText.text.isNotEmpty()) IconButton(onClick = { browseSearchText.setTextAndPlaceCursorAtEnd("") }) { Icon(Icons.Outlined.Close, null) }
-                        }
-                    )
+            BugeSearchBar(
+                textFieldState = browseSearchText,
+                searchBarState = browseSearchState,
+                placeholder = language.t("search"),
+                onQueryChange = { text ->
+                    if (text != viewModel.searchQuery) viewModel.updateSearch(text)
+                    viewModel.setSearchActive(text.isNotBlank())
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
             )
@@ -1148,7 +1201,6 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
     var showAboutDialog by remember { mutableStateOf(false) }
     val settingsSearchText = rememberTextFieldState()
     val settingsSearchState = rememberContainedSearchBarState()
-    val searchScope = rememberCoroutineScope()
     val searchQuery = settingsSearchText.text.toString().trim().lowercase()
     fun groupMatches(vararg keys: String) = searchQuery.isEmpty() || keys.any { language.t(it).lowercase().contains(searchQuery) }
     val showAppearance = groupMatches("appearance", "theme", "color", "language", "pure_black", "pure_black_summary", "system_font", "system_font_summary")
@@ -1161,21 +1213,11 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item { Text(language.t("settings"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 4.dp)) }
             item {
-                SearchBar(
-                    state = settingsSearchState,
-                    inputField = {
-                        SearchBarDefaults.InputField(
-                            textFieldState = settingsSearchText,
-                            searchBarState = settingsSearchState,
-                            colors = SearchBarDefaults.containedColors(state = settingsSearchState).inputFieldColors,
-                            onSearch = { searchScope.launch { settingsSearchState.animateToCollapsed() } },
-                            placeholder = { Text(language.t("search_settings")) },
-                            leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                            trailingIcon = {
-                                if (settingsSearchText.text.isNotEmpty()) IconButton(onClick = { settingsSearchText.setTextAndPlaceCursorAtEnd("") }) { Icon(Icons.Outlined.Close, null) }
-                            }
-                        )
-                    },
+                BugeSearchBar(
+                    textFieldState = settingsSearchText,
+                    searchBarState = settingsSearchState,
+                    placeholder = language.t("search_settings"),
+                    onQueryChange = {},
                     modifier = Modifier.fillMaxWidth()
                 )
             }
