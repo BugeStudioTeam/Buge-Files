@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -122,6 +123,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledIconButton
@@ -147,7 +149,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBarState
-import androidx.compose.material3.SearchBarValue
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.ToggleFloatingActionButton
@@ -172,13 +173,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -186,16 +183,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -698,81 +691,39 @@ private fun navigationItems(language: AppLanguage, showRecents: Boolean): List<T
     add(Triple(AppDestination.SETTINGS, Icons.Outlined.Settings, language.t("settings")))
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun BugeSearchBar(
     textFieldState: TextFieldState,
     searchBarState: SearchBarState,
     placeholder: String,
     onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
-    val keyboard = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-    val focusRequester = remember { FocusRequester() }
-    var isFocused by remember { mutableStateOf(false) }
-    val expanded = searchBarState.currentValue != SearchBarValue.Collapsed
-    BackHandler(enabled = expanded || isFocused) {
-        scope.launch { searchBarState.animateToCollapsed() }
-        keyboard?.hide()
-        focusManager.clearFocus()
-    }
-    LaunchedEffect(searchBarState.currentValue) {
-        if (searchBarState.currentValue != SearchBarValue.Collapsed) {
-            runCatching { focusRequester.requestFocus() }
-            delay(80)
-            keyboard?.show()
-        }
-    }
-    LaunchedEffect(isFocused) {
-        if (isFocused) {
-            delay(80)
-            keyboard?.show()
-        }
+    val inputField: @Composable () -> Unit = {
+        SearchBarDefaults.InputField(
+            textFieldState = textFieldState,
+            searchBarState = searchBarState,
+            colors = SearchBarDefaults.containedColors(state = searchBarState).inputFieldColors,
+            onSearch = { scope.launch { searchBarState.animateToCollapsed() } },
+            placeholder = { Text(placeholder) },
+            leadingIcon = { Icon(Icons.Outlined.Search, null) },
+            trailingIcon = {
+                if (textFieldState.text.isNotEmpty()) IconButton(onClick = { textFieldState.setTextAndPlaceCursorAtEnd("") }) { Icon(Icons.Outlined.Close, null) }
+            }
+        )
     }
     LaunchedEffect(textFieldState) {
         snapshotFlow { textFieldState.text.toString() }.collectLatest { onQueryChange(it) }
     }
-    SearchBar(
+    SearchBar(state = searchBarState, inputField = inputField, modifier = modifier)
+    ExpandedFullScreenContainedSearchBar(
         state = searchBarState,
-        inputField = {
-            SearchBarDefaults.InputField(
-                textFieldState = textFieldState,
-                searchBarState = searchBarState,
-                colors = SearchBarDefaults.containedColors(state = searchBarState).inputFieldColors,
-                onSearch = {
-                    scope.launch { searchBarState.animateToCollapsed() }
-                    keyboard?.hide()
-                    focusManager.clearFocus()
-                },
-                placeholder = { Text(placeholder) },
-                leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                trailingIcon = {
-                    if (textFieldState.text.isNotEmpty()) IconButton(onClick = { textFieldState.setTextAndPlaceCursorAtEnd("") }) { Icon(Icons.Outlined.Close, null) }
-                },
-                modifier = Modifier
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { focusState ->
-                        isFocused = focusState.isFocused
-                        if (focusState.isFocused) keyboard?.show()
-                    }
-            )
-        },
-        modifier = modifier.pointerInput(Unit) {
-            awaitPointerEventScope {
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    if (event.type == PointerEventType.Press) {
-                        runCatching { focusRequester.requestFocus() }
-                        scope.launch {
-                            delay(80)
-                            keyboard?.show()
-                        }
-                    }
-                }
-            }
-        }
+        inputField = inputField,
+        colors = SearchBarDefaults.containedColors(state = searchBarState),
+        content = content
     )
 }
 
@@ -857,7 +808,32 @@ private fun BrowseScreen(
                     if (text != viewModel.searchQuery) viewModel.updateSearch(text)
                     viewModel.setSearchActive(text.isNotBlank())
                 },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                content = {
+                    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                        if (entries.isEmpty()) {
+                            item { Text("No results", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(24.dp), textAlign = TextAlign.Center) }
+                        }
+                        items(entries, key = { it.uri.toString() }) { entry ->
+                            val resultShape = RoundedCornerShape(14.dp)
+                            Surface(shape = resultShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(resultShape).clickable {
+                                browseSearchText.setTextAndPlaceCursorAtEnd("")
+                                viewModel.setSearchActive(false)
+                                scope.launch { browseSearchState.animateToCollapsed() }
+                                if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry)
+                            }) {
+                                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    FileGlyph(iconFor(entry), entry.isDirectory, 24.dp, entry = entry)
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(entry.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(fileSecondaryText(entry, language), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1240,7 +1216,25 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     searchBarState = settingsSearchState,
                     placeholder = language.t("search_settings"),
                     onQueryChange = {},
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    content = {
+                        val groups = buildList {
+                            if (showAppearance) add(language.t("appearance"))
+                            if (showAdvanced) add(language.t("advanced"))
+                            if (showBehavior) add(language.t("behavior"))
+                            if (showInstallation) add(language.t("installation"))
+                            if (showAbout) add(language.t("about"))
+                        }
+                        if (groups.isEmpty()) {
+                            Text("No results", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(24.dp), textAlign = TextAlign.Center)
+                        } else {
+                            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                                items(groups) { group ->
+                                    Text(group, style = MaterialTheme.typography.titleMedium, modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp))
+                                }
+                            }
+                        }
+                    }
                 )
             }
             if (showAppearance) {
