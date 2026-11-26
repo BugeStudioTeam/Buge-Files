@@ -61,7 +61,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         application,
         { _settings.value.rootAccess },
         { _settings.value.rootCommand },
-        { _settings.value.shizukuAccess }
+        { _settings.value.shizukuAccess },
+        { _settings.value.autoRemount }
     )
     val smbRepository = SmbRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
@@ -125,6 +126,10 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     var activeTaskId by mutableStateOf<Long?>(null)
         private set
     var taskRunning by mutableStateOf(false)
+        private set
+    var installInProgress by mutableStateOf(false)
+        private set
+    var installCompleted by mutableStateOf(false)
         private set
     private var nextTaskId = 1L
     var message by mutableStateOf<String?>(null)
@@ -210,6 +215,10 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
                 if (newSettings.rootCommand != lastRootCommand) {
                     lastRootCommand = newSettings.rootCommand
                     detectRootAccess()
+                }
+                if (!newSettings.showRecents) {
+                    recentItems.clear()
+                    if (destination == AppDestination.RECENTS) destination = AppDestination.BROWSE
                 }
                 updateVisibleRoots()
                 refresh()
@@ -832,6 +841,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleBookmark(location: RootLocation) = viewModelScope.launch { settingsRepository.toggleBookmark(location) }
     fun isBookmarked(location: RootLocation) = _bookmarks.value.any { it.uri == location.uri }
 
+    fun setInstalling(value: Boolean) { installInProgress = value }
+    fun markInstallCompleted(value: Boolean) { installCompleted = value }
     fun showInfo(entry: FileEntry) { pendingInfo = entry }
     fun dismissInfo() { pendingInfo = null }
     fun showMessage(value: String) { message = value }
@@ -940,6 +951,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         apkTarget = entry
         apkMetadata = null
         apkLoading = true
+        installCompleted = false
         viewModelScope.launch {
             val local = if (needsMaterialize(entry)) materialize(entry) else entry
             if (local == null) {
@@ -956,7 +968,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun dismissApk() { apkTarget = null; apkMetadata = null; apkLoading = false }
+    fun dismissApk() { apkTarget = null; apkMetadata = null; apkLoading = false; installCompleted = false }
 
     fun openTextEditor(entry: FileEntry) {
         editorTarget = entry
@@ -1039,6 +1051,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun dismissChecksum() { checksumTarget = null; checksumValue = null; checksumLoading = false }
 
     fun recordOpened(entry: FileEntry) {
+        if (!_settings.value.showRecents) return
         recentItems.removeAll { it.uri == entry.uri }
         recentItems.add(0, entry)
         while (recentItems.size > 40) recentItems.removeAt(recentItems.lastIndex)

@@ -17,6 +17,7 @@ enum class ColorSource { DYNAMIC, INDIGO, OCEAN, FOREST, SUNSET, ORCHID }
 enum class TaskType { COPY, MOVE, COMPRESS }
 enum class TaskState { PENDING, RUNNING, COMPLETED, FAILED }
 enum class InstallMethod { SHIZUKU, ROOT }
+enum class FabStyle { EXTENDED, ICON, MENU }
 enum class AppLanguage(val code: String, val nativeName: String) {
     SYSTEM("system", "System default"),
     ENGLISH("en", "English"),
@@ -101,7 +102,12 @@ data class AppSettings(
     val installerPackage: String = "",
     val allowDowngrade: Boolean = true,
     val allowTestPackages: Boolean = false,
-    val installAllUsers: Boolean = false
+    val installAllUsers: Boolean = false,
+    val showRecents: Boolean = true,
+    val fabStyle: FabStyle = FabStyle.EXTENDED,
+    val pureBlack: Boolean = false,
+    val useSystemFont: Boolean = false,
+    val autoRemount: Boolean = false
 )
 
 @Immutable

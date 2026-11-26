@@ -27,6 +27,9 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
@@ -38,6 +41,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -63,6 +67,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Add
@@ -115,10 +120,14 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExpandedFullScreenContainedSearchBar
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -135,8 +144,15 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarState
+import androidx.compose.material3.SearchBarValue
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.rememberContainedSearchBarState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -165,7 +181,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -228,6 +243,7 @@ fun BugeApp(
     var showRootMenu by remember { mutableStateOf(false) }
     var showActions by remember { mutableStateOf(false) }
     var showTasks by remember { mutableStateOf(false) }
+    var fabMenuExpanded by remember { mutableStateOf(false) }
     val activeTask = tasks.firstOrNull { it.id == viewModel.activeTaskId }
     val shizukuAvailable = viewModel.shizukuAvailable
     val shizukuPermission = viewModel.shizukuPermission
@@ -241,6 +257,10 @@ fun BugeApp(
     val uriHandler = LocalUriHandler.current
     var lastExitBackPress by remember { mutableLongStateOf(0L) }
 
+    LaunchedEffect(viewModel.destination, viewModel.isSearching) {
+        if (viewModel.destination != AppDestination.BROWSE || viewModel.isSearching) fabMenuExpanded = false
+    }
+
     LaunchedEffect(viewModel.message) {
         viewModel.message?.let {
             snackbars.showSnackbar(it)
@@ -249,6 +269,10 @@ fun BugeApp(
     }
 
     BackHandler(enabled = true) {
+        if (fabMenuExpanded) {
+            fabMenuExpanded = false
+            return@BackHandler
+        }
         when {
             viewModel.selection.isNotEmpty() -> viewModel.clearSelection()
             viewModel.isSearching -> viewModel.setSearchActive(false)
@@ -275,6 +299,7 @@ fun BugeApp(
                     BugeNavigationRail(
                         destination = viewModel.destination,
                         language = language,
+                        showRecents = settings.showRecents,
                         onSelect = viewModel::selectDestination
                     )
                 }
@@ -287,14 +312,16 @@ fun BugeApp(
                             root = currentRoot,
                             roots = roots,
                             selectionCount = viewModel.selection.size,
-                            isSearching = viewModel.isSearching,
-                            query = viewModel.searchQuery,
-                            titleText = if (viewModel.destination == AppDestination.BROWSE) viewModel.navigationPath.lastOrNull()?.label.orEmpty() else "",
+                            titleText = when (viewModel.destination) {
+                                AppDestination.BROWSE -> if (viewModel.navigationPath.size > 1) viewModel.navigationPath.lastOrNull()?.label.orEmpty() else ""
+                                AppDestination.RECENTS -> language.t("recents")
+                                AppDestination.FAVORITES -> language.t("favorites")
+                                AppDestination.STORAGE -> language.t("storage")
+                                AppDestination.SETTINGS -> language.t("settings")
+                            },
+                            showBrowseControls = viewModel.destination == AppDestination.BROWSE,
                             viewMode = settings.viewMode,
                             taskCount = tasks.size,
-                            onSearch = { viewModel.setSearchActive(true) },
-                            onQueryChange = viewModel::updateSearch,
-                            onCloseSearch = { viewModel.setSearchActive(false) },
                             onToggleRootMenu = { showRootMenu = !showRootMenu },
                             onSelectRoot = { viewModel.selectRoot(it, reportFailure = true); showRootMenu = false },
                             onShowTasks = { showTasks = true },
@@ -324,20 +351,33 @@ fun BugeApp(
                         )
                     },
                     bottomBar = {
-                        if (!wide) BugeNavigationBar(viewModel.destination, language, viewModel::selectDestination)
+                        if (!wide) BugeNavigationBar(viewModel.destination, language, settings.showRecents, viewModel::selectDestination)
                     },
                     floatingActionButton = {
                         if (viewModel.destination == AppDestination.BROWSE && currentRoot != null && !viewModel.isSearching) {
-                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                ExtendedFloatingActionButton(
-                                    text = { Text(language.t("new_file")) },
-                                    icon = { Icon(Icons.Outlined.Description, null) },
-                                    onClick = { showCreateFile = true }
-                                )
-                                ExtendedFloatingActionButton(
-                                    text = { Text(language.t("new_folder")) },
-                                    icon = { Icon(Icons.Outlined.CreateNewFolder, null) },
-                                    onClick = { showCreateFolder = true }
+                            when (settings.fabStyle) {
+                                FabStyle.EXTENDED -> Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    ExtendedFloatingActionButton(
+                                        text = { Text(language.t("new_file")) },
+                                        icon = { Icon(Icons.Outlined.Description, null) },
+                                        onClick = { showCreateFile = true }
+                                    )
+                                    ExtendedFloatingActionButton(
+                                        text = { Text(language.t("new_folder")) },
+                                        icon = { Icon(Icons.Outlined.CreateNewFolder, null) },
+                                        onClick = { showCreateFolder = true }
+                                    )
+                                }
+                                FabStyle.ICON -> Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    SmallFloatingActionButton(onClick = { showCreateFile = true }) { Icon(Icons.Outlined.Description, language.t("new_file")) }
+                                    SmallFloatingActionButton(onClick = { showCreateFolder = true }) { Icon(Icons.Outlined.CreateNewFolder, language.t("new_folder")) }
+                                }
+                                FabStyle.MENU -> CreateFabMenu(
+                                    expanded = fabMenuExpanded,
+                                    language = language,
+                                    onToggle = { fabMenuExpanded = !fabMenuExpanded },
+                                    onNewFile = { fabMenuExpanded = false; showCreateFile = true },
+                                    onNewFolder = { fabMenuExpanded = false; showCreateFolder = true }
                                 )
                             }
                         }
@@ -455,7 +495,23 @@ fun BugeApp(
             )
         }
         viewModel.apkTarget?.let { file ->
-            ApkInspectorSheet(file = file, metadata = viewModel.apkMetadata, loading = viewModel.apkLoading, language = language, onInstall = { onInstallApk(file) }, onDismiss = viewModel::dismissApk)
+            ApkInspectorSheet(
+                file = file,
+                metadata = viewModel.apkMetadata,
+                loading = viewModel.apkLoading,
+                installing = viewModel.installInProgress,
+                installed = viewModel.installCompleted,
+                language = language,
+                onInstall = { onInstallApk(file) },
+                onOpen = {
+                    val packageName = viewModel.apkMetadata?.packageName
+                    if (packageName != null) {
+                        val intent = context.packageManager.getLaunchIntentForPackage(packageName)
+                        if (intent != null) runCatching { context.startActivity(intent) }
+                    }
+                },
+                onDismiss = viewModel::dismissApk
+            )
         }
         if (viewModel.smbDialogVisible) {
             SmbConnectionDialog(
@@ -508,8 +564,7 @@ fun BugeApp(
 @Composable
 private fun BugeTopBar(
     language: AppLanguage, root: RootLocation?, roots: List<RootLocation>, selectionCount: Int,
-    isSearching: Boolean, query: String, titleText: String, viewMode: ViewMode, taskCount: Int,
-    onSearch: () -> Unit, onQueryChange: (String) -> Unit, onCloseSearch: () -> Unit,
+    titleText: String, showBrowseControls: Boolean, viewMode: ViewMode, taskCount: Int,
     onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowTasks: () -> Unit, onShowActions: () -> Unit,
     onRefresh: () -> Unit, onCopyPath: () -> Unit,
     onChangeView: () -> Unit, onClearSelection: () -> Unit, onSelectAll: () -> Unit,
@@ -520,17 +575,9 @@ private fun BugeTopBar(
     var selectionMenu by remember { mutableStateOf(false) }
     var overflowMenu by remember { mutableStateOf(false) }
     CenterAlignedTopAppBar(
-        title = {
-            if (isSearching) {
-                OutlinedTextField(
-                    value = query, onValueChange = onQueryChange, singleLine = true,
-                    placeholder = { Text(language.t("search")) }, leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                )
-            } else Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        },
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         navigationIcon = {
-            when {
+            if (showBrowseControls) when {
                 selectionCount > 0 -> IconButton(onClick = onClearSelection) { Icon(Icons.Outlined.Close, language.t("done")) }
                 else -> Box {
                     FilledIconButton(onClick = onToggleRootMenu) { Icon(Icons.Outlined.FolderOpen, language.t("locations")) }
@@ -552,7 +599,7 @@ private fun BugeTopBar(
             }
         },
         actions = {
-            when {
+            if (showBrowseControls) when {
                 selectionCount > 0 -> {
                     IconButton(onClick = onSelectAll) { Icon(Icons.Outlined.SelectAll, language.t("select_all")) }
                     IconButton(onClick = onCopy) { Icon(Icons.Outlined.ContentCopy, language.t("copy")) }
@@ -562,14 +609,12 @@ private fun BugeTopBar(
                         DropdownMenu(expanded = selectionMenu, onDismissRequest = { selectionMenu = false }) {
                             if (selectionCount == 1) DropdownMenuItem(text = { Text(language.t("rename_selected")) }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { selectionMenu = false; onRename() })
                             DropdownMenuItem(text = { Text(language.t("compress")) }, leadingIcon = { Icon(Icons.Outlined.Archive, null) }, onClick = { selectionMenu = false; onCompress() })
-                            DropdownMenuItem(text = { Text(language.t("share")) }, leadingIcon = { Icon(Icons.Outlined.Share, null) }, onClick = { selectionMenu = false; onShare() })
+                            DropdownMenuItem(text = { Text(language.t("share"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }, leadingIcon = { Icon(Icons.Outlined.Share, null) }, onClick = { selectionMenu = false; onShare() })
                             DropdownMenuItem(text = { Text(language.t("delete")) }, leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) }, onClick = { selectionMenu = false; onDelete() })
                         }
                     }
                 }
-                isSearching -> IconButton(onClick = onCloseSearch) { Icon(Icons.Outlined.Close, language.t("done")) }
                 else -> {
-                    IconButton(onClick = onSearch) { Icon(Icons.Outlined.Search, language.t("search")) }
                     IconButton(onClick = onChangeView) { Icon(if (viewMode == ViewMode.LIST) Icons.Outlined.GridView else Icons.AutoMirrored.Outlined.List, language.t("view")) }
                     Box {
                         IconButton(onClick = { overflowMenu = true }) { Icon(Icons.Outlined.MoreVert, language.t("more")) }
@@ -592,33 +637,103 @@ private fun BugeTopBar(
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun BugeNavigationBar(destination: AppDestination, language: AppLanguage, onSelect: (AppDestination) -> Unit) {
+private fun CreateFabMenu(expanded: Boolean, language: AppLanguage, onToggle: () -> Unit, onNewFile: () -> Unit, onNewFolder: () -> Unit) {
+    FloatingActionButtonMenu(
+        expanded = expanded,
+        button = {
+            ToggleFloatingActionButton(
+                checked = expanded,
+                onCheckedChange = { onToggle() }
+            ) {
+                Icon(if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.Add, language.t("more"))
+            }
+        }
+    ) {
+        FloatingActionButtonMenuItem(
+            onClick = { onToggle(); onNewFile() },
+            icon = { Icon(Icons.Outlined.Description, null) },
+            text = { Text(language.t("new_file"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+        )
+        FloatingActionButtonMenuItem(
+            onClick = { onToggle(); onNewFolder() },
+            icon = { Icon(Icons.Outlined.CreateNewFolder, null) },
+            text = { Text(language.t("new_folder"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+        )
+    }
+}
+
+@Composable
+private fun BugeNavigationBar(destination: AppDestination, language: AppLanguage, showRecents: Boolean, onSelect: (AppDestination) -> Unit) {
     NavigationBar {
-        navigationItems(language).forEach { item ->
+        navigationItems(language, showRecents).forEach { item ->
             NavigationBarItem(selected = destination == item.first, onClick = { onSelect(item.first) }, icon = { Icon(item.second, null) }, label = { Text(item.third) })
         }
     }
 }
 
 @Composable
-private fun BugeNavigationRail(destination: AppDestination, language: AppLanguage, onSelect: (AppDestination) -> Unit) {
+private fun BugeNavigationRail(destination: AppDestination, language: AppLanguage, showRecents: Boolean, onSelect: (AppDestination) -> Unit) {
     NavigationRail(modifier = Modifier.fillMaxHeight()) {
-        navigationItems(language).forEach { item ->
+        navigationItems(language, showRecents).forEach { item ->
             NavigationRailItem(selected = destination == item.first, onClick = { onSelect(item.first) }, icon = { Icon(item.second, null) }, label = { Text(item.third) })
         }
     }
 }
 
-private fun navigationItems(language: AppLanguage): List<Triple<AppDestination, ImageVector, String>> = listOf(
-    Triple(AppDestination.BROWSE, Icons.Outlined.FolderOpen, language.t("browse")),
-    Triple(AppDestination.RECENTS, Icons.Outlined.FileOpen, language.t("recents")),
-    Triple(AppDestination.FAVORITES, Icons.Outlined.Bookmark, language.t("favorites")),
-    Triple(AppDestination.STORAGE, Icons.Outlined.Storage, language.t("storage")),
-    Triple(AppDestination.SETTINGS, Icons.Outlined.Settings, language.t("settings"))
-)
+private fun navigationItems(language: AppLanguage, showRecents: Boolean): List<Triple<AppDestination, ImageVector, String>> = buildList {
+    add(Triple(AppDestination.BROWSE, Icons.Outlined.FolderOpen, language.t("browse")))
+    if (showRecents) add(Triple(AppDestination.RECENTS, Icons.Outlined.FileOpen, language.t("recents")))
+    add(Triple(AppDestination.FAVORITES, Icons.Outlined.Bookmark, language.t("favorites")))
+    add(Triple(AppDestination.STORAGE, Icons.Outlined.Storage, language.t("storage")))
+    add(Triple(AppDestination.SETTINGS, Icons.Outlined.Settings, language.t("settings")))
+}
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
+@Composable
+private fun BugeSearchBar(
+    textFieldState: TextFieldState,
+    searchBarState: SearchBarState,
+    placeholder: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    clearOnCollapse: Boolean = true,
+    content: @Composable ColumnScope.() -> Unit = {}
+) {
+    val scope = rememberCoroutineScope()
+    val inputField: @Composable () -> Unit = {
+        SearchBarDefaults.InputField(
+            textFieldState = textFieldState,
+            searchBarState = searchBarState,
+            colors = SearchBarDefaults.containedColors(state = searchBarState).inputFieldColors,
+            onSearch = { scope.launch { searchBarState.animateToCollapsed() } },
+            placeholder = { Text(placeholder) },
+            leadingIcon = { Icon(Icons.Outlined.Search, null) },
+            trailingIcon = {
+                if (textFieldState.text.isNotEmpty()) IconButton(onClick = { textFieldState.setTextAndPlaceCursorAtEnd("") }) { Icon(Icons.Outlined.Close, null) }
+            }
+        )
+    }
+    LaunchedEffect(textFieldState) {
+        snapshotFlow { textFieldState.text.toString() }.collectLatest { onQueryChange(it) }
+    }
+    LaunchedEffect(searchBarState.currentValue) {
+        if (clearOnCollapse && searchBarState.currentValue == SearchBarValue.Collapsed && textFieldState.text.isNotEmpty()) {
+            textFieldState.setTextAndPlaceCursorAtEnd("")
+            onQueryChange("")
+        }
+    }
+    SearchBar(state = searchBarState, inputField = inputField, modifier = modifier)
+    ExpandedFullScreenContainedSearchBar(
+        state = searchBarState,
+        inputField = inputField,
+        colors = SearchBarDefaults.containedColors(state = searchBarState),
+        content = content
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun BrowseScreen(
     viewModel: BugeViewModel, modifier: Modifier, language: AppLanguage, root: RootLocation?, directStorageAvailable: Boolean, path: List<RootLocation>, entries: List<FileEntry>,
@@ -634,6 +749,11 @@ private fun BrowseScreen(
         return
     }
     val pathKey = path.joinToString("/") { it.uri.toString() }
+    val browseSearchText = rememberTextFieldState()
+    val browseSearchState = rememberContainedSearchBarState()
+    LaunchedEffect(viewModel.searchQuery) {
+        if (viewModel.searchQuery != browseSearchText.text.toString()) browseSearchText.setTextAndPlaceCursorAtEnd(viewModel.searchQuery)
+    }
     val savedPosition = remember(pathKey) { viewModel.browseScrollPosition(path) }
     val listState = remember(pathKey) {
         LazyListState(savedPosition?.index ?: 0, savedPosition?.offset ?: 0)
@@ -686,6 +806,41 @@ private fun BrowseScreen(
         translationX = slideOffset.value
         alpha = 1f - (kotlin.math.abs(slideOffset.value) / slideDistance.coerceAtLeast(1f)) * 0.25f
     }) {
+            BugeSearchBar(
+                textFieldState = browseSearchText,
+                searchBarState = browseSearchState,
+                placeholder = language.t("search"),
+                onQueryChange = { text ->
+                    if (text != viewModel.searchQuery) viewModel.updateSearch(text)
+                    viewModel.setSearchActive(text.isNotBlank())
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                content = {
+                    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                        if (entries.isEmpty()) {
+                            item { Text("No results", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(24.dp), textAlign = TextAlign.Center) }
+                        }
+                        items(entries, key = { it.uri.toString() }) { entry ->
+                            val resultShape = RoundedCornerShape(14.dp)
+                            Surface(shape = resultShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(resultShape).clickable {
+                                browseSearchText.setTextAndPlaceCursorAtEnd("")
+                                viewModel.setSearchActive(false)
+                                scope.launch { browseSearchState.animateToCollapsed() }
+                                if (entry.isDirectory) onOpenDirectory(entry) else onOpenFile(entry)
+                            }) {
+                                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    FileGlyph(iconFor(entry), entry.isDirectory, 24.dp, entry = entry)
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(entry.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(fileSecondaryText(entry, language), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 2.dp)
@@ -730,7 +885,7 @@ private fun BrowseScreen(
                             Text(taskTitle(activeTask, language), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text("${activeTask.entries.size} ${language.t("items")} · ${language.t("task_list")}: $taskCount", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                         }
-                        FilledTonalButton(onClick = onPaste) { Text(if (activeTask.type == TaskType.COMPRESS) language.t("compress") else language.t("paste")) }
+                        FilledTonalButton(onClick = onPaste) { Text(if (activeTask.type == TaskType.COMPRESS) language.t("compress") else language.t("paste"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
                     }
                 }
             }
@@ -789,7 +944,7 @@ private fun EmptyFolder(language: AppLanguage, searching: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 58.dp)) {
         Icon(if (searching) Icons.Outlined.Search else Icons.Outlined.FolderOpen, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(14.dp)); Text(if (searching) language.t("recent_empty") else language.t("empty"), style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(4.dp)); Text(if (searching) language.t("search") else language.t("empty_sub"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(4.dp)); Text(if (searching) language.t("search") else language.t("empty_sub"), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
     }
 }
 
@@ -917,14 +1072,13 @@ private fun StorageScreen(modifier: Modifier, language: AppLanguage, root: RootL
         }
         item { Text(language.t("files"), style = MaterialTheme.typography.titleLarge) }
         item {
-            val colors = MaterialTheme.colorScheme
             val slices = listOf(
-                StorageSlice(language.t("documents"), data.documents, colors.primary, Icons.Outlined.Description),
-                StorageSlice(language.t("images"), data.images, colors.secondary, Icons.Outlined.Image),
-                StorageSlice(language.t("videos"), data.videos, colors.tertiary, Icons.Outlined.VideoFile),
-                StorageSlice(language.t("audio"), data.audio, colors.error, Icons.Outlined.AudioFile),
-                StorageSlice(language.t("archives"), data.archives, lerp(colors.primary, colors.tertiary, 0.5f), Icons.Outlined.Archive),
-                StorageSlice(language.t("other"), data.other, lerp(colors.secondary, colors.tertiary, 0.5f), Icons.Outlined.FileOpen)
+                StorageSlice(language.t("documents"), data.documents, Color(0xFF7C4DFF), Icons.Outlined.Description),
+                StorageSlice(language.t("images"), data.images, Color(0xFFFF7A00), Icons.Outlined.Image),
+                StorageSlice(language.t("videos"), data.videos, Color(0xFF00C9A7), Icons.Outlined.VideoFile),
+                StorageSlice(language.t("audio"), data.audio, Color(0xFFFF4D8D), Icons.Outlined.AudioFile),
+                StorageSlice(language.t("archives"), data.archives, Color(0xFF3D9BFF), Icons.Outlined.Archive),
+                StorageSlice(language.t("other"), data.other, Color(0xFF8BC34A), Icons.Outlined.FileOpen)
             )
             StorageChartCard(slices, data.total, data.files, language)
         }
@@ -1040,17 +1194,101 @@ private fun UpdateCheckDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: AppSettings, rootAvailable: Boolean, shizukuAvailable: Boolean, shizukuPermission: Boolean, onSettingsChange: (AppSettings) -> Unit, onCheckForUpdates: () -> Unit, onRequestShizuku: () -> Unit) {
     var appearanceDialog by remember { mutableStateOf<AppearanceDialog?>(null) }
     var rootCommandDialog by remember { mutableStateOf(false) }
     var installMethodDialog by remember { mutableStateOf(false) }
     var installerDeclarationDialog by remember { mutableStateOf(false) }
+    var fabStyleDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    val settingsSearchText = rememberTextFieldState()
+    val settingsSearchState = rememberContainedSearchBarState()
+    var keepSearchOnSelection by remember { mutableStateOf(false) }
+    val searchQuery = settingsSearchText.text.toString().trim().lowercase()
+    LaunchedEffect(settingsSearchState.currentValue) {
+        if (settingsSearchState.currentValue == SearchBarValue.Collapsed) {
+            if (keepSearchOnSelection) {
+                keepSearchOnSelection = false
+            } else if (settingsSearchText.text.isNotEmpty()) {
+                settingsSearchText.setTextAndPlaceCursorAtEnd("")
+            }
+        }
+    }
+    fun groupMatches(vararg keys: String) = searchQuery.isEmpty() || keys.any { language.t(it).lowercase().contains(searchQuery) }
+    val showAppearance = groupMatches("appearance", "theme", "color", "language", "pure_black", "pure_black_summary", "system_font", "system_font_summary")
+    val showAdvanced = groupMatches("advanced", "root_access", "root_access_summary", "shizuku_access", "shizuku_access_summary", "root_command", "hidden", "auto_remount", "auto_remount_summary")
+    val showBehavior = groupMatches("behavior", "compact", "thumbnails", "haptics", "show_recents", "create_button_style", "fab_style_extended", "fab_style_icon", "fab_style_menu")
+    val showInstallation = groupMatches("installation", "use_app_installer", "install_method", "installer_declaration", "allow_downgrade", "allow_test_packages", "install_all_users")
+    val showAbout = groupMatches("about", "check_updates", "file_manager", "version", "website", "github", "fdroid", "telegram")
+    val settingsSearchEntries = listOf(
+        "appearance" to "theme",
+        "appearance" to "color",
+        "appearance" to "language",
+        "appearance" to "pure_black",
+        "appearance" to "system_font",
+        "advanced" to "root_access",
+        "advanced" to "shizuku_access",
+        "advanced" to "root_command",
+        "advanced" to "hidden",
+        "advanced" to "auto_remount",
+        "behavior" to "compact",
+        "behavior" to "thumbnails",
+        "behavior" to "haptics",
+        "behavior" to "show_recents",
+        "behavior" to "create_button_style",
+        "installation" to "use_app_installer",
+        "installation" to "install_method",
+        "installation" to "installer_declaration",
+        "installation" to "allow_downgrade",
+        "installation" to "allow_test_packages",
+        "installation" to "install_all_users",
+        "about" to "check_updates",
+        "about" to "file_manager"
+    )
+    val filteredSettingsEntries = settingsSearchEntries.filter { (section, title) ->
+        searchQuery.isEmpty() || language.t(section).lowercase().contains(searchQuery) || language.t(title).lowercase().contains(searchQuery)
+    }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item { Text(language.t("settings"), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 4.dp)) }
-            item { SettingsSection(language.t("appearance")) }
+            item {
+                BugeSearchBar(
+                    textFieldState = settingsSearchText,
+                    searchBarState = settingsSearchState,
+                    placeholder = language.t("search_settings"),
+                    onQueryChange = {},
+                    modifier = Modifier.fillMaxWidth(),
+                    clearOnCollapse = false,
+                    content = {
+                        val searchContentScope = rememberCoroutineScope()
+                        if (searchQuery.isEmpty()) {
+                            Unit
+                        } else if (filteredSettingsEntries.isEmpty()) {
+                            Text("No results", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(24.dp), textAlign = TextAlign.Center)
+                        } else {
+                            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                                items(filteredSettingsEntries) { (section, title) ->
+                                    val resultShape = RoundedCornerShape(14.dp)
+                                    Surface(shape = resultShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(resultShape).clickable {
+                                        keepSearchOnSelection = true
+                                        searchContentScope.launch { settingsSearchState.animateToCollapsed() }
+                                    }) {
+                                        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                            Text(language.t(section), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                            Text(language.t(title), style = MaterialTheme.typography.titleMedium)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+            if (showAppearance) {
+                item { SettingsSection(language.t("appearance")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingsActionCard(
@@ -1058,7 +1296,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         summary = themePreferenceLabel(language, settings.theme),
                         icon = Icons.Outlined.Palette,
                         index = 0,
-                        count = 3,
+                        count = 5,
                         onClick = { appearanceDialog = AppearanceDialog.THEME }
                     )
                     SettingsActionCard(
@@ -1066,7 +1304,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         summary = colorSourceLabel(language, settings.colorSource),
                         icon = Icons.Outlined.Palette,
                         index = 1,
-                        count = 3,
+                        count = 5,
                         onClick = { appearanceDialog = AppearanceDialog.COLOR }
                     )
                     SettingsActionCard(
@@ -1074,19 +1312,23 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         summary = settings.language.nativeName,
                         icon = Icons.Outlined.Language,
                         index = 2,
-                        count = 3,
+                        count = 5,
                         onClick = { appearanceDialog = AppearanceDialog.LANGUAGE }
                     )
+                    SettingSwitch(language.t("pure_black"), settings.pureBlack, 3, 5, icon = Icons.Outlined.Settings, supportingText = language.t("pure_black_summary")) { onSettingsChange(settings.copy(pureBlack = it)) }
+                    SettingSwitch(language.t("system_font"), settings.useSystemFont, 4, 5, icon = Icons.Outlined.Description, supportingText = language.t("system_font_summary")) { onSettingsChange(settings.copy(useSystemFont = it)) }
                 }
             }
-            item { SettingsSection(language.t("advanced")) }
+            }
+            if (showAdvanced) {
+                item { SettingsSection(language.t("advanced")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingSwitch(
                         label = language.t("root_access"),
                         checked = settings.rootAccess && rootAvailable,
                         index = 0,
-                        count = 4,
+                        count = 5,
                         enabled = rootAvailable,
                         icon = Icons.Outlined.Security,
                         supportingText = if (rootAvailable) language.t("root_access_summary") else language.t("root_unavailable")
@@ -1095,7 +1337,7 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         label = language.t("shizuku_access"),
                         checked = settings.shizukuAccess && shizukuPermission,
                         index = 1,
-                        count = 4,
+                        count = 5,
                         enabled = shizukuAvailable,
                         icon = Icons.Outlined.Terminal,
                         supportingText = when {
@@ -1116,22 +1358,36 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         summary = language.t("root_command_summary"),
                         icon = Icons.Outlined.Code,
                         index = 2,
-                        count = 4,
+                        count = 5,
                         trailingText = settings.rootCommand,
                         onClick = { rootCommandDialog = true }
                     )
-                    SettingSwitch(language.t("hidden"), settings.showHidden, 3, 4, icon = Icons.Outlined.Visibility, supportingText = language.t("hidden_summary")) { onSettingsChange(settings.copy(showHidden = it)) }
+                    SettingSwitch(language.t("hidden"), settings.showHidden, 3, 5, icon = Icons.Outlined.Visibility, supportingText = language.t("hidden_summary")) { onSettingsChange(settings.copy(showHidden = it)) }
+                    SettingSwitch(language.t("auto_remount"), settings.autoRemount, 4, 5, enabled = rootAvailable, icon = Icons.Outlined.Terminal, supportingText = language.t("auto_remount_summary")) { onSettingsChange(settings.copy(autoRemount = it)) }
                 }
             }
-            item { SettingsSection(language.t("behavior")) }
+            }
+            if (showBehavior) {
+                item { SettingsSection(language.t("behavior")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 3, icon = Icons.AutoMirrored.Outlined.List, supportingText = language.t("compact_summary")) { onSettingsChange(settings.copy(compactMode = it)) }
-                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 3, icon = Icons.Outlined.Image, supportingText = language.t("thumbnails_summary")) { onSettingsChange(settings.copy(showThumbnails = it)) }
-                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 3, icon = Icons.Outlined.Vibration, supportingText = language.t("haptics_summary")) { onSettingsChange(settings.copy(hapticFeedback = it)) }
+                    SettingSwitch(language.t("compact"), settings.compactMode, 0, 5, icon = Icons.AutoMirrored.Outlined.List, supportingText = language.t("compact_summary")) { onSettingsChange(settings.copy(compactMode = it)) }
+                    SettingSwitch(language.t("thumbnails"), settings.showThumbnails, 1, 5, icon = Icons.Outlined.Image, supportingText = language.t("thumbnails_summary")) { onSettingsChange(settings.copy(showThumbnails = it)) }
+                    SettingSwitch(language.t("haptics"), settings.hapticFeedback, 2, 5, icon = Icons.Outlined.Vibration, supportingText = language.t("haptics_summary")) { onSettingsChange(settings.copy(hapticFeedback = it)) }
+                    SettingSwitch(language.t("show_recents"), settings.showRecents, 3, 5, icon = Icons.Outlined.FileOpen, supportingText = language.t("show_recents_summary")) { onSettingsChange(settings.copy(showRecents = it)) }
+                    SettingsActionCard(
+                        title = language.t("create_button_style"),
+                        summary = fabStyleLabel(language, settings.fabStyle),
+                        icon = Icons.Outlined.Add,
+                        index = 4,
+                        count = 5,
+                        onClick = { fabStyleDialog = true }
+                    )
                 }
             }
-            item { SettingsSection(language.t("installation")) }
+            }
+            if (showInstallation) {
+                item { SettingsSection(language.t("installation")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingSwitch(
@@ -1166,7 +1422,9 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                     SettingSwitch(language.t("install_all_users"), settings.installAllUsers, 5, 6, icon = Icons.Outlined.People, supportingText = language.t("install_all_users_summary")) { onSettingsChange(settings.copy(installAllUsers = it)) }
                 }
             }
-            item { SettingsSection(language.t("about")) }
+            }
+            if (showAbout) {
+                item { SettingsSection(language.t("about")) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SettingsActionCard(
@@ -1177,7 +1435,9 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         count = 2,
                         onClick = onCheckForUpdates
                     )
-                    Surface(shape = groupItemShape(1, 2), color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth()) {
+                    val aboutInteraction = remember { MutableInteractionSource() }
+                    val aboutShape = pressedGroupShape(1, 2, aboutInteraction)
+                    Surface(shape = aboutShape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(aboutShape).clickable(interactionSource = aboutInteraction, indication = LocalIndication.current) { showAboutDialog = true }) {
                         Column(Modifier.padding(18.dp)) {
                             Text("Buge Files", style = MaterialTheme.typography.titleLarge)
                             Spacer(Modifier.height(4.dp))
@@ -1186,6 +1446,12 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                             Text("${language.t("version")} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge)
                         }
                     }
+                }
+            }
+            }
+            if (searchQuery.isNotEmpty() && !showAppearance && !showAdvanced && !showBehavior && !showInstallation && !showAbout) {
+                item {
+                    Text("No settings found", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(24.dp))
                 }
             }
         }
@@ -1249,6 +1515,19 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                 installerDeclarationDialog = false
             }
         }
+
+        if (fabStyleDialog) {
+            FabStyleDialog(
+                language = language,
+                selected = settings.fabStyle,
+                onSelect = { style -> onSettingsChange(settings.copy(fabStyle = style)) },
+                onDismiss = { fabStyleDialog = false }
+            )
+        }
+
+        if (showAboutDialog) {
+            AboutDialog(language = language, onDismiss = { showAboutDialog = false })
+        }
     }
 }
 
@@ -1311,6 +1590,63 @@ private fun SettingsActionCard(title: String, summary: String, icon: ImageVector
             }
         }
     }
+}
+
+@Composable
+private fun AboutDialog(language: AppLanguage, onDismiss: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    val links = listOf(
+        "Website" to "https://bugestudio.website/files/",
+        "GitHub" to "https://github.com/BugeStudioTeam/Buge-Files",
+        "F-Droid" to "https://f-droid.org/packages/com.buge.files",
+        "Telegram" to "https://t.me/bugestudio"
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(language.t("about")) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                links.forEach { (label, url) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
+                            runCatching { uriHandler.openUri(url) }
+                            onDismiss()
+                        }.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(label, style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
+}
+
+private fun fabStyleLabel(language: AppLanguage, style: FabStyle): String = when (style) {
+    FabStyle.EXTENDED -> language.t("fab_style_extended")
+    FabStyle.ICON -> language.t("fab_style_icon")
+    FabStyle.MENU -> language.t("fab_style_menu")
+}
+
+@Composable
+private fun FabStyleDialog(language: AppLanguage, selected: FabStyle, onSelect: (FabStyle) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(language.t("create_button_style")) },
+        text = {
+            Column {
+                FabStyle.entries.forEach { style ->
+                    AppearanceOptionRow(
+                        label = fabStyleLabel(language, style),
+                        selected = selected == style,
+                        onSelect = { onSelect(style) }
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(language.t("done")) } }
+    )
 }
 
 private fun installMethodLabel(language: AppLanguage, method: InstallMethod): String = when (method) {
@@ -1648,19 +1984,19 @@ private fun FileDetailsSheet(file: FileEntry, language: AppLanguage, onDismiss: 
             Spacer(Modifier.height(20.dp)); DetailLine(language.t("size"), if (file.isDirectory) directorySummary(file, language) else formatBytes(file.size)); DetailLine(language.t("modified"), formatDate(file.lastModified)); DetailLine(language.t("type"), if (file.isDirectory) language.t("folder") else file.extension.uppercase())
             Spacer(Modifier.height(18.dp)); FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!file.isDirectory) {
-                    if (file.isApkPackage() || file.isImageFile() || file.isZipContainer() || file.isEditableText()) FilledTonalButton(onClick = onOpenTool) { Icon(if (file.isApkPackage() || file.isZipContainer()) Icons.Outlined.Archive else if (file.isImageFile()) Icons.Outlined.Image else Icons.Outlined.Description, null); Spacer(Modifier.width(6.dp)); Text(if (file.isApkPackage()) language.t("apk_package") else if (file.isImageFile()) language.t("image_preview") else if (file.isZipContainer()) language.t("archive") else language.t("edit")) }
-                    OutlinedButton(onClick = onOpen) { Icon(Icons.Outlined.FileOpen, null); Spacer(Modifier.width(6.dp)); Text(language.t("open")) }
-                    OutlinedButton(onClick = onShare) { Icon(Icons.Outlined.Share, null); Spacer(Modifier.width(6.dp)); Text(language.t("share")) }
-                    OutlinedButton(onClick = onChecksum) { Icon(Icons.Outlined.Info, null); Spacer(Modifier.width(6.dp)); Text("SHA-256") }
+                    if (file.isApkPackage() || file.isImageFile() || file.isZipContainer() || file.isEditableText()) FilledTonalButton(onClick = onOpenTool) { Icon(if (file.isApkPackage() || file.isZipContainer()) Icons.Outlined.Archive else if (file.isImageFile()) Icons.Outlined.Image else Icons.Outlined.Description, null); Spacer(Modifier.width(6.dp)); Text(if (file.isApkPackage()) language.t("apk_package") else if (file.isImageFile()) language.t("image_preview") else if (file.isZipContainer()) language.t("archive") else language.t("edit"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+                    OutlinedButton(onClick = onOpen) { Icon(Icons.Outlined.FileOpen, null); Spacer(Modifier.width(6.dp)); Text(language.t("open"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+                    OutlinedButton(onClick = onShare) { Icon(Icons.Outlined.Share, null); Spacer(Modifier.width(6.dp)); Text(language.t("share"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+                    OutlinedButton(onClick = onChecksum) { Icon(Icons.Outlined.Info, null); Spacer(Modifier.width(6.dp)); Text("SHA-256", maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
                 }
-                OutlinedButton(onClick = onRename) { Text(language.t("rename")) }; TextButton(onClick = onDelete) { Text(language.t("delete"), color = MaterialTheme.colorScheme.error) }
+                OutlinedButton(onClick = onRename) { Text(language.t("rename"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }; TextButton(onClick = onDelete) { Text(language.t("delete"), color = MaterialTheme.colorScheme.error, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
             }
         }
     }
 }
 
 @Composable
-private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, language: AppLanguage, onInstall: () -> Unit, onDismiss: () -> Unit) {
+private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: Boolean, installing: Boolean, installed: Boolean, language: AppLanguage, onInstall: () -> Unit, onOpen: () -> Unit, onDismiss: () -> Unit) {
     var showPermissions by remember { mutableStateOf(false) }
     var showSignature by remember { mutableStateOf(false) }
     Dialog(onDismissRequest = onDismiss) {
@@ -1731,19 +2067,24 @@ private fun ApkInspectorSheet(file: FileEntry, metadata: ApkMetadata?, loading: 
                     Spacer(Modifier.height(14.dp))
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
-                Spacer(Modifier.height(18.dp))
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FilledTonalButton(
-                        onClick = onInstall,
-                        enabled = metadata != null && !loading,
-                        shape = groupItemShape(0, 2),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                    ) { Text(language.t("install")) }
-                    FilledTonalButton(
-                        onClick = onDismiss,
-                        shape = groupItemShape(1, 2),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                    ) { Text(language.t("cancel")) }
+                if (installing) {
+                    Spacer(Modifier.height(18.dp))
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                } else {
+                    Spacer(Modifier.height(18.dp))
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        FilledTonalButton(
+                            onClick = { if (installed) onOpen() else onInstall() },
+                            enabled = metadata != null && !loading,
+                            shape = groupItemShape(0, 2),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                        ) { Text(if (installed) language.t("open") else language.t("install"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+                        FilledTonalButton(
+                            onClick = onDismiss,
+                            shape = groupItemShape(1, 2),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                        ) { Text(language.t("cancel"), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
+                    }
                 }
             }
         }

@@ -69,7 +69,7 @@
     <string name="theme_system">システム既定</string>
     <string name="theme_light">ライト</string>
     <string name="theme_dark">ダーク</string>
-    <string name="dynamic">動的壁紙カラー</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">インディゴ</string>
     <string name="ocean">オーシャン</string>
     <string name="forest">フォレスト</string>
@@ -212,4 +212,17 @@
     <string name="installation">インストール</string>
     <string name="view_all_permissions">すべての権限を表示</string>
     <string name="view_signature">署名を表示</string>
+    <string name="show_recents">最近を表示</string>
+    <string name="show_recents_summary">最近開いたファイルの一覧を保持</string>
+    <string name="create_button_style">作成ボタンのスタイル</string>
+    <string name="fab_style_extended">拡張ボタン</string>
+    <string name="fab_style_icon">アイコンボタン</string>
+    <string name="fab_style_menu">展開メニュー</string>
+    <string name="pure_black">ピュアブラック</string>
+    <string name="pure_black_summary">ダークテーマで完全な黒の背景を使用</string>
+    <string name="system_font">システムフォント</string>
+    <string name="system_font_summary">Google Sans Flex の代わりに端末のフォントを使用</string>
+    <string name="auto_remount">自動で読み書き可能に再マウント</string>
+    <string name="auto_remount_summary">変更前にシステムパーティションを読み書き可能に再マウント（root）</string>
+    <string name="search_settings">設定を検索</string>
 </resources>

@@ -26,7 +26,8 @@ class FileRepository(
     private val context: Context,
     private val rootAccessEnabled: () -> Boolean = { false },
     private val rootCommand: () -> String = { "su" },
-    private val shizukuEnabled: () -> Boolean = { false }
+    private val shizukuEnabled: () -> Boolean = { false },
+    private val autoRemountEnabled: () -> Boolean = { false }
 ) {
     private val resolver: ContentResolver = context.contentResolver
 
@@ -40,6 +41,17 @@ class FileRepository(
 
     private fun elevatedEnabled(): Boolean =
         rootAccessEnabled() || (shizukuEnabled() && ShizukuShell.hasPermission())
+
+    private fun partitionRoot(file: File): String? {
+        val path = file.path
+        return SYSTEM_PARTITIONS.firstOrNull { path == it || path.startsWith("$it/") }
+    }
+
+    private fun prepareWrite(file: File) {
+        if (!autoRemountEnabled() || !rootAccessEnabled()) return
+        val mountPoint = partitionRoot(file) ?: return
+        runElevated("mount -o rw,remount ${shellQuote(mountPoint)} || mount -o remount,rw ${shellQuote(mountPoint)} || mount -o rw,remount /")
+    }
 
     private fun isOwnPath(path: String): Boolean {
         if (path.contains("/Android/data/${context.packageName}")) return true
@@ -186,6 +198,7 @@ class FileRepository(
             val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
             val elevated = elevatedEnabled() && (needsElevation(parent) || !parent.canWrite())
+            if (elevated) prepareWrite(target)
             when {
                 target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 target.mkdir() -> OperationResult(true, "Folder created")
@@ -205,6 +218,7 @@ class FileRepository(
             val parent = elevatedDirect(parentUri) ?: return@withContext OperationResult(false, "Storage location is unavailable")
             val target = File(parent, name)
             val elevated = elevatedEnabled() && (needsElevation(parent) || !parent.canWrite())
+            if (elevated) prepareWrite(target)
             when {
                 target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 target.createNewFile() -> OperationResult(true, "File created")
@@ -227,6 +241,7 @@ class FileRepository(
             val source = elevatedDirect(entry.uri) ?: return@withContext OperationResult(false, "File is not available")
             val target = File(source.parentFile, newName)
             val elevated = elevatedEnabled() && (needsElevation(source) || source.parentFile?.canWrite() == false)
+            if (elevated) prepareWrite(target)
             when {
                 target.exists() || (elevated && shellExists(target.path)) -> OperationResult(false, "An item with that name already exists")
                 source.renameTo(target) -> OperationResult(true, "Renamed")
@@ -244,7 +259,10 @@ class FileRepository(
         entries.forEach { entry ->
             val deleted = if (isDirect(entry.uri)) {
                 val file = entry.uri.path?.let(::File)
-                if (file != null && elevatedEnabled() && (needsElevation(file) || file.parentFile?.canWrite() == false)) runElevated("rm -rf ${shellQuote(file.path)}") != null
+                if (file != null && elevatedEnabled() && (needsElevation(file) || file.parentFile?.canWrite() == false)) {
+                    prepareWrite(file)
+                    runElevated("rm -rf ${shellQuote(file.path)}") != null
+                }
                 else direct(entry.uri)?.deleteRecursively() == true
             } else document(entry.uri)?.delete() == true
             if (!deleted) failed++
@@ -479,6 +497,8 @@ class FileRepository(
     }
 
     private fun copyDirectViaShell(source: File, destination: File, move: Boolean): Boolean {
+        prepareWrite(destination)
+        prepareWrite(source)
         val sourcePath = source.path.trimEnd('/')
         val destinationPath = destination.path.trimEnd('/')
         if (destinationPath == sourcePath || destinationPath.startsWith("$sourcePath/")) return false
@@ -526,7 +546,8 @@ class FileRepository(
     private fun requiresRoot(directory: File): Boolean {
         val path = directory.path
         return path == "/" || path == "/data" || path.startsWith("/data/") ||
-            path.contains("/Android/data") || path.contains("/Android/obb")
+            path.contains("/Android/data") || path.contains("/Android/obb") ||
+            SYSTEM_PARTITIONS.any { path == it || path.startsWith("$it/") }
     }
 
     private fun listViaShell(directory: File, showHidden: Boolean): List<FileEntry> {
@@ -603,5 +624,6 @@ class FileRepository(
 
     companion object {
         private const val COPY_BUFFER_SIZE = 128 * 1024
+        private val SYSTEM_PARTITIONS = listOf("/system", "/system_ext", "/product", "/vendor", "/vendor_dlkm", "/system_dlkm", "/odm")
     }
 }

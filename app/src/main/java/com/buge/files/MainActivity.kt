@@ -184,16 +184,22 @@ class MainActivity : ComponentActivity() {
         val settings = viewModel.settings.value
         if (settings.installEnabled) {
             lifecycleScope.launch {
-                Toast.makeText(this@MainActivity, "Installing…", Toast.LENGTH_SHORT).show()
-                val result = appInstaller.install(file, settings)
-                if (!result.success) {
-                    runCatching {
-                        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Buge Files installation error", result.detail ?: result.message))
+                viewModel.setInstalling(true)
+                try {
+                    Toast.makeText(this@MainActivity, "Installing…", Toast.LENGTH_SHORT).show()
+                    val result = appInstaller.install(file, settings)
+                    if (result.success) viewModel.markInstallCompleted(true)
+                    if (!result.success) {
+                        runCatching {
+                            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Buge Files installation error", result.detail ?: result.message))
+                        }
                     }
+                    val text = if (result.success) result.message else "${result.message}\nFailure details copied to clipboard"
+                    Toast.makeText(this@MainActivity, text, Toast.LENGTH_LONG).show()
+                } finally {
+                    viewModel.setInstalling(false)
                 }
-                val text = if (result.success) result.message else "${result.message}\nFailure details copied to clipboard"
-                Toast.makeText(this@MainActivity, text, Toast.LENGTH_LONG).show()
             }
             return
         }

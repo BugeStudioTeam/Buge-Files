@@ -69,7 +69,7 @@
     <string name="theme_system">По умолчанию (система)</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
-    <string name="dynamic">Динамический цвет обоев</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">Индиго</string>
     <string name="ocean">Океан</string>
     <string name="forest">Лес</string>
@@ -212,4 +212,17 @@
     <string name="installation">Установка</string>
     <string name="view_all_permissions">Показать все разрешения</string>
     <string name="view_signature">Показать подпись</string>
+    <string name="show_recents">Показывать недавние</string>
+    <string name="show_recents_summary">Хранить список недавно открытых файлов</string>
+    <string name="create_button_style">Стиль кнопок создания</string>
+    <string name="fab_style_extended">Расширенные кнопки</string>
+    <string name="fab_style_icon">Кнопки-значки</string>
+    <string name="fab_style_menu">Раскрывающееся меню</string>
+    <string name="pure_black">Чистый чёрный</string>
+    <string name="pure_black_summary">Использовать истинно чёрные поверхности в тёмной теме</string>
+    <string name="system_font">Системный шрифт</string>
+    <string name="system_font_summary">Использовать шрифт устройства вместо Google Sans Flex</string>
+    <string name="auto_remount">Автоматическое перемонтирование в rw</string>
+    <string name="auto_remount_summary">Перемонтировать системные разделы в режим чтения-записи перед изменениями (root)</string>
+    <string name="search_settings">Поиск настроек</string>
 </resources>

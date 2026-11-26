@@ -78,7 +78,7 @@
     <string name="theme_system">Predeterminado del sistema</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Oscuro</string>
-    <string name="dynamic">Color dinámico del fondo</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">Índigo</string>
     <string name="ocean">Océano</string>
     <string name="forest">Bosque</string>
@@ -212,4 +212,17 @@
     <string name="installation">Instalación</string>
     <string name="view_all_permissions">Ver todos los permisos</string>
     <string name="view_signature">Ver firma</string>
+    <string name="show_recents">Mostrar recientes</string>
+    <string name="show_recents_summary">Mantener una lista de archivos abiertos recientemente</string>
+    <string name="create_button_style">Estilo de botones de creación</string>
+    <string name="fab_style_extended">Botones extendidos</string>
+    <string name="fab_style_icon">Botones de icono</string>
+    <string name="fab_style_menu">Menú desplegable</string>
+    <string name="pure_black">Negro puro</string>
+    <string name="pure_black_summary">Usar superficies negras reales en tema oscuro</string>
+    <string name="system_font">Fuente del sistema</string>
+    <string name="system_font_summary">Usar la fuente del dispositivo en lugar de Google Sans Flex</string>
+    <string name="auto_remount">Remontar automáticamente en lectura-escritura</string>
+    <string name="auto_remount_summary">Remontar las particiones del sistema en lectura-escritura antes de modificarlas (root)</string>
+    <string name="search_settings">Buscar ajustes</string>
 </resources>

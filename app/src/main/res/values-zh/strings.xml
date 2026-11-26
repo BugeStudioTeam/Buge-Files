@@ -80,7 +80,7 @@
     <string name="theme_system">跟随系统</string>
     <string name="theme_light">浅色</string>
     <string name="theme_dark">深色</string>
-    <string name="dynamic">取自壁纸的动态色彩</string>
+    <string name="dynamic">Dynamic Color</string>
     <string name="indigo">靛蓝</string>
     <string name="ocean">海洋</string>
     <string name="forest">森林</string>
@@ -212,4 +212,17 @@
     <string name="installation">安装</string>
     <string name="view_all_permissions">查看所有权限</string>
     <string name="view_signature">查看签名</string>
+    <string name="show_recents">显示最近</string>
+    <string name="show_recents_summary">保留最近打开的文件列表</string>
+    <string name="create_button_style">新建按钮样式</string>
+    <string name="fab_style_extended">扩展按钮</string>
+    <string name="fab_style_icon">图标按钮</string>
+    <string name="fab_style_menu">展开菜单</string>
+    <string name="pure_black">纯黑</string>
+    <string name="pure_black_summary">在深色主题中使用纯黑表面</string>
+    <string name="system_font">系统字体</string>
+    <string name="system_font_summary">使用设备字体代替 Google Sans Flex</string>
+    <string name="auto_remount">自动重新挂载为读写</string>
+    <string name="auto_remount_summary">修改前将系统分区重新挂载为读写（root）</string>
+    <string name="search_settings">搜索设置</string>
 </resources>
