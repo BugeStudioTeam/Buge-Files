@@ -212,4 +212,16 @@
     <string name="installation">Installation</string>
     <string name="view_all_permissions">Voir toutes les autorisations</string>
     <string name="view_signature">Voir la signature</string>
+    <string name="show_recents">Afficher les récents</string>
+    <string name="show_recents_summary">Conserver la liste des fichiers récemment ouverts</string>
+    <string name="create_button_style">Style des boutons de création</string>
+    <string name="fab_style_extended">Boutons étendus</string>
+    <string name="fab_style_icon">Boutons icônes</string>
+    <string name="fab_style_menu">Menu déroulant</string>
+    <string name="pure_black">Noir pur</string>
+    <string name="pure_black_summary">Utiliser des surfaces vraiment noires en thème sombre</string>
+    <string name="system_font">Police système</string>
+    <string name="system_font_summary">Utiliser la police de l\'appareil au lieu de Google Sans Flex</string>
+    <string name="auto_remount">Remontage automatique en lecture-écriture</string>
+    <string name="auto_remount_summary">Remonter les partitions système en lecture-écriture avant modification (root)</string>
 </resources>

@@ -35,6 +35,11 @@ class SettingsRepository(private val context: Context) {
         val allowDowngrade = booleanPreferencesKey("allow_downgrade")
         val allowTestPackages = booleanPreferencesKey("allow_test_packages")
         val installAllUsers = booleanPreferencesKey("install_all_users")
+        val showRecents = booleanPreferencesKey("show_recents")
+        val fabStyle = stringPreferencesKey("fab_style")
+        val pureBlack = booleanPreferencesKey("pure_black")
+        val useSystemFont = booleanPreferencesKey("use_system_font")
+        val autoRemount = booleanPreferencesKey("auto_remount")
         val roots = stringSetPreferencesKey("roots")
         val bookmarks = stringSetPreferencesKey("bookmarks")
     }
@@ -57,7 +62,12 @@ class SettingsRepository(private val context: Context) {
             installerPackage = prefs[Keys.installerPackage].orEmpty(),
             allowDowngrade = prefs[Keys.allowDowngrade] ?: true,
             allowTestPackages = prefs[Keys.allowTestPackages] ?: false,
-            installAllUsers = prefs[Keys.installAllUsers] ?: false
+            installAllUsers = prefs[Keys.installAllUsers] ?: false,
+            showRecents = prefs[Keys.showRecents] ?: true,
+            fabStyle = enumValue(prefs[Keys.fabStyle], FabStyle.EXTENDED),
+            pureBlack = prefs[Keys.pureBlack] ?: false,
+            useSystemFont = prefs[Keys.useSystemFont] ?: false,
+            autoRemount = prefs[Keys.autoRemount] ?: false
         )
     }
 
@@ -87,6 +97,11 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.allowDowngrade] = settings.allowDowngrade
         prefs[Keys.allowTestPackages] = settings.allowTestPackages
         prefs[Keys.installAllUsers] = settings.installAllUsers
+        prefs[Keys.showRecents] = settings.showRecents
+        prefs[Keys.fabStyle] = settings.fabStyle.name
+        prefs[Keys.pureBlack] = settings.pureBlack
+        prefs[Keys.useSystemFont] = settings.useSystemFont
+        prefs[Keys.autoRemount] = settings.autoRemount
     }
 
     suspend fun addRoot(location: RootLocation) = context.dataStore.edit { prefs ->

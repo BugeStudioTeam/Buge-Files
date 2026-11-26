@@ -61,7 +61,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         application,
         { _settings.value.rootAccess },
         { _settings.value.rootCommand },
-        { _settings.value.shizukuAccess }
+        { _settings.value.shizukuAccess },
+        { _settings.value.autoRemount }
     )
     val smbRepository = SmbRepository(application)
     private val advancedToolsRepository = AdvancedToolsRepository(application)
@@ -210,6 +211,10 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
                 if (newSettings.rootCommand != lastRootCommand) {
                     lastRootCommand = newSettings.rootCommand
                     detectRootAccess()
+                }
+                if (!newSettings.showRecents) {
+                    recentItems.clear()
+                    if (destination == AppDestination.RECENTS) destination = AppDestination.BROWSE
                 }
                 updateVisibleRoots()
                 refresh()
@@ -1039,6 +1044,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     fun dismissChecksum() { checksumTarget = null; checksumValue = null; checksumLoading = false }
 
     fun recordOpened(entry: FileEntry) {
+        if (!_settings.value.showRecents) return
         recentItems.removeAll { it.uri == entry.uri }
         recentItems.add(0, entry)
         while (recentItems.size > 40) recentItems.removeAt(recentItems.lastIndex)

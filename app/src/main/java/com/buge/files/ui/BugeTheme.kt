@@ -122,11 +122,27 @@ fun BugeTheme(settings: AppSettings, content: @Composable () -> Unit) {
         ThemePreference.LIGHT -> false
         ThemePreference.DARK -> true
     }
-    val colorScheme = if (settings.colorSource == ColorSource.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    val baseScheme = if (settings.colorSource == ColorSource.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     } else {
         val seed = palette[settings.colorSource] ?: palette.getValue(ColorSource.INDIGO)
         if (dark) darkScheme(seed) else lightScheme(seed)
     }
-    MaterialTheme(colorScheme = colorScheme, typography = BugeTypography, content = content)
+    val colorScheme = if (dark && settings.pureBlack) {
+        baseScheme.copy(
+            background = Color.Black,
+            surface = Color.Black,
+            surfaceContainerLowest = Color.Black,
+            surfaceContainerLow = Color(0xFF070707),
+            surfaceContainer = Color(0xFF0E0E0E),
+            surfaceContainerHigh = Color(0xFF161616),
+            surfaceContainerHighest = Color(0xFF1E1E1E),
+            onBackground = Color(0xFFE6E1E6),
+            onSurface = Color(0xFFE6E1E6)
+        )
+    } else {
+        baseScheme
+    }
+    val typography = if (settings.useSystemFont) Typography() else BugeTypography
+    MaterialTheme(colorScheme = colorScheme, typography = typography, content = content)
 }

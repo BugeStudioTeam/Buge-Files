@@ -212,4 +212,16 @@
     <string name="installation">安裝</string>
     <string name="view_all_permissions">查看所有權限</string>
     <string name="view_signature">查看簽章</string>
+    <string name="show_recents">顯示最近</string>
+    <string name="show_recents_summary">保留最近開啟的檔案清單</string>
+    <string name="create_button_style">新增按鈕樣式</string>
+    <string name="fab_style_extended">延伸按鈕</string>
+    <string name="fab_style_icon">圖示按鈕</string>
+    <string name="fab_style_menu">展開選單</string>
+    <string name="pure_black">純黑</string>
+    <string name="pure_black_summary">在深色主題中使用純黑表面</string>
+    <string name="system_font">系統字型</string>
+    <string name="system_font_summary">使用裝置字型取代 Google Sans Flex</string>
+    <string name="auto_remount">自動重新掛載為讀寫</string>
+    <string name="auto_remount_summary">修改前將系統分割區重新掛載為讀寫（root）</string>
 </resources>

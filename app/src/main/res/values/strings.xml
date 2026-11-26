@@ -212,4 +212,16 @@
     <string name="installation">Installation</string>
     <string name="view_all_permissions">View all permissions</string>
     <string name="view_signature">View signature</string>
+    <string name="show_recents">Show Recents</string>
+    <string name="show_recents_summary">Keep a list of recently opened files</string>
+    <string name="create_button_style">Create button style</string>
+    <string name="fab_style_extended">Extended buttons</string>
+    <string name="fab_style_icon">Icon buttons</string>
+    <string name="fab_style_menu">Expandable menu</string>
+    <string name="pure_black">Pure black</string>
+    <string name="pure_black_summary">Use true black surfaces in dark theme</string>
+    <string name="system_font">System font</string>
+    <string name="system_font_summary">Use the device font instead of Google Sans Flex</string>
+    <string name="auto_remount">Auto remount read-write</string>
+    <string name="auto_remount_summary">Remount system partitions as read-write before changes (root)</string>
 </resources>

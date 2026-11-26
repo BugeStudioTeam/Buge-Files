@@ -212,4 +212,16 @@
     <string name="installation">Installation</string>
     <string name="view_all_permissions">Alle Berechtigungen anzeigen</string>
     <string name="view_signature">Signatur anzeigen</string>
+    <string name="show_recents">Zuletzt anzeigen</string>
+    <string name="show_recents_summary">Eine Liste zuletzt geöffneter Dateien führen</string>
+    <string name="create_button_style">Stil der Erstellen-Schaltflächen</string>
+    <string name="fab_style_extended">Erweiterte Buttons</string>
+    <string name="fab_style_icon">Symbol-Buttons</string>
+    <string name="fab_style_menu">Ausklappbares Menü</string>
+    <string name="pure_black">Reines Schwarz</string>
+    <string name="pure_black_summary">Echte schwarze Flächen im dunklen Design verwenden</string>
+    <string name="system_font">Systemschriftart</string>
+    <string name="system_font_summary">Geräteschriftart statt Google Sans Flex verwenden</string>
+    <string name="auto_remount">Automatisch neu einhängen (rw)</string>
+    <string name="auto_remount_summary">Systempartitionen vor Änderungen als beschreibbar neu einhängen (Root)</string>
 </resources>

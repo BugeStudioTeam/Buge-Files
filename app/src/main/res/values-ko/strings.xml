@@ -212,4 +212,16 @@
     <string name="installation">설치</string>
     <string name="view_all_permissions">모든 권한 보기</string>
     <string name="view_signature">서명 보기</string>
+    <string name="show_recents">최근 항목 표시</string>
+    <string name="show_recents_summary">최근에 연 파일 목록 유지</string>
+    <string name="create_button_style">만들기 버튼 스타일</string>
+    <string name="fab_style_extended">확장 버튼</string>
+    <string name="fab_style_icon">아이콘 버튼</string>
+    <string name="fab_style_menu">펼침 메뉴</string>
+    <string name="pure_black">순수 검정</string>
+    <string name="pure_black_summary">다크 테마에서 완전한 검정 표면 사용</string>
+    <string name="system_font">시스템 글꼴</string>
+    <string name="system_font_summary">Google Sans Flex 대신 기기 글꼴 사용</string>
+    <string name="auto_remount">읽기-쓰기로 자동 재마운트</string>
+    <string name="auto_remount_summary">변경 전에 시스템 파티션을 읽기-쓰기로 재마운트(root)</string>
 </resources>

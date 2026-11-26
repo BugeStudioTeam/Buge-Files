@@ -212,4 +212,16 @@
     <string name="installation">التثبيت</string>
     <string name="view_all_permissions">عرض كل الأذونات</string>
     <string name="view_signature">عرض التوقيع</string>
+    <string name="show_recents">إظهار الأخيرة</string>
+    <string name="show_recents_summary">الاحتفاظ بقائمة الملفات المفتوحة مؤخرًا</string>
+    <string name="create_button_style">نمط أزرار الإنشاء</string>
+    <string name="fab_style_extended">أزرار موسعة</string>
+    <string name="fab_style_icon">أزرار أيقونات</string>
+    <string name="fab_style_menu">قائمة قابلة للتوسيع</string>
+    <string name="pure_black">أسود خالص</string>
+    <string name="pure_black_summary">استخدام أسطح سوداء حقيقية في السمة الداكنة</string>
+    <string name="system_font">خط النظام</string>
+    <string name="system_font_summary">استخدام خط الجهاز بدلاً من Google Sans Flex</string>
+    <string name="auto_remount">إعادة التحميل التلقائي للقراءة والكتابة</string>
+    <string name="auto_remount_summary">إعادة تحميل أقسام النظام للقراءة والكتابة قبل التعديل (root)</string>
 </resources>
