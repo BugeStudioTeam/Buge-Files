@@ -71,7 +71,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.AudioFile
@@ -102,7 +101,6 @@ import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
@@ -191,6 +189,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -1437,8 +1436,9 @@ private fun SettingsScreen(modifier: Modifier, language: AppLanguage, settings: 
                         count = 2,
                         onClick = onCheckForUpdates
                     )
-                    val aboutShape = groupItemShape(1, 2)
-                    Surface(shape = aboutShape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(aboutShape).clickable { showAboutDialog = true }) {
+                    val aboutInteraction = remember { MutableInteractionSource() }
+                    val aboutShape = pressedGroupShape(1, 2, aboutInteraction)
+                    Surface(shape = aboutShape, color = CardDefaults.elevatedCardColors().containerColor, modifier = Modifier.fillMaxWidth().clip(aboutShape).clickable(interactionSource = aboutInteraction, indication = LocalIndication.current) { showAboutDialog = true }) {
                         Column(Modifier.padding(18.dp)) {
                             Text("Buge Files", style = MaterialTheme.typography.titleLarge)
                             Spacer(Modifier.height(4.dp))
@@ -1597,30 +1597,27 @@ private fun SettingsActionCard(title: String, summary: String, icon: ImageVector
 private fun AboutDialog(language: AppLanguage, onDismiss: () -> Unit) {
     val uriHandler = LocalUriHandler.current
     val links = listOf(
-        Triple("Website", Icons.Outlined.Language, "https://bugestudio.website/files/"),
-        Triple("GitHub", Icons.Outlined.Code, "https://github.com/BugeStudioTeam/Buge-Files"),
-        Triple("F-Droid", Icons.Outlined.Android, "https://f-droid.org/packages/com.buge.files"),
-        Triple("Telegram", Icons.Outlined.Send, "https://t.me/bugestudio")
+        Triple("Website", R.drawable.ic_web, "https://bugestudio.website/files/"),
+        Triple("GitHub", R.drawable.ic_github, "https://github.com/BugeStudioTeam/Buge-Files"),
+        Triple("F-Droid", R.drawable.ic_fdroid, "https://f-droid.org/packages/com.buge.files"),
+        Triple("Telegram", R.drawable.ic_telegram, "https://t.me/bugestudio")
     )
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(language.t("about")) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                links.forEach { (label, icon, url) ->
-                    val shape = RoundedCornerShape(14.dp)
-                    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().clip(shape).clickable {
-                        runCatching { uriHandler.openUri(url) }
-                        onDismiss()
-                    }) {
-                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(label, style = MaterialTheme.typography.titleMedium)
-                                Text(url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                links.forEach { (label, iconRes, url) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
+                            runCatching { uriHandler.openUri(url) }
+                            onDismiss()
+                        }.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(painterResource(iconRes), null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(12.dp))
+                        Text(label, style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
