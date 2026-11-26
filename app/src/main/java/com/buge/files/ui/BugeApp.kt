@@ -309,10 +309,8 @@ fun BugeApp(
                             root = currentRoot,
                             roots = roots,
                             selectionCount = viewModel.selection.size,
-                            isSearching = viewModel.isSearching,
-                            query = viewModel.searchQuery,
                             titleText = when (viewModel.destination) {
-                                AppDestination.BROWSE -> viewModel.navigationPath.lastOrNull()?.label.orEmpty()
+                                AppDestination.BROWSE -> if (viewModel.navigationPath.size > 1) viewModel.navigationPath.lastOrNull()?.label.orEmpty() else ""
                                 AppDestination.RECENTS -> language.t("recents")
                                 AppDestination.FAVORITES -> language.t("favorites")
                                 AppDestination.STORAGE -> language.t("storage")
@@ -321,9 +319,6 @@ fun BugeApp(
                             showBrowseControls = viewModel.destination == AppDestination.BROWSE,
                             viewMode = settings.viewMode,
                             taskCount = tasks.size,
-                            onSearch = { viewModel.setSearchActive(true) },
-                            onQueryChange = viewModel::updateSearch,
-                            onCloseSearch = { viewModel.setSearchActive(false) },
                             onToggleRootMenu = { showRootMenu = !showRootMenu },
                             onSelectRoot = { viewModel.selectRoot(it, reportFailure = true); showRootMenu = false },
                             onShowTasks = { showTasks = true },
@@ -566,8 +561,7 @@ fun BugeApp(
 @Composable
 private fun BugeTopBar(
     language: AppLanguage, root: RootLocation?, roots: List<RootLocation>, selectionCount: Int,
-    isSearching: Boolean, query: String, titleText: String, showBrowseControls: Boolean, viewMode: ViewMode, taskCount: Int,
-    onSearch: () -> Unit, onQueryChange: (String) -> Unit, onCloseSearch: () -> Unit,
+    titleText: String, showBrowseControls: Boolean, viewMode: ViewMode, taskCount: Int,
     onToggleRootMenu: () -> Unit, onSelectRoot: (RootLocation) -> Unit, onShowTasks: () -> Unit, onShowActions: () -> Unit,
     onRefresh: () -> Unit, onCopyPath: () -> Unit,
     onChangeView: () -> Unit, onClearSelection: () -> Unit, onSelectAll: () -> Unit,
@@ -578,15 +572,7 @@ private fun BugeTopBar(
     var selectionMenu by remember { mutableStateOf(false) }
     var overflowMenu by remember { mutableStateOf(false) }
     CenterAlignedTopAppBar(
-        title = {
-            if (isSearching) {
-                OutlinedTextField(
-                    value = query, onValueChange = onQueryChange, singleLine = true,
-                    placeholder = { Text(language.t("search")) }, leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                )
-            } else Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        },
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         navigationIcon = {
             if (showBrowseControls) when {
                 selectionCount > 0 -> IconButton(onClick = onClearSelection) { Icon(Icons.Outlined.Close, language.t("done")) }
@@ -625,9 +611,7 @@ private fun BugeTopBar(
                         }
                     }
                 }
-                isSearching -> IconButton(onClick = onCloseSearch) { Icon(Icons.Outlined.Close, language.t("done")) }
                 else -> {
-                    IconButton(onClick = onSearch) { Icon(Icons.Outlined.Search, language.t("search")) }
                     IconButton(onClick = onChangeView) { Icon(if (viewMode == ViewMode.LIST) Icons.Outlined.GridView else Icons.AutoMirrored.Outlined.List, language.t("view")) }
                     Box {
                         IconButton(onClick = { overflowMenu = true }) { Icon(Icons.Outlined.MoreVert, language.t("more")) }
@@ -703,7 +687,7 @@ private fun navigationItems(language: AppLanguage, showRecents: Boolean): List<T
     add(Triple(AppDestination.SETTINGS, Icons.Outlined.Settings, language.t("settings")))
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun BrowseScreen(
     viewModel: BugeViewModel, modifier: Modifier, language: AppLanguage, root: RootLocation?, directStorageAvailable: Boolean, path: List<RootLocation>, entries: List<FileEntry>,
@@ -719,6 +703,18 @@ private fun BrowseScreen(
         return
     }
     val pathKey = path.joinToString("/") { it.uri.toString() }
+    val browseSearchText = rememberTextFieldState()
+    val browseSearchState = rememberContainedSearchBarState()
+    val browseSearchScope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        snapshotFlow { browseSearchText.text.toString() }.collectLatest { text ->
+            if (text != viewModel.searchQuery) viewModel.updateSearch(text)
+            viewModel.setSearchActive(text.isNotBlank())
+        }
+    }
+    LaunchedEffect(viewModel.searchQuery) {
+        if (viewModel.searchQuery != browseSearchText.text.toString()) browseSearchText.setTextAndPlaceCursorAtEnd(viewModel.searchQuery)
+    }
     val savedPosition = remember(pathKey) { viewModel.browseScrollPosition(path) }
     val listState = remember(pathKey) {
         LazyListState(savedPosition?.index ?: 0, savedPosition?.offset ?: 0)
@@ -771,6 +767,23 @@ private fun BrowseScreen(
         translationX = slideOffset.value
         alpha = 1f - (kotlin.math.abs(slideOffset.value) / slideDistance.coerceAtLeast(1f)) * 0.25f
     }) {
+            SearchBar(
+                state = browseSearchState,
+                inputField = {
+                    SearchBarDefaults.InputField(
+                        textFieldState = browseSearchText,
+                        searchBarState = browseSearchState,
+                        colors = SearchBarDefaults.containedColors(state = browseSearchState).inputFieldColors,
+                        onSearch = { browseSearchScope.launch { browseSearchState.animateToCollapsed() } },
+                        placeholder = { Text(language.t("search")) },
+                        leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                        trailingIcon = {
+                            if (browseSearchText.text.isNotEmpty()) IconButton(onClick = { browseSearchText.setTextAndPlaceCursorAtEnd("") }) { Icon(Icons.Outlined.Close, null) }
+                        }
+                    )
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
+            )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 2.dp)
