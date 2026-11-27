@@ -2152,14 +2152,14 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
                     IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, language.t("close")) }
                     Column(Modifier.weight(1f)) {
                         Text(file.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("${codeLanguage(file)} · ${content.lineSequence().count()} ${language.t("lines")}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${codeLanguage(file)} · ${content.count { it == '\n' } + 1} ${language.t("lines")}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     FilledTonalButton(onClick = onSave, enabled = !loading) { Text(language.t("save")) }
                 }
                 if (loading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
                 } else {
-                    val lineCount = content.lineSequence().count().coerceAtLeast(1)
+                    val lineCount = (content.count { it == '\n' } + 1).coerceAtLeast(1)
                     val lineNumbers = remember(content) { (1..lineCount).joinToString("\n") }
                     val editorScroll = rememberScrollState()
                     val editorStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurface)
