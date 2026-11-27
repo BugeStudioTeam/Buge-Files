@@ -42,6 +42,7 @@ class SettingsRepository(private val context: Context) {
         val autoRemount = booleanPreferencesKey("auto_remount")
         val roots = stringSetPreferencesKey("roots")
         val bookmarks = stringSetPreferencesKey("bookmarks")
+        val fileFavorites = stringSetPreferencesKey("file_favorites")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
@@ -79,6 +80,10 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.bookmarks].orEmpty().mapNotNull(::decodeLocation).sortedBy { it.label.lowercase() }
     }
 
+    val fileFavorites: Flow<List<RootLocation>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.fileFavorites].orEmpty().mapNotNull(::decodeLocation).sortedBy { it.label.lowercase() }
+    }
+
     suspend fun update(settings: AppSettings) = context.dataStore.edit { prefs ->
         prefs[Keys.theme] = settings.theme.name
         prefs[Keys.colorSource] = settings.colorSource.name
@@ -111,6 +116,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun removeRoot(uri: Uri) = context.dataStore.edit { prefs ->
         prefs[Keys.roots] = prefs[Keys.roots].orEmpty().filterNot { decodeLocation(it)?.uri == uri }.toSet()
         prefs[Keys.bookmarks] = prefs[Keys.bookmarks].orEmpty().filterNot { decodeLocation(it)?.uri == uri }.toSet()
+        prefs[Keys.fileFavorites] = prefs[Keys.fileFavorites].orEmpty().filterNot { decodeLocation(it)?.uri == uri }.toSet()
     }
 
     suspend fun toggleBookmark(location: RootLocation) = context.dataStore.edit { prefs ->
@@ -118,6 +124,13 @@ class SettingsRepository(private val context: Context) {
         val encoded = encodeLocation(location)
         val contains = existing.any { decodeLocation(it)?.uri == location.uri }
         prefs[Keys.bookmarks] = if (contains) existing.filterNot { decodeLocation(it)?.uri == location.uri }.toSet() else existing + encoded
+    }
+
+    suspend fun toggleFileFavorite(location: RootLocation) = context.dataStore.edit { prefs ->
+        val existing = prefs[Keys.fileFavorites].orEmpty()
+        val encoded = encodeLocation(location)
+        val contains = existing.any { decodeLocation(it)?.uri == location.uri }
+        prefs[Keys.fileFavorites] = if (contains) existing.filterNot { decodeLocation(it)?.uri == location.uri }.toSet() else existing + encoded
     }
 
     private inline fun <reified T : Enum<T>> enumValue(value: String?, default: T): T =

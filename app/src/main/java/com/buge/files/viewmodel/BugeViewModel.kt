@@ -88,6 +88,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _bookmarks = MutableStateFlow<List<RootLocation>>(emptyList())
     val bookmarks: StateFlow<List<RootLocation>> = _bookmarks.asStateFlow()
+    private val _fileFavorites = MutableStateFlow<List<RootLocation>>(emptyList())
+    val fileFavorites: StateFlow<List<RootLocation>> = _fileFavorites.asStateFlow()
 
     private val _currentRoot = MutableStateFlow<RootLocation?>(null)
     val currentRoot: StateFlow<RootLocation?> = _currentRoot.asStateFlow()
@@ -104,6 +106,8 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     var destination by mutableStateOf(AppDestination.BROWSE)
         private set
     var navigationDirection by mutableStateOf(NavigationDirection.FORWARD)
+        private set
+    var returnDestination by mutableStateOf<AppDestination?>(null)
         private set
     var navigationPath by mutableStateOf<List<RootLocation>>(emptyList())
         private set
@@ -233,9 +237,11 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         refreshDirectStorageAccess(preferDirect = false)
         detectRootAccess()
         viewModelScope.launch { settingsRepository.bookmarks.collect { _bookmarks.value = it } }
+        viewModelScope.launch { settingsRepository.fileFavorites.collect { _fileFavorites.value = it } }
     }
 
     fun selectDestination(value: AppDestination) {
+        returnDestination = null
         destination = value
         isSearching = false
         searchQuery = ""
@@ -410,6 +416,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         return root.takeIf { accessible }?.let { RootLocation(Uri.fromFile(it), "Internal storage") }
     }
     fun selectRoot(location: RootLocation, reportFailure: Boolean = false) {
+        returnDestination = null
         navigationDirection = NavigationDirection.FORWARD
         archiveStack.clear()
         _currentRoot.value = location
@@ -421,6 +428,7 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openBookmark(location: RootLocation) {
+        returnDestination = AppDestination.FAVORITES
         navigationDirection = NavigationDirection.FORWARD
         archiveStack.clear()
         destination = AppDestination.BROWSE
@@ -706,6 +714,15 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun hasReturnDestination(): Boolean = returnDestination != null
+
+    fun leaveBrowseToPrevious(): Boolean {
+        val target = returnDestination ?: return false
+        returnDestination = null
+        destination = target
+        return true
+    }
+
     fun isInsideArchive(): Boolean = archiveStack.isNotEmpty() && navigationPath.size == 1
 
     fun leaveArchive(): Boolean {
@@ -839,6 +856,9 @@ class BugeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleBookmark(location: RootLocation) = viewModelScope.launch { settingsRepository.toggleBookmark(location) }
+    fun toggleFileFavorite(entry: FileEntry) = viewModelScope.launch { settingsRepository.toggleFileFavorite(RootLocation(entry.uri, entry.name)) }
+    fun toggleFileFavorite(location: RootLocation) = viewModelScope.launch { settingsRepository.toggleFileFavorite(location) }
+    fun isFileFavorite(entry: FileEntry) = _fileFavorites.value.any { it.uri == entry.uri }
     fun isBookmarked(location: RootLocation) = _bookmarks.value.any { it.uri == location.uri }
 
     fun setInstalling(value: Boolean) { installInProgress = value }
