@@ -12,6 +12,9 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -53,6 +56,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
@@ -362,7 +366,11 @@ fun BugeApp(
                     },
                     floatingActionButton = {
                         if (viewModel.destination == AppDestination.BROWSE && currentRoot != null && !viewModel.isSearching) {
-                            AnimatedVisibility(visible = createFabVisible) {
+                            AnimatedVisibility(
+                                visible = createFabVisible,
+                                enter = slideInVertically(animationSpec = tween(180), initialOffsetY = { it }),
+                                exit = slideOutVertically(animationSpec = tween(140), targetOffsetY = { it })
+                            ) {
                             when (settings.fabStyle) {
                                 FabStyle.EXTENDED -> Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     ExtendedFloatingActionButton(
@@ -2138,7 +2146,7 @@ private fun SignatureDialog(title: String, signatures: List<String>, language: A
 @Composable
 private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean, language: AppLanguage, onContentChange: (String) -> Unit, onSave: () -> Unit, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        Surface(modifier = Modifier.fillMaxSize().imePadding(), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, language.t("close")) }
@@ -2155,14 +2163,15 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
                     val lineNumbers = remember(content) { (1..lineCount).joinToString("\n") }
                     val editorScroll = rememberScrollState()
                     val editorStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurface)
+                    val lineHeightDp = with(LocalDensity.current) { 20.sp.toDp() }
                     Row(Modifier.fillMaxSize().padding(12.dp)) {
                         Row(Modifier.fillMaxSize().verticalScroll(editorScroll)) {
-                            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(52.dp)) {
+                            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(56.dp)) {
                                 Text(
                                     text = lineNumbers,
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 16.dp),
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = lineHeightDp * lineCount.toFloat() + 32.dp).padding(horizontal = 8.dp, vertical = 16.dp),
                                     textAlign = TextAlign.End,
-                                    style = editorStyle.copy(fontSize = 11.sp),
+                                    style = editorStyle.copy(fontSize = 12.sp, lineHeight = 20.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
