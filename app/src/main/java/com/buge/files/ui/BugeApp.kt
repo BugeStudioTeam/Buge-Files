@@ -201,6 +201,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -2148,7 +2149,10 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(modifier = Modifier.fillMaxSize().imePadding(), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxSize()) {
-                Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, language.t("close")) }
                     Column(Modifier.weight(1f)) {
                         Text(file.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -2159,43 +2163,59 @@ private fun CodeEditorScreen(file: FileEntry, content: String, loading: Boolean,
                 if (loading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
                 } else {
-                    val lineCount = (content.count { it == '\n' } + 1).coerceAtLeast(1)
-                    val lineNumbers = remember(content) { (1..lineCount).joinToString("\n") }
-                    val editorScroll = rememberScrollState()
                     val editorStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, lineHeight = 20.sp, color = MaterialTheme.colorScheme.onSurface)
-                    val lineHeightDp = with(LocalDensity.current) { 20.sp.toDp() }
-                    Row(Modifier.fillMaxSize().padding(12.dp)) {
-                        Row(Modifier.fillMaxSize().verticalScroll(editorScroll)) {
-                            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(56.dp)) {
-                                Text(
-                                    text = lineNumbers,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = lineHeightDp * lineCount.toFloat() + 32.dp).padding(horizontal = 8.dp, vertical = 16.dp),
-                                    textAlign = TextAlign.End,
-                                    style = editorStyle.copy(fontSize = 12.sp, lineHeight = 20.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            BasicTextField(
-                                value = content,
-                                onValueChange = onContentChange,
-                                modifier = Modifier.weight(1f),
-                                textStyle = editorStyle,
-                                singleLine = false,
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                decorationBox = { innerTextField ->
-                                    Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 16.dp)) {
-                                        if (content.isEmpty()) Text(language.t("code_editor"), style = editorStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        innerTextField()
-                                    }
-                                }
+                    val gutterStyle = editorStyle.copy(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val logicalLines = (content.count { it == '\n' } + 1).coerceAtLeast(1)
+                    var gutterText by remember { mutableStateOf((1..logicalLines).joinToString("\n")) }
+                    val editorScroll = rememberScrollState()
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp).verticalScroll(editorScroll)
+                    ) {
+                        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.width(64.dp)) {
+                            Text(
+                                text = gutterText,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 16.dp),
+                                textAlign = TextAlign.End,
+                                style = gutterStyle
                             )
                         }
+                        Spacer(Modifier.width(8.dp))
+                        BasicTextField(
+                            value = content,
+                            onValueChange = onContentChange,
+                            modifier = Modifier.weight(1f),
+                            textStyle = editorStyle,
+                            singleLine = false,
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            onTextLayout = { layout ->
+                                val updated = buildGutterText(layout, content)
+                                if (updated != gutterText) gutterText = updated
+                            },
+                            decorationBox = { innerTextField ->
+                                Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 16.dp)) {
+                                    if (content.isEmpty()) Text(language.t("code_editor"), style = editorStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    innerTextField()
+                                }
+                            }
+                        )
                     }
                 }
             }
         }
     }
+}
+
+private fun buildGutterText(layout: TextLayoutResult, content: String): String {
+    val builder = StringBuilder()
+    var logical = 0
+    for (index in 0 until layout.lineCount) {
+        val start = layout.getLineStart(index)
+        val startsLogicalLine = start == 0 || content.getOrNull(start - 1) == '\n'
+        if (startsLogicalLine) logical++
+        if (index > 0) builder.append('\n')
+        if (startsLogicalLine) builder.append(logical)
+    }
+    return builder.toString()
 }
 
 @Composable
