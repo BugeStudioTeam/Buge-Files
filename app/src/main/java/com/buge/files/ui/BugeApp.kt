@@ -1251,14 +1251,14 @@ private fun StorageRing(categories: List<StorageCategory>, total: Long, modifier
         if (total <= 0L) return@Canvas
         val radius = diameter / 2f
         val capDegrees = if (radius > 0f) stroke / radius * 57.2958f else 0f
-        val minimumGap = capDegrees + 6f
+        val minimumGap = capDegrees + 2f
         var start = -90f
         categories.filter { it.value > 0L }.forEach { category ->
             val sweep = category.value.toFloat() / total.toFloat() * 360f * progress
-            if (sweep <= minimumGap + 2f) {
+            if (sweep <= minimumGap) {
                 drawArc(category.color, start, sweep, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Butt))
             } else {
-                val gap = (sweep * 0.3f).coerceIn(minimumGap + 2f, 24f)
+                val gap = (sweep * 0.15f).coerceIn(minimumGap, 12f)
                 drawArc(category.color, start + gap / 2f, (sweep - gap).coerceAtLeast(0f), false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
             }
             start += sweep
