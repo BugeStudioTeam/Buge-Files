@@ -1243,18 +1243,16 @@ private fun StorageSummaryCard(categories: List<StorageCategory>, data: StorageB
 @Composable
 private fun StorageRing(categories: List<StorageCategory>, total: Long, modifier: Modifier) {
     val progress by animateFloatAsState(targetValue = if (total > 0L) 1f else 0f, animationSpec = tween(700), label = "storageRing")
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
     Canvas(modifier) {
-        val stroke = 18.dp.toPx()
+        val stroke = 14.dp.toPx()
         val diameter = size.minDimension - stroke
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         val arcSize = Size(diameter, diameter)
-        drawArc(track, -90f, 360f, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
         if (total <= 0L) return@Canvas
         var start = -90f
         categories.filter { it.value > 0L }.forEach { category ->
             val sweep = category.value.toFloat() / total.toFloat() * 360f * progress
-            val gap = (sweep * 0.25f).coerceIn(6f, 14f)
+            val gap = (sweep * 0.3f).coerceIn(10f, 20f)
             drawArc(category.color, start + gap / 2f, (sweep - gap).coerceAtLeast(0.5f), false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
             start += sweep
         }
