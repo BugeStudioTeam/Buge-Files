@@ -79,7 +79,16 @@ data class StorageBreakdown(
     val archives: Long = 0,
     val other: Long = 0,
     val files: Int = 0,
-    val folders: Int = 0
+    val folders: Int = 0,
+    val documentFiles: Int = 0,
+    val imageFiles: Int = 0,
+    val videoFiles: Int = 0,
+    val audioFiles: Int = 0,
+    val archiveFiles: Int = 0,
+    val otherFiles: Int = 0,
+    val capacity: Long = 0,
+    val free: Long = 0,
+    val largestFiles: List<FileEntry> = emptyList()
 ) {
     val total: Long get() = documents + images + videos + audio + archives + other
 }

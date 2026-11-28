@@ -6,6 +6,8 @@ package com.buge.files
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import android.os.Environment
+import android.os.StatFs
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.documentfile.provider.DocumentFile
@@ -155,15 +157,22 @@ class FileRepository(
     suspend fun calculateStorage(rootUri: Uri, showHidden: Boolean): StorageBreakdown = withContext(Dispatchers.IO) {
         var documents = 0L; var images = 0L; var videos = 0L; var audio = 0L; var archives = 0L; var other = 0L
         var files = 0; var folders = 0; var scanned = 0
+        var documentFiles = 0; var imageFiles = 0; var videoFiles = 0; var audioFiles = 0; var archiveFiles = 0; var otherFiles = 0
+        val largest = mutableListOf<FileEntry>()
         fun count(entry: FileEntry) {
             files++
             when (category(entry)) {
-                "image" -> images += entry.size
-                "video" -> videos += entry.size
-                "audio" -> audio += entry.size
-                "archive" -> archives += entry.size
-                "document" -> documents += entry.size
-                else -> other += entry.size
+                "image" -> { images += entry.size; imageFiles++ }
+                "video" -> { videos += entry.size; videoFiles++ }
+                "audio" -> { audio += entry.size; audioFiles++ }
+                "archive" -> { archives += entry.size; archiveFiles++ }
+                "document" -> { documents += entry.size; documentFiles++ }
+                else -> { other += entry.size; otherFiles++ }
+            }
+            if (entry.size > 0L && (largest.size < 12 || entry.size > largest.last().size)) {
+                largest += entry
+                largest.sortByDescending { it.size }
+                if (largest.size > 12) largest.removeAt(12)
             }
         }
         if (isDirect(rootUri)) {
@@ -189,7 +198,16 @@ class FileRepository(
                 }
             }
         }
-        StorageBreakdown(documents, images, videos, audio, archives, other, files, (folders - 1).coerceAtLeast(0))
+        val statRoot = if (isDirect(rootUri)) rootUri.path else Environment.getExternalStorageDirectory()?.absolutePath
+        val stat = runCatching { statRoot?.let { StatFs(it) } }.getOrNull()
+        val capacity = stat?.totalBytes ?: 0L
+        val free = stat?.availableBytes ?: 0L
+        StorageBreakdown(
+            documents = documents, images = images, videos = videos, audio = audio, archives = archives, other = other,
+            files = files, folders = (folders - 1).coerceAtLeast(0),
+            documentFiles = documentFiles, imageFiles = imageFiles, videoFiles = videoFiles, audioFiles = audioFiles, archiveFiles = archiveFiles, otherFiles = otherFiles,
+            capacity = capacity, free = free, largestFiles = largest
+        )
     }
 
     suspend fun createFolder(parentUri: Uri, name: String): OperationResult = withContext(Dispatchers.IO) {
