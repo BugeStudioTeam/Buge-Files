@@ -210,6 +210,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -364,7 +365,7 @@ fun BugeApp(
                         )
                     },
                     bottomBar = {
-                        if (!wide) BugeNavigationBar(viewModel.destination, language, settings.showRecents, viewModel::selectDestination)
+                        if (!wide) BugeNavigationBar(viewModel.destination, language, settings.showRecents, viewModel::selectDestination, Modifier.zIndex(2f))
                     },
                     floatingActionButton = {
                         if (viewModel.destination == AppDestination.BROWSE && currentRoot != null && !viewModel.isSearching) {
@@ -692,8 +693,8 @@ private fun CreateFabMenu(expanded: Boolean, language: AppLanguage, onToggle: ()
 }
 
 @Composable
-private fun BugeNavigationBar(destination: AppDestination, language: AppLanguage, showRecents: Boolean, onSelect: (AppDestination) -> Unit) {
-    NavigationBar {
+private fun BugeNavigationBar(destination: AppDestination, language: AppLanguage, showRecents: Boolean, onSelect: (AppDestination) -> Unit, modifier: Modifier = Modifier) {
+    NavigationBar(modifier = modifier) {
         navigationItems(language, showRecents).forEach { item ->
             NavigationBarItem(selected = destination == item.first, onClick = { onSelect(item.first) }, icon = { Icon(item.second, null) }, label = { Text(item.third) })
         }
