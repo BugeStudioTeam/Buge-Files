@@ -183,6 +183,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -452,7 +453,10 @@ fun BugeApp(
                             )
                             AppDestination.STORAGE -> StorageScreen(
                                 modifier = Modifier.padding(padding), language = language, root = currentRoot, data = storage,
-                                loading = viewModel.isStorageLoading, onRequestFolder = onRequestFolder
+                                loading = viewModel.isStorageLoading, onRequestFolder = onRequestFolder,
+                                onRefresh = viewModel::refreshStorage,
+                                onOpenFile = { if (pickOnly) onOpenFile(it) else viewModel.openEntry(it, onOpenFile) },
+                                onInfo = viewModel::showInfo
                             )
                             AppDestination.SETTINGS -> SettingsScreen(
                                 modifier = Modifier.padding(padding), language = language, settings = settings,
@@ -1131,91 +1135,195 @@ private fun FavoritesScreen(modifier: Modifier, language: AppLanguage, items: Li
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StorageScreen(modifier: Modifier, language: AppLanguage, root: RootLocation?, data: StorageBreakdown, loading: Boolean, onRequestFolder: () -> Unit) {
+private fun StorageScreen(
+    modifier: Modifier,
+    language: AppLanguage,
+    root: RootLocation?,
+    data: StorageBreakdown,
+    loading: Boolean,
+    onRequestFolder: () -> Unit,
+    onRefresh: () -> Unit,
+    onOpenFile: (FileEntry) -> Unit,
+    onInfo: (FileEntry) -> Unit
+) {
     if (root == null) { EmptyLocationScreen(modifier, language, onRequestFolder); return }
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item { Text(language.t("storage"), style = MaterialTheme.typography.headlineLarge); Text(root.label, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (loading) item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+    val categories = listOf(
+        StorageCategory(language.t("documents"), data.documents, data.documentFiles, Color(0xFF7C4DFF), Icons.Outlined.Description),
+        StorageCategory(language.t("images"), data.images, data.imageFiles, Color(0xFFFF7A00), Icons.Outlined.Image),
+        StorageCategory(language.t("videos"), data.videos, data.videoFiles, Color(0xFF00C9A7), Icons.Outlined.VideoFile),
+        StorageCategory(language.t("audio"), data.audio, data.audioFiles, Color(0xFFFF4D8D), Icons.Outlined.AudioFile),
+        StorageCategory(language.t("archives"), data.archives, data.archiveFiles, Color(0xFF3D9BFF), Icons.Outlined.Archive),
+        StorageCategory(language.t("other"), data.other, data.otherFiles, Color(0xFF8BC34A), Icons.Outlined.FileOpen)
+    )
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
-            ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-                Column(Modifier.padding(22.dp)) {
-                    Text(language.t("total"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text(formatBytes(data.total), style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Spacer(Modifier.height(10.dp)); Text("${data.files} ${language.t("files")} · ${data.folders} ${language.t("folders")}", color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(language.t("storage"), style = MaterialTheme.typography.headlineLarge)
+                    Text(root.label, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
+                IconButton(onClick = onRefresh) { Icon(Icons.Outlined.Refresh, null) }
             }
         }
-        item { Text(language.t("files"), style = MaterialTheme.typography.titleLarge) }
+        if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        item { StorageSummaryCard(categories, data) }
         item {
-            val slices = listOf(
-                StorageSlice(language.t("documents"), data.documents, Color(0xFF7C4DFF), Icons.Outlined.Description),
-                StorageSlice(language.t("images"), data.images, Color(0xFFFF7A00), Icons.Outlined.Image),
-                StorageSlice(language.t("videos"), data.videos, Color(0xFF00C9A7), Icons.Outlined.VideoFile),
-                StorageSlice(language.t("audio"), data.audio, Color(0xFFFF4D8D), Icons.Outlined.AudioFile),
-                StorageSlice(language.t("archives"), data.archives, Color(0xFF3D9BFF), Icons.Outlined.Archive),
-                StorageSlice(language.t("other"), data.other, Color(0xFF8BC34A), Icons.Outlined.FileOpen)
-            )
-            StorageChartCard(slices, data.total, data.files, language)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StorageStatCard(formatCount(data.files), language.t("files"), Icons.Outlined.FileOpen, Color(0xFF7C4DFF), Modifier.weight(1f))
+                StorageStatCard(formatCount(data.folders), language.t("folders"), Icons.Outlined.FolderOpen, Color(0xFFFF7A00), Modifier.weight(1f))
+                StorageStatCard(
+                    if (data.files > 0) formatBytes(data.total / data.files) else "0 B",
+                    "Average",
+                    Icons.Outlined.Storage,
+                    Color(0xFF00C9A7),
+                    Modifier.weight(1f)
+                )
+            }
+        }
+        item { Text("By type", style = MaterialTheme.typography.titleLarge) }
+        item {
+            if (data.files == 0 && data.total == 0L && !loading) {
+                EmptyStorageState(language)
+            } else {
+                StorageCategoriesCard(categories, data.total, language)
+            }
+        }
+        if (data.largestFiles.isNotEmpty()) {
+            item { Text("Largest files", style = MaterialTheme.typography.titleLarge) }
+            items(data.largestFiles, key = { it.uri.toString() }) { entry ->
+                LargestFileRow(entry, language, onOpenFile, onInfo)
+            }
         }
     }
 }
 
-private data class StorageSlice(val label: String, val value: Long, val color: Color, val icon: ImageVector)
+private data class StorageCategory(val label: String, val value: Long, val count: Int, val color: Color, val icon: ImageVector)
 
 @Composable
-private fun StorageChartCard(slices: List<StorageSlice>, total: Long, files: Int, language: AppLanguage) {
-    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StorageSummaryCard(categories: List<StorageCategory>, data: StorageBreakdown) {
+    val total = data.total
+    val used = if (data.capacity > 0L) (data.capacity - data.free).coerceAtLeast(total) else total
+    val usedFraction = if (data.capacity > 0L) (used.toFloat() / data.capacity.toFloat()).coerceIn(0f, 1f) else 0f
+    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+        Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(contentAlignment = Alignment.Center) {
-                StoragePieChart(slices, total, Modifier.size(200.dp))
+                StorageRing(categories, total, Modifier.size(190.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(formatBytes(total), style = MaterialTheme.typography.titleLarge)
-                    Text("$files ${language.t("files")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(formatBytes(if (data.capacity > 0L) used else total), style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(if (data.capacity > 0L) "of ${formatBytes(data.capacity)}" else "Used", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
-            Spacer(Modifier.height(20.dp))
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                slices.forEach { slice -> StorageLegendRow(slice, total) }
+            if (data.capacity > 0L) {
+                Spacer(Modifier.height(18.dp))
+                Box(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                    Box(Modifier.fillMaxWidth(usedFraction).fillMaxHeight().clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Free ${formatBytes(data.free)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("${(usedFraction * 100).toInt()}% used", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun StoragePieChart(slices: List<StorageSlice>, total: Long, modifier: Modifier = Modifier) {
+private fun StorageRing(categories: List<StorageCategory>, total: Long, modifier: Modifier) {
+    val progress by animateFloatAsState(targetValue = if (total > 0L) 1f else 0f, animationSpec = tween(700), label = "storageRing")
     val track = MaterialTheme.colorScheme.surfaceContainerHighest
     Canvas(modifier) {
-        val stroke = 34.dp.toPx()
+        val stroke = 26.dp.toPx()
         val diameter = size.minDimension - stroke
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         val arcSize = Size(diameter, diameter)
-        if (total <= 0L) {
-            drawArc(track, -90f, 360f, false, topLeft, arcSize, style = Stroke(stroke))
-            return@Canvas
-        }
+        drawArc(track, -90f, 360f, false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+        if (total <= 0L) return@Canvas
         var start = -90f
-        slices.filter { it.value > 0L }.forEach { slice ->
-            val sweep = slice.value.toFloat() / total.toFloat() * 360f
-            drawArc(slice.color, start, sweep, false, topLeft, arcSize, style = Stroke(stroke))
+        categories.filter { it.value > 0L }.forEach { category ->
+            val sweep = category.value.toFloat() / total.toFloat() * 360f * progress
+            val gap = (sweep * 0.04f).coerceIn(0f, 3f)
+            drawArc(category.color, start + gap, (sweep - gap * 2f).coerceAtLeast(0.5f), false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
             start += sweep
         }
     }
 }
 
 @Composable
-private fun StorageLegendRow(slice: StorageSlice, total: Long) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Box(Modifier.size(12.dp).background(slice.color, CircleShape)) {}
-        Spacer(Modifier.width(10.dp))
-        Icon(slice.icon, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(8.dp))
-        Text(slice.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(if (total <= 0L) "0%" else "%.0f%%".format(slice.value * 100.0 / total), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(12.dp))
-        Text(formatBytes(slice.value), style = MaterialTheme.typography.labelLarge)
+private fun StorageStatCard(value: String, label: String, icon: ImageVector, color: Color, modifier: Modifier) {
+    Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = modifier) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
+            Surface(shape = CircleShape, color = color.copy(alpha = 0.16f), modifier = Modifier.size(30.dp)) {
+                Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(18.dp)) }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
+
+@Composable
+private fun StorageCategoriesCard(categories: List<StorageCategory>, total: Long, language: AppLanguage) {
+    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            categories.forEach { category ->
+                val fraction = if (total > 0L) (category.value.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = CircleShape, color = category.color.copy(alpha = 0.16f), modifier = Modifier.size(40.dp)) {
+                        Box(contentAlignment = Alignment.Center) { Icon(category.icon, null, tint = category.color, modifier = Modifier.size(22.dp)) }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(category.label, style = MaterialTheme.typography.titleMedium)
+                            Text(formatBytes(category.value), style = MaterialTheme.typography.labelLarge)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                            Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().clip(CircleShape).background(category.color))
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text("${category.count} ${language.t("files")} · ${(fraction * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LargestFileRow(entry: FileEntry, language: AppLanguage, onOpen: (FileEntry) -> Unit, onInfo: (FileEntry) -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().clip(shape).clickable { onOpen(entry) }) {
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            FileGlyph(iconFor(entry), false, 22.dp, entry = entry)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(entry.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${entry.extension.uppercase()} · ${formatDate(entry.lastModified)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text(formatBytes(entry.size), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 8.dp))
+            IconButton(onClick = { onInfo(entry) }) { Icon(Icons.Outlined.Info, null) }
+        }
+    }
+}
+
+@Composable
+private fun EmptyStorageState(language: AppLanguage) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(72.dp)) {
+            Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Storage, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(34.dp)) }
+        }
+        Spacer(Modifier.height(14.dp))
+        Text(language.t("empty"), style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+private fun formatCount(count: Int): String = if (count > 9999) "${count / 1000}k" else count.toString()
+
 
 private enum class AppearanceDialog { THEME, COLOR, LANGUAGE }
 
