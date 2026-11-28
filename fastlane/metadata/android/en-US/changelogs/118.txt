@@ -1,0 +1,56 @@
+**2.43.75**
+
+**Added**
+- Recents tab disable toggle (proposed by @Viktor_Orban_67)
+- New button style selection: Extended / Icon only / Expressive expanded menu (issue #24 by @CompulsiveRacoon)
+- Pure black theme (issue #22 by @CompulsiveRacoon)
+- System font option (issue #23 by @CompulsiveRacoon)
+- Root system partition auto-remount to read-write (system, system_ext, product, vendor, etc.) (issue #21 by @glxguard)
+- Material3 Expressive fullscreen search on browse page
+- Separate install dialog
+- About link dialog
+- File favorites: favorite files via multi-select menu on browse page; favorites page can display/open favorited files (issue #26 by @CompulsiveRacoon)
+- Long-press action dialog on favorites page (open/unfavorite) instead of direct deletion (issue #26 by @CompulsiveRacoon)
+- Return to Favorites tab after entering a directory from favorites (issue #26 by @CompulsiveRacoon)
+- New button slides out/in quickly on scroll
+- Hide top bar storage, search, view, and more buttons on non-browse pages
+- Complete rewrite of text editor
+
+**Fixes**
+- pm install parsing failure when installing APK read from Android/data (now staged in /data/local/tmp)
+- Install failure message not copyable
+- setInstallCompleted JVM signature conflict
+- Search box not showing keyboard on tap
+- Back key behavior during search input
+- Settings search showing only group names, not specific options
+- Retention/clearing logic after exiting settings search
+- About icon resource ?attr/colorControlNormal link failure
+- About tab press corner radius not changing
+- Navigation bar still gray in dark mode
+- All text bold when using system font
+- Bottom panel button text wrapping and letters dropping to next line (issue #23 by @CompulsiveRacoon, reported by @Viktor_Orban_67)
+- Empty folder prompt text left-aligned (issue #26 by @CompulsiveRacoon)
+- Inconsistent style between APK install and cancel buttons
+- Text editor keyboard obscuring content (issue #27 by @gay71)
+- Last few lines in text editor missing line numbers (reported by @gay71)
+- Favorites/recents density inconsistent with browse page (issue #24 by @CompulsiveRacoon)
+- Residual "Internal storage" text at top of browse page
+- Top blank space/path and top bar spacing issues on browse page
+
+**Optimizations**
+- Upgraded Compose BOM to 2026.11.01, Material3 1.5.0, Kotlin 2.2.20
+- Adopted official FloatingActionButtonMenu, ToggleFloatingActionButton, FloatingActionButtonMenuItem
+- Adopted official Expressive SearchBar + ExpandedFullScreenContainedSearchBar
+- Storage chart updated to brighter, more diverse Material 3 Expressive colors
+- Wider settings cards with added descriptions
+- Icon-mode new button changed to 56dp for height consistency with other modes
+- Applied Compact density to favorites and recents lists
+- Removed link text and option backgrounds from About dialog
+- Text editor line numbers generated per actual visual line; continuation lines left blank for alignment
+- Completely rewrote Storage page
+
+**Contributors of this version:**
+- @Viktor_Orban_67
+- @CompulsiveRacoon
+- @glxguard
+- @gay71

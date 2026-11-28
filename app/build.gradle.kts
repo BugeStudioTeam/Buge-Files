@@ -27,8 +27,8 @@ android {
         applicationId = "com.buge.files"
         minSdk = 26
         targetSdk = 37
-        versionCode = 54
-        versionName = "2.25.30"
+        versionCode = 118
+        versionName = "2.43.75"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
