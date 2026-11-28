@@ -1168,9 +1168,10 @@ private fun StorageScreen(
             }
         }
         if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-        item { StorageSummaryCard(categories, data) }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            StorageSummaryCard(categories, data)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 StorageStatCard(formatCount(data.files), language.t("files"), Icons.Outlined.FileOpen, Color(0xFF7C4DFF), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomEnd = 4.dp, bottomStart = 24.dp), Modifier.weight(1f))
                 StorageStatCard(formatCount(data.folders), language.t("folders"), Icons.Outlined.FolderOpen, Color(0xFFFF7A00), RoundedCornerShape(4.dp), Modifier.weight(1f))
                 StorageStatCard(
@@ -1181,6 +1182,7 @@ private fun StorageScreen(
                     RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomEnd = 24.dp, bottomStart = 4.dp),
                     Modifier.weight(1f)
                 )
+            }
             }
         }
         item { Text("By type", style = MaterialTheme.typography.titleLarge) }
@@ -1243,7 +1245,7 @@ private fun StorageRing(categories: List<StorageCategory>, total: Long, modifier
     val progress by animateFloatAsState(targetValue = if (total > 0L) 1f else 0f, animationSpec = tween(700), label = "storageRing")
     val track = MaterialTheme.colorScheme.surfaceContainerHighest
     Canvas(modifier) {
-        val stroke = 30.dp.toPx()
+        val stroke = 18.dp.toPx()
         val diameter = size.minDimension - stroke
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         val arcSize = Size(diameter, diameter)
@@ -1252,7 +1254,7 @@ private fun StorageRing(categories: List<StorageCategory>, total: Long, modifier
         var start = -90f
         categories.filter { it.value > 0L }.forEach { category ->
             val sweep = category.value.toFloat() / total.toFloat() * 360f * progress
-            val gap = (sweep * 0.3f).coerceIn(0.5f, 8f)
+            val gap = (sweep * 0.2f).coerceIn(4f, 10f)
             drawArc(category.color, start + gap / 2f, (sweep - gap).coerceAtLeast(0.5f), false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
             start += sweep
         }
