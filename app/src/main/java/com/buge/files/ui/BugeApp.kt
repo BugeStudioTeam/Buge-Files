@@ -1169,9 +1169,9 @@ private fun StorageScreen(
         }
         if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         item {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             StorageSummaryCard(categories, data)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 StorageStatCard(formatCount(data.files), language.t("files"), Icons.Outlined.FileOpen, Color(0xFF7C4DFF), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomEnd = 4.dp, bottomStart = 24.dp), Modifier.weight(1f))
                 StorageStatCard(formatCount(data.folders), language.t("folders"), Icons.Outlined.FolderOpen, Color(0xFFFF7A00), RoundedCornerShape(4.dp), Modifier.weight(1f))
                 StorageStatCard(
@@ -1254,7 +1254,7 @@ private fun StorageRing(categories: List<StorageCategory>, total: Long, modifier
         var start = -90f
         categories.filter { it.value > 0L }.forEach { category ->
             val sweep = category.value.toFloat() / total.toFloat() * 360f * progress
-            val gap = (sweep * 0.2f).coerceIn(4f, 10f)
+            val gap = (sweep * 0.25f).coerceIn(6f, 14f)
             drawArc(category.color, start + gap / 2f, (sweep - gap).coerceAtLeast(0.5f), false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
             start += sweep
         }
