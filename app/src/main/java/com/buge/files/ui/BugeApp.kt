@@ -1171,13 +1171,14 @@ private fun StorageScreen(
         item { StorageSummaryCard(categories, data) }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StorageStatCard(formatCount(data.files), language.t("files"), Icons.Outlined.FileOpen, Color(0xFF7C4DFF), Modifier.weight(1f))
-                StorageStatCard(formatCount(data.folders), language.t("folders"), Icons.Outlined.FolderOpen, Color(0xFFFF7A00), Modifier.weight(1f))
+                StorageStatCard(formatCount(data.files), language.t("files"), Icons.Outlined.FileOpen, Color(0xFF7C4DFF), RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomEnd = 4.dp, bottomStart = 24.dp), Modifier.weight(1f))
+                StorageStatCard(formatCount(data.folders), language.t("folders"), Icons.Outlined.FolderOpen, Color(0xFFFF7A00), RoundedCornerShape(4.dp), Modifier.weight(1f))
                 StorageStatCard(
                     if (data.files > 0) formatBytes(data.total / data.files) else "0 B",
                     "Average",
                     Icons.Outlined.Storage,
                     Color(0xFF00C9A7),
+                    RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomEnd = 24.dp, bottomStart = 4.dp),
                     Modifier.weight(1f)
                 )
             }
@@ -1192,8 +1193,12 @@ private fun StorageScreen(
         }
         if (data.largestFiles.isNotEmpty()) {
             item { Text("Largest files", style = MaterialTheme.typography.titleLarge) }
-            items(data.largestFiles, key = { it.uri.toString() }) { entry ->
-                LargestFileRow(entry, language, onOpenFile, onInfo)
+            item {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    data.largestFiles.forEachIndexed { index, entry ->
+                        LargestFileRow(entry, language, onOpenFile, onInfo, groupItemShape(index, data.largestFiles.size))
+                    }
+                }
             }
         }
     }
@@ -1206,7 +1211,10 @@ private fun StorageSummaryCard(categories: List<StorageCategory>, data: StorageB
     val total = data.total
     val used = if (data.capacity > 0L) (data.capacity - data.free).coerceAtLeast(total) else total
     val usedFraction = if (data.capacity > 0L) (used.toFloat() / data.capacity.toFloat()).coerceIn(0f, 1f) else 0f
-    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+    ElevatedCard(
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomEnd = 4.dp, bottomStart = 4.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
         Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(contentAlignment = Alignment.Center) {
                 StorageRing(categories, total, Modifier.size(190.dp))
@@ -1235,7 +1243,7 @@ private fun StorageRing(categories: List<StorageCategory>, total: Long, modifier
     val progress by animateFloatAsState(targetValue = if (total > 0L) 1f else 0f, animationSpec = tween(700), label = "storageRing")
     val track = MaterialTheme.colorScheme.surfaceContainerHighest
     Canvas(modifier) {
-        val stroke = 26.dp.toPx()
+        val stroke = 30.dp.toPx()
         val diameter = size.minDimension - stroke
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         val arcSize = Size(diameter, diameter)
@@ -1244,16 +1252,16 @@ private fun StorageRing(categories: List<StorageCategory>, total: Long, modifier
         var start = -90f
         categories.filter { it.value > 0L }.forEach { category ->
             val sweep = category.value.toFloat() / total.toFloat() * 360f * progress
-            val gap = (sweep * 0.04f).coerceIn(0f, 3f)
-            drawArc(category.color, start + gap, (sweep - gap * 2f).coerceAtLeast(0.5f), false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
+            val gap = (sweep * 0.3f).coerceIn(0.5f, 8f)
+            drawArc(category.color, start + gap / 2f, (sweep - gap).coerceAtLeast(0.5f), false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
             start += sweep
         }
     }
 }
 
 @Composable
-private fun StorageStatCard(value: String, label: String, icon: ImageVector, color: Color, modifier: Modifier) {
-    Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = modifier) {
+private fun StorageStatCard(value: String, label: String, icon: ImageVector, color: Color, shape: RoundedCornerShape, modifier: Modifier) {
+    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = modifier) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
             Surface(shape = CircleShape, color = color.copy(alpha = 0.16f), modifier = Modifier.size(30.dp)) {
                 Box(contentAlignment = Alignment.Center) { Icon(icon, null, tint = color, modifier = Modifier.size(18.dp)) }
@@ -1267,11 +1275,12 @@ private fun StorageStatCard(value: String, label: String, icon: ImageVector, col
 
 @Composable
 private fun StorageCategoriesCard(categories: List<StorageCategory>, total: Long, language: AppLanguage) {
-    ElevatedCard(colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            categories.forEach { category ->
-                val fraction = if (total > 0L) (category.value.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
-                Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        categories.forEachIndexed { index, category ->
+            val fraction = if (total > 0L) (category.value.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
+            val shape = groupItemShape(index, categories.size)
+            Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().clip(shape)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Surface(shape = CircleShape, color = category.color.copy(alpha = 0.16f), modifier = Modifier.size(40.dp)) {
                         Box(contentAlignment = Alignment.Center) { Icon(category.icon, null, tint = category.color, modifier = Modifier.size(22.dp)) }
                     }
@@ -1295,8 +1304,7 @@ private fun StorageCategoriesCard(categories: List<StorageCategory>, total: Long
 }
 
 @Composable
-private fun LargestFileRow(entry: FileEntry, language: AppLanguage, onOpen: (FileEntry) -> Unit, onInfo: (FileEntry) -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
+private fun LargestFileRow(entry: FileEntry, language: AppLanguage, onOpen: (FileEntry) -> Unit, onInfo: (FileEntry) -> Unit, shape: RoundedCornerShape) {
     Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().clip(shape).clickable { onOpen(entry) }) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             FileGlyph(iconFor(entry), false, 22.dp, entry = entry)
